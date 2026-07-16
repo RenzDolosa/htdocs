@@ -1,0 +1,167 @@
+/* ---- Settings shell: left nav + content ---- */
+.settings-panel{ padding: 0 !important; overflow: hidden; }
+.settings-shell{ display: flex; height: 100%; min-height: 0; }
+
+.settings-nav{
+  width: 220px; flex-shrink: 0; border-right: 1px solid var(--border);
+  background: var(--surface-sunk); padding: 12px 8px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.settings-nav-item{
+  display: block; width: 100%; text-align: left; background: none; border: none;
+  border-radius: 5px; padding: 9px 10px; font-size: 13px; font-weight: 500;
+  color: var(--ink-soft); cursor: pointer;
+}
+.settings-nav-item:hover{ background: var(--surface); color: var(--ink); }
+.settings-nav-item.active{ background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.settings-nav-item--stub{ cursor: not-allowed; opacity: 0.55; }
+.settings-nav-item--stub:hover{ background: none; color: var(--ink-soft); }
+
+.settings-nav-group-toggle{
+  display: flex; align-items: center; justify-content: space-between; width: 100%;
+  background: none; border: none; padding: 9px 10px; font-size: 13px; font-weight: 600;
+  color: var(--ink-soft); cursor: pointer; border-radius: 5px;
+}
+.settings-nav-group-toggle:hover{ background: var(--surface); color: var(--ink); }
+.settings-nav-group-toggle .chev{ font-size: 11px; transition: transform 0.15s ease; }
+.settings-nav-group-toggle.open .chev{ transform: rotate(180deg); }
+
+.settings-nav-sub{ display: flex; flex-direction: column; gap: 2px; padding-left: 10px; margin-top: 2px; }
+.settings-nav-sub[hidden]{ display: none; }
+.settings-nav-subitem{
+  display: block; width: 100%; text-align: left; background: none; border: none;
+  border-left: 2px solid var(--border); border-radius: 0 5px 5px 0;
+  padding: 8px 10px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer;
+}
+.settings-nav-subitem:hover{ background: var(--surface); color: var(--ink); }
+.settings-nav-subitem.active{ border-left-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+
+.settings-content{ flex: 1; min-width: 0; overflow-y: auto; padding: 20px 24px; }
+.settings-content h2{ font-family: var(--font-display); font-size: 20px; margin: 0 0 14px; color: var(--ink); }
+.settings-section[hidden]{ display: none; }
+
+.required-mark{ color: var(--bad); }
+.checkbox-inline{ display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-soft); font-weight: 500; margin-top: 6px; }
+.checkbox-inline input{ width: auto; }
+.field-row--3{ grid-template-columns: 1fr 1fr 1fr; }
+
+/* ---- Warehouse Information: tree + detail ---- */
+.warehouse-info-shell{ display: flex; gap: 18px; align-items: flex-start; }
+
+.warehouse-tree-panel{
+  width: 260px; flex-shrink: 0; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); overflow: hidden;
+}
+.warehouse-tree-toolbar{ display: flex; gap: 8px; padding: 10px; border-bottom: 1px solid var(--border); }
+.warehouse-tree{ padding: 6px; max-height: 560px; overflow-y: auto; }
+
+.wh-tree-empty{ font-size: 12px; color: var(--ink-faint); padding: 2px 8px 8px; font-style: italic; }
+.wh-tree-location-link{
+  display: block; background: none; border: none; cursor: pointer;
+  font-size: 11.5px; color: var(--steel); padding: 0 8px 6px 22px; text-align: left;
+}
+.wh-tree-location-link:hover{ text-decoration: underline; }
+
+.wh-tree-name-group{ margin-bottom: 6px; }
+.wh-tree-name-header{
+  display: flex; align-items: center; gap: 6px; width: 100%; text-align: left;
+  background: none; border: none; cursor: pointer; padding: 7px 8px;
+  font-size: 13px; font-weight: 600; color: var(--ink); border-radius: 5px;
+}
+.wh-tree-name-header:hover{ background: var(--surface-sunk); }
+.wh-tree-name-header.active{ background: var(--accent-soft); color: var(--accent-ink); }
+.wh-tree-caret{
+  display: inline-block; font-size: 10px; color: var(--ink-faint);
+  transition: transform 0.15s ease; cursor: pointer; padding: 4px;
+}
+.wh-tree-caret.collapsed{ transform: rotate(-90deg); }
+.wh-zone-list{ padding-left: 10px; }
+.wh-zone-list[hidden]{ display: none; }
+.wh-zone-item{ padding: 2px 4px; }
+.wh-zone-label{ display: block; padding: 7px 8px 0; font-size: 12.5px; color: var(--ink-soft); }
+
+.warehouse-detail-panel{
+  flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); padding: 18px 20px;
+}
+.warehouse-detail-empty{ color: var(--ink-faint); font-size: 13px; padding: 40px 0; text-align: center; }
+.warehouse-detail-title{
+  font-family: var(--font-display); font-size: 16px; margin: 0 0 16px; color: var(--ink);
+  display: flex; align-items: center; gap: 10px;
+}
+.warehouse-detail-actions{ display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--border); }
+
+/* ---- Warehouse location modal (position list) ---- */
+.loc-modal-body{ display: flex; gap: 16px; align-items: flex-start; min-height: 380px; }
+.loc-modal-tree{ width: 180px; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px; max-height: 460px; overflow-y: auto; }
+.area-tree-item{
+  display: block; width: 100%; text-align: left; background: none; border: none;
+  border-radius: 5px; padding: 7px 8px; font-size: 12.5px; color: var(--ink-soft); cursor: pointer;
+}
+.area-tree-item:hover{ background: var(--surface-sunk); color: var(--ink); }
+.area-tree-item.active{ background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.area-tree-empty{ font-size: 12px; color: var(--ink-faint); padding: 6px 8px; font-style: italic; }
+
+.loc-modal-main{ flex: 1; min-width: 0; }
+.loc-modal-toolbar{ display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+.loc-modal-toolbar .loc-search{
+  flex: 1; min-width: 140px; padding: 8px 10px; border-radius: 5px; border: 1px solid var(--border); font-size: 13px;
+}
+.loc-modal-toolbar .filter-dropdown-trigger{ min-width: 160px; }
+.filter-dropdown-trigger{
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 10px; border-radius: 5px; border: 1px solid var(--border); font-size: 13px;
+  background: var(--surface); color: var(--ink); cursor: pointer; text-align: left;
+}
+.filter-dropdown-trigger:hover{ border-color: var(--ink-faint); }
+.filter-dropdown-trigger.is-placeholder .filter-dropdown-label{ color: var(--ink-faint); }
+.filter-dropdown-label{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filter-dropdown-caret{ font-size: 11px; color: var(--ink-faint); flex-shrink: 0; }
+.loc-modal-actions{ display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+.loc-table-wrap{ max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+.genpos-empty-row{ text-align: center; color: var(--ink-faint); padding: 30px 0 !important; font-style: italic; }
+.genpos-position-number{ font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-soft); }
+
+.loc-table-footer{
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  padding: 10px 2px 0;
+}
+.loc-footer-left{ display: flex; align-items: center; gap: 16px; font-size: 12.5px; color: var(--ink-faint); }
+.loc-footer-right{ display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.loc-footer-right select{
+  padding: 6px 8px; border-radius: 5px; border: 1px solid var(--border); font-size: 12.5px; color: var(--ink); background: var(--surface);
+}
+.loc-footer-right input[type="number"]{
+  width: 48px; padding: 6px 6px; border-radius: 5px; border: 1px solid var(--border); font-size: 12.5px; text-align: center;
+}
+
+/* ---- Add warehouse modal ---- */
+.wh-add-hint{ font-size: 12px; color: var(--ink-faint); margin: 8px 0 0; line-height: 1.5; }
+
+/* ---- Generate a new position modal ---- */
+.genpos-hint{
+  font-size: 11.5px; color: var(--warn); background: var(--warn-soft); border-radius: 5px;
+  padding: 8px 10px; margin-bottom: 14px; line-height: 1.5;
+}
+.genpos-range-row{ display: grid; grid-template-columns: 90px 1fr 24px 1fr auto; align-items: center; gap: 8px; margin-bottom: 12px; }
+.genpos-range-row label{ font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.genpos-range-row input{ width: 100%; padding: 8px 10px; border-radius: 5px; border: 1px solid var(--border); font-size: 13px; }
+.genpos-to{ text-align: center; font-size: 12px; color: var(--ink-faint); }
+.genpos-range-row .hint{ white-space: nowrap; }
+.genpos-dims{ display: flex; align-items: center; gap: 8px; }
+.genpos-dims input{ flex: 1; padding: 8px 10px; border-radius: 5px; border: 1px solid var(--border); font-size: 13px; }
+.genpos-dims span{ color: var(--ink-faint); }
+.genpos-radios{ display: flex; gap: 18px; margin-top: 4px; }
+.genpos-radios label{ display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink); font-weight: 500; }
+.genpos-radios input{ width: auto; }
+
+@media (max-width: 860px){
+  .settings-shell{ flex-direction: column; }
+  .settings-nav{ width: 100%; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); }
+  .warehouse-info-shell{ flex-direction: column; }
+  .warehouse-tree-panel{ width: 100%; }
+  .loc-modal-body{ flex-direction: column; }
+  .loc-modal-tree{ width: 100%; flex-direction: row; flex-wrap: wrap; }
+  .genpos-range-row{ grid-template-columns: 80px 1fr 20px 1fr; }
+  .genpos-range-row .hint{ grid-column: 1 / -1; white-space: normal; }
+}

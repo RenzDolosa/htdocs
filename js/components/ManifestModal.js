@@ -1,0 +1,345 @@
+import { Modal } from './Modal.js';
+import { el, esc, qsa } from '../utils/dom.js';
+import { generateId } from '../utils/id.js';
+import { fmtManifestDate } from '../utils/format.js';
+import { getOperatorName } from '../core/Operator.js';
+import { Toast } from './Toast.js';
+import { confirmDialog } from './ConfirmDialog.js';
+
+/**
+ * ManifestModal renders a printable "Manifest / Transmittal" document for
+ * a set of gadgets — a transfer/hand-over slip pairing each asset with the
+ * user it's issued to, plus a header block (consignor / department / date
+ * / prepared by / transfer to / signature) and a Gadget Type vs. Total
+ * summary.
+ *
+ * It's mostly a *preview* document: rows are pre-filled from the selected
+ * gadgets but every cell stays editable (so a typo can be fixed before
+ * printing without having to go edit the underlying asset), and the user
+ * can add fully blank rows by hand for items not yet in the system. The
+ * one thing it does write back is the merchant transfer: clicking
+ * Transfer / Print (only enabled once Consignor/Department/Prepared by/
+ * Transfer to/Date are all filled in) opens the print dialog, and once
+ * that closes, asks the user to confirm the print/save actually went
+ * through before setting every real asset's `merchant` to the "Transfer
+ * to" value and logging it to that asset's history via the `store`
+ * passed in. That confirmation step exists because browsers give no way
+ * to tell "printed" apart from "hit Cancel" — pass no `store` and this
+ * whole step is skipped, printing still works.
+ */
+
+/** Column order/labels for the manifest detail table, matching the printed transmittal layout. */
+const COLUMNS = [
+  { key: 'user', label: 'User' },
+  { key: 'role', label: 'Role' },
+  { key: 'category', label: 'Gadget Type' },
+  { key: 'serialNumber', label: 'Serial Number' },
+  { key: 'warehouseAssetTag', label: 'Warehouse Asset Tag' },
+  { key: 'assetTagDefault', label: 'Asset Tag' },
+  { key: 'macAddress', label: 'MAC Address' },
+  { key: 'password', label: 'Password' },
+  { key: 'merchant', label: 'Merchant' },
+  { key: 'description', label: 'Description' },
+  { key: 'recentResponsible', label: 'Recent Responsible' }
+];
+
+function rowFromGadget(g) {
+  return {
+    rowId: g.id,
+    user: g.user || '',
+    role: g.role || '',
+    category: g.category || '',
+    serialNumber: g.serialNumber || '',
+    warehouseAssetTag: g.warehouseAssetTag || '',
+    assetTagDefault: g.assetTagDefault || '',
+    macAddress: g.macAddress || '',
+    password: g.password || '',
+    merchant: g.merchant || '',
+    description: g.description || '',
+    // The user who held this asset immediately before the current one,
+    // derived from its reassignment history rather than the free-text
+    // remarks field — blank if it's never changed hands between users.
+    recentResponsible: typeof g.getLastResponsible === 'function' ? g.getLastResponsible() : ''
+  };
+}
+
+function blankRow() {
+  const row = { rowId: generateId('mrow') };
+  COLUMNS.forEach((c) => { row[c.key] = ''; });
+  return row;
+}
+
+/** Minimum number of visible rows on the printed sheet — short manifests get
+ * blank filler rows appended (print-only) so the page reads as a full ledger
+ * with room to write, instead of a sparse table hugging the top of the page. */
+const PRINT_MIN_ROWS = 0;
+
+/** A wholly blank, print-only row: no data-field attributes (so it's
+ * naturally excluded from the Gadget Type summary tally) and not editable. */
+function padRowHTML() {
+  const cells = COLUMNS.map(() => `<td><input type="text" tabindex="-1" readonly></td>`).join('');
+  return `<tr class="manifest-pad-row">${cells}<td class="manifest-row-remove no-print"></td></tr>`;
+}
+
+function rowHTML(row) {
+  const cells = COLUMNS.map((c) =>
+    `<td><input type="text" data-field="${c.key}" value="${esc(row[c.key])}" placeholder="—"></td>`
+  ).join('');
+  return `
+    <tr data-row-id="${esc(row.rowId)}">
+      ${cells}
+      <td class="manifest-row-remove no-print">
+        <button type="button" class="icon-btn danger" data-action="remove-manifest-row" title="Remove row" aria-label="Remove row">✕</button>
+      </td>
+    </tr>`;
+}
+
+/** Meta fields that must all be filled in before Transfer / Print is allowed. */
+const REQUIRED_META_KEYS = ['consignor', 'department', 'preparedBy', 'merchant', 'date'];
+
+/**
+ * @param {object} opts
+ * @param {object[]} opts.gadgets - selected gadgets to pre-fill as manifest rows.
+ * @param {import('../core/Store.js').Store} [opts.store] - the Manage store these
+ *        gadgets came from. Without it, Transfer / Print still prints, it just can't
+ *        persist the merchant change or log it to history.
+ * @param {string} [opts.defaultConsignor] - pre-fills the Consignor field.
+ * @param {string} [opts.defaultDepartment] - pre-fills the Department field.
+ */
+export function openManifestModal({ gadgets = [], store = null, defaultConsignor = '', defaultDepartment = '' } = {}) {
+  const initialRows = gadgets.length ? gadgets.map(rowFromGadget) : [blankRow()];
+  let transferBtn = null;
+
+  const body = el(`
+    <div class="manifest-doc">
+      
+
+      <div style="display: grid; grid-template-columns: auto 1fr; gap: 20px; margin-bottom: 8px;">
+        <table class="manifest-summary-table">
+          <thead><tr><th>Category</th><th>Total</th></tr></thead>
+          <tbody data-role="manifest-summary-body"></tbody>
+        </table>
+
+        <div>
+          <div class="manifest-summary-head">
+            <div class="manifest-title">MANIFEST DETAILS</div>
+          </div>
+
+          <div class="manifest-meta-grid">
+            <div class="manifest-meta-row">
+              <label><span class="required-mark">*</span>Consignor</label>
+              <input type="text" data-meta="consignor" placeholder="Name of consignor">
+            </div>
+            <div class="manifest-meta-row">
+              <label><span class="required-mark">*</span>Prepared by</label>
+              <input type="text" data-meta="preparedBy" placeholder="Name of preparer">
+            </div>
+            <div class="manifest-meta-row">
+              <label><span class="required-mark">*</span>Department</label>
+              <input type="text" data-meta="department" placeholder="Department / team">
+            </div>
+            <div class="manifest-meta-row">
+              <label><span class="required-mark">*</span>Transfer to</label>
+              <input type="text" data-meta="merchant" placeholder="Merchant">
+            </div>
+            <div class="manifest-meta-row manifest-meta-row--signature">
+              <label>Signature</label>
+              <div class="manifest-signature-line no-print"></div>
+            </div>
+            <div class="manifest-meta-row">
+              <label><span class="required-mark">*</span>Date</label>
+              <input type="text" data-meta="date" placeholder="e.g. Tue, Jul 14, 2026">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="manifest-table-wrap">
+        <table class="manifest-detail-table">
+          <thead>
+            <tr>
+              ${COLUMNS.map((c) => `<th>${esc(c.label)}</th>`).join('')}
+              <th class="no-print"></th>
+            </tr>
+          </thead>
+          <tbody data-role="manifest-body"></tbody>
+        </table>
+      </div>
+
+      <button type="button" class="btn btn-outline btn-sm no-print" data-action="add-manifest-row" style="margin-top:10px;">+ Add row</button>
+    </div>
+  `);
+
+  const tbody = body.querySelector('[data-role="manifest-body"]');
+  const summaryBody = body.querySelector('[data-role="manifest-summary-body"]');
+
+  body.querySelector('[data-meta="consignor"]').value = defaultConsignor;
+  body.querySelector('[data-meta="department"]').value = defaultDepartment;
+  body.querySelector('[data-meta="date"]').value = fmtManifestDate();
+  body.querySelector('[data-meta="preparedBy"]').value = getOperatorName();
+
+  /** True once every required meta field (Consignor/Department/Prepared
+   * by/Transfer to/Date) has a non-blank value. Gates the Transfer / Print
+   * button so a manifest can't go out half-filled-in. */
+  function isMetaComplete() {
+    return REQUIRED_META_KEYS.every((key) => body.querySelector(`[data-meta="${key}"]`).value.trim() !== '');
+  }
+
+  function updateTransferButtonState() {
+    if (!transferBtn) return;
+    const ready = isMetaComplete();
+    transferBtn.disabled = !ready;
+    transferBtn.title = ready ? '' : 'Fill in Consignor, Department, Prepared by, Transfer to, and Date first.';
+  }
+
+  REQUIRED_META_KEYS.forEach((key) => {
+    body.querySelector(`[data-meta="${key}"]`).addEventListener('input', updateTransferButtonState);
+  });
+
+  function renderRows(rows) {
+    tbody.innerHTML = rows.map(rowHTML).join('');
+    bindRowEvents();
+    recomputeSummary();
+  }
+
+  function recomputeSummary() {
+    const counts = new Map();
+    qsa('input[data-field="category"]', tbody).forEach((input) => {
+      const key = input.value.trim() || 'Unspecified';
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    const entries = [...counts.entries()];
+    const grandTotal = entries.reduce((sum, [, count]) => sum + count, 0);
+    const rowsHTML = entries.map(([type, count]) =>
+      `<tr><td>${esc(type)}</td><td>${count}</td></tr>`
+    ).join('') || '<tr><td colspan="2" style="color:var(--ink-faint);">No rows yet</td></tr>';
+    summaryBody.innerHTML = rowsHTML + `<tr class="manifest-summary-grand"><td>Grand Total</td><td>${grandTotal}</td></tr>`;
+  }
+
+  function bindRowEvents() {
+    qsa('tr[data-row-id]', tbody).forEach((tr) => {
+      const removeBtn = tr.querySelector('[data-action="remove-manifest-row"]');
+      removeBtn.addEventListener('click', () => {
+        tr.remove();
+        recomputeSummary();
+      });
+      const categoryInput = tr.querySelector('input[data-field="category"]');
+      categoryInput.addEventListener('input', () => recomputeSummary());
+    });
+  }
+
+  renderRows(initialRows);
+
+  body.querySelector('[data-action="add-manifest-row"]').addEventListener('click', () => {
+    tbody.insertAdjacentHTML('beforeend', rowHTML(blankRow()));
+    bindRowEvents();
+    recomputeSummary();
+    const lastInput = tbody.querySelector('tr:last-child input');
+    lastInput?.focus();
+  });
+
+  function addPrintPadding() {
+    // Idempotent: if a previous print's padding never got cleaned up
+    // (e.g. afterprint didn't fire in some browser/print-driver edge
+    // case), clear it first instead of stacking another batch on top.
+    removePrintPadding();
+    const realRowCount = qsa('tr[data-row-id]', tbody).length;
+    const padCount = Math.max(0, PRINT_MIN_ROWS - realRowCount);
+    for (let i = 0; i < padCount; i++) {
+      tbody.insertAdjacentHTML('beforeend', padRowHTML());
+    }
+  }
+
+  function removePrintPadding() {
+    qsa('tr.manifest-pad-row', tbody).forEach((tr) => tr.remove());
+  }
+
+  /**
+   * Applies the manifest's "Transfer to" value as the new merchant for
+   * every row that maps back to a real Gadget (rows added by hand via
+   * "+ Add row" have no matching id and are skipped — there's nothing in
+   * the store to update). Mirrors the create/edit convention used
+   * elsewhere: log the change on the gadget first, then persist through
+   * the store so the append-only history array is saved along with the
+   * updated field in the same write.
+   */
+  function applyMerchantTransfer() {
+    if (!store) return;
+    const transferTo = body.querySelector('[data-meta="merchant"]').value.trim();
+    if (!transferTo) return;
+
+    let updatedCount = 0;
+    qsa('tr[data-row-id]', tbody).forEach((tr) => {
+      const rowId = tr.getAttribute('data-row-id');
+      const gadget = store.get(rowId);
+      if (!gadget) return;
+
+      const previousMerchant = gadget.merchant || '';
+      if (previousMerchant === transferTo) return;
+
+      gadget.addLogEntry(
+        `Transferred merchant from '${previousMerchant}' to '${transferTo}'.`,
+        'transfer',
+        { from: previousMerchant, to: transferTo },
+        getOperatorName()
+      );
+      store.update(gadget.id, { merchant: transferTo });
+      updatedCount++;
+
+      // Reflect the new merchant in the manifest row itself so the
+      // printed sheet shows the post-transfer value, not the stale one.
+      const merchantInput = tr.querySelector('input[data-field="merchant"]');
+      if (merchantInput) merchantInput.value = transferTo;
+    });
+
+    if (updatedCount > 0) {
+      Toast.success(`Updated merchant to "${transferTo}" for ${updatedCount} asset${updatedCount === 1 ? '' : 's'}.`);
+    }
+  }
+
+  const modal = new Modal({
+    title: 'Manifest / Transmittal',
+    body,
+    size: 'lg',
+    footer: [
+      { label: 'Close', variant: 'btn-outline', onClick: (m) => m.close() },
+      {
+        label: 'Transfer / Print',
+        variant: 'btn-accent',
+        onClick: () => {
+          if (!isMetaComplete()) return; // belt-and-suspenders — the button is disabled anyway
+          addPrintPadding();
+          document.body.classList.add('printing-manifest');
+          // Registered fresh on every click and always removes itself, so
+          // padding gets cleaned up whether the user prints or cancels —
+          // and whether they do that once or ten times in a row.
+          window.addEventListener('afterprint', async () => {
+            document.body.classList.remove('printing-manifest');
+            removePrintPadding();
+
+            // Browsers give no signal distinguishing "printed/saved" from
+            // "hit Cancel" — afterprint fires either way. An explicit
+            // confirmation here is the only reliable way to apply the
+            // transfer only once the user actually went through with it,
+            // rather than guessing from an event that can't tell us.
+            const confirmed = await confirmDialog({
+              title: 'Confirm transfer',
+              message: 'Did the manifest finish printing or saving? Confirming will update the merchant for the assets above and record it in their history.',
+              confirmLabel: 'Yes, apply transfer',
+              cancelLabel: 'No, skip'
+            });
+            if (confirmed) applyMerchantTransfer();
+          }, { once: true });
+          window.print();
+        }
+      }
+    ],
+    onClose: () => removePrintPadding()
+  });
+
+  transferBtn = modal.footEl.querySelector('.btn-accent');
+  updateTransferButtonState();
+
+  modal.open();
+  return modal;
+}

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gadget Tracker — Asset Control</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/root.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/layout.css">
+<link rel="stylesheet" href="css/components.css">
+<link rel="stylesheet" href="css/modal.css">
+<link rel="stylesheet" href="css/toast.css">
+<link rel="stylesheet" href="css/settings.css">
+<link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+
+<div class="shell">
+
+  <nav class="rail">
+    <div class="rail-mark" title="Gagdet Tracker" aria-hidden="true"></div>
+
+    <button type="button" class="rail-icon" data-open-tab="home" title="Home">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/></svg>
+    </button>
+    <button type="button" class="rail-icon" data-open-tab="assets" title="Manage">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    </button>
+    <button type="button" class="rail-icon" data-open-tab="inventory-assets" title="Inventory Assets">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 7.5 12 3 3 7.5l9 4.5 9-4.5Z"/><path d="M3 7.5v9L12 21l9-4.5v-9"/><path d="M12 12v9"/></svg>
+    </button>
+    <button type="button" class="rail-icon" data-open-tab="reports" title="Reports">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V11"/><path d="M12 20V4"/><path d="M20 20v-6"/></svg>
+    </button>
+
+    <div class="rail-spacer"></div>
+
+    <button type="button" class="rail-icon" data-open-tab="settings" title="Settings">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1A2 2 0 1 1 7.1 4.3l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+    </button>
+  </nav>
+
+  <div class="workspace">
+
+    <div class="topbar">
+      <div class="tabstrip" id="tabstrip"><!-- rendered by TabManager --></div>
+      <div class="profile-chip">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3v5Z"/><path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3v5Z"/></svg>
+        <span>Admin</span>
+      </div>
+    </div>
+
+    <div class="panels" id="panels">
+
+      <section class="panel-view placeholder-panel" data-tab-panel="home" hidden>
+        <h2>Welcome back</h2>
+        <p>Pick a module from the sidebar on the left to get started. Manage and Inventory Assets are fully wired up — Reports and Settings are placeholders for now.</p>
+      </section>
+
+      <section class="panel-view" data-tab-panel="assets" hidden>
+
+        <div class="filterbar">
+          <div class="filterbar-row">
+            <input id="filterKeyword" type="text" placeholder="Keyword (user, tag, remarks…)">
+            <select id="filterCategory"><option value="all">All categories</option></select>
+            <select id="filterWarehouse"><option value="all">All warehouses</option></select>
+            <button class="btn btn-accent btn-sm" id="searchBtn">Search</button>
+            <button class="btn btn-outline btn-sm" id="resetBtn">Reset</button>
+            <button type="button" class="filterbar-toggle" id="filterAdvancedToggle" aria-expanded="false" aria-controls="filterAdvancedRow">
+              Show <span class="chev">▾</span>
+            </button>
+          </div>
+          <div class="filterbar-row filterbar-advanced" id="filterAdvancedRow" hidden>
+            <input id="filterSerial" type="text" placeholder="Serial number">
+            <input id="filterMac" type="text" placeholder="MAC address">
+          </div>
+        </div>
+
+        <div class="actionbar">
+          <div class="actionbar-left">
+            <button type="button" class="link-btn" id="addItemBtn">+ Add asset</button>
+            <span class="link-sep">|</span>
+            <button type="button" data-action="transfer" class="link-btn" id="transferItemBtn" style="display:none;">Adjust Position</button>
+            <span class="link-sep" id="transferItemSep" style="display:none;">|</span>
+            <button type="button" class="link-btn" id="manifestBtn" style="display:none;">Preview Manifest</button>
+            <span class="link-sep" id="manifestSep" style="display:none;">|</span>
+            <button type="button" class="link-btn" id="bulkDeleteBtn" style="display:none;">Delete selected</button>
+            <span class="link-sep" id="bulkDeleteSep" style="display:none;">|</span>
+            <button type="button" class="link-btn danger" id="clearAllBtn">Clear all data</button>
+            <input type="file" id="importFileInput" accept=".csv,text/csv" hidden>
+          </div>
+          <div class="actionbar-right">
+            <button type="button" class="icon-btn" id="refreshBtn" title="Refresh">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+            </button>
+            <button type="button" style="display: flex; background: transparent; border: none; cursor: pointer; width: 20px; height: 20px; justify-content: center;" id="exportBtn">
+              <img src="/public/assets/icon/excel.svg" alt="Export">
+            </button>
+          </div>
+        </div>
+
+        <div class="assets-body">
+          <aside class="warehouse-tabs" id="warehouseTabs" hidden></aside>
+
+          <div class="panel grid-panel">
+          <div class="grid-scroll">
+            <table>
+              <thead id="tableHead">
+                <tr>
+                  <th class="sn-col"><div></div></th>
+                  <th class="checkbox-col"><div><input type="checkbox" id="selectAllCheckbox" aria-label="Select all on this page" style="height: 15px; width: 15px;"></div></th>
+                  <th data-sort="user"><div>User <span class="arrow">↕</span></div></th>
+                  <th data-sort="role"><div>Role <span class="arrow">↕</span></div></th>
+                  <th data-sort="category"><div>Category <span class="arrow">↕</span></div></th>
+                  <th><div>Serial Number</div></th>
+                  <th><div>Warehouse Asset Tag</div></th>
+                  <th><div>Asset Tag (Default)</div></th>
+                  <th><div>Mac Address</div></th>
+                  <th><div>Password</div></th>
+                  <th data-sort="merchant"><div>Merchant <span class="arrow">↕</span></div></th>
+                  <th><div>Remarks</div></th>
+                  <th><div>Description</div></th>
+                  <th data-sort="positionType"><div>Position Type <span class="arrow">↕</span></div></th>
+                  <th data-sort="warehouse"><div>Warehouse <span class="arrow">↕</span></div></th>
+                  <th data-sort="owner"><div>Owner <span class="arrow">↕</span></div></th>
+                  <th style="text-align:right;"><div>Actions</div></th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="empty-state" id="emptyState" style="display:none;">
+            <div class="glyph"></div>
+            <h4>No assets match here</h4>
+            <p>Try a different search or filter, or add a new asset to the shelf.</p>
+            <button class="btn btn-outline" id="emptyAddBtn">Add an asset</button>
+          </div>
+
+          <div class="grid-footer">
+            <div class="grid-footer-left">
+              <span id="selectedCount">Checked 0</span>
+              <span id="resultCount">0 assets</span>
+            </div>
+            <div class="grid-footer-right">
+              <select id="pageSizeSelect">
+                <option value="20">20/page</option>
+                <option value="50" selected>50/page</option>
+                <option value="100">100/page</option>
+              </select>
+              <button type="button" class="page-nav" id="prevPageBtn" aria-label="Previous page">‹</button>
+              <div class="page-numbers" id="pageNumbers"></div>
+              <button type="button" class="page-nav" id="nextPageBtn" aria-label="Next page">›</button>
+              <span class="goto-label">Go to</span>
+              <input type="number" id="gotoPageInput" min="1" value="1">
+              <button type="button" class="btn btn-outline btn-sm" id="gotoPageBtn">Go</button>
+            </div>
+          </div>
+          </div>
+        </div>
+
+      </section>
+
+      <section class="panel-view" data-tab-panel="inventory-assets" hidden>
+
+        <div class="filterbar">
+          <div class="filterbar-row">
+            <input id="iaFilterKeyword" type="text" placeholder="Keyword (category, serial, tag, MAC…)">
+            <select id="iaFilterCategory"><option value="all">All categories</option></select>
+            <button class="btn btn-accent btn-sm" id="iaSearchBtn">Search</button>
+            <button class="btn btn-outline btn-sm" id="iaResetBtn">Reset</button>
+          </div>
+        </div>
+
+        <div class="actionbar">
+          <div class="actionbar-left">
+            <button type="button" class="link-btn" id="iaAddItemBtn">+ Add asset</button>
+            <span class="link-sep">|</span>
+            <button type="button" class="link-btn" id="iaBulkDeleteBtn" style="display:none;">Delete selected</button>
+            <span class="link-sep" id="iaBulkDeleteSep" style="display:none;">|</span>
+            <button type="button" class="link-btn danger" id="iaClearAllBtn">Clear all data</button>
+            <input type="file" id="iaImportFileInput" accept=".csv,text/csv" hidden>
+          </div>
+          <div class="actionbar-right">
+            <button type="button" class="icon-btn" id="iaRefreshBtn" title="Refresh">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+            </button>
+            <button type="button" style="display: flex; background: transparent; border: none; cursor: pointer; width: 20px; height: 20px; justify-content: center;" id="iaExportBtn" title="Export">
+              <img src="/public/assets/icon/excel.svg" alt="Export">
+            </button>
+          </div>
+        </div>
+
+        <div class="panel grid-panel">
+          <div class="grid-scroll">
+            <table>
+              <thead id="iaTableHead">
+                <tr>
+                  <th class="sn-col"><div></div></th>
+                  <th class="checkbox-col"><div><input type="checkbox" id="iaSelectAllCheckbox" aria-label="Select all on this page" style="height: 15px; width: 15px;"></div></th>
+                  <th data-sort="category"><div>Category <span class="arrow">↕</span></div></th>
+                  <th data-sort="serialNumber"><div>Serial Number <span class="arrow">↕</span></div></th>
+                  <th><div>Asset Tag</div></th>
+                  <th><div>Mac Address</div></th>
+                  <th><div>IMEI</div></th>
+                  <th data-sort="createdAt"><div>Created <span class="arrow">↕</span></div></th>
+                  <th style="text-align:right;"><div>Actions</div></th>
+                </tr>
+              </thead>
+              <tbody id="iaTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="empty-state" id="iaEmptyState" style="display:none;">
+            <div class="glyph"></div>
+            <h4>No inventory assets match here</h4>
+            <p>Try a different search or filter, or add a new asset to the shelf.</p>
+            <button class="btn btn-outline" id="iaEmptyAddBtn">Add an asset</button>
+          </div>
+
+          <div class="grid-footer">
+            <div class="grid-footer-left">
+              <span id="iaSelectedCount">Checked 0</span>
+              <span id="iaResultCount">0 assets</span>
+            </div>
+            <div class="grid-footer-right">
+              <select id="iaPageSizeSelect">
+                <option value="20">20/page</option>
+                <option value="50" selected>50/page</option>
+                <option value="100">100/page</option>
+              </select>
+              <button type="button" class="page-nav" id="iaPrevPageBtn" aria-label="Previous page">‹</button>
+              <div class="page-numbers" id="iaPageNumbers"></div>
+              <button type="button" class="page-nav" id="iaNextPageBtn" aria-label="Next page">›</button>
+              <span class="goto-label">Go to</span>
+              <input type="number" id="iaGotoPageInput" min="1" value="1">
+              <button type="button" class="btn btn-outline btn-sm" id="iaGotoPageBtn">Go</button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <section class="panel-view placeholder-panel" data-tab-panel="reports" hidden>
+        <h2>Reports</h2>
+        <p>Placeholder module. Same deal as Inventory Assets used to be — the tab and rail wiring is real, the content is not yet.</p>
+      </section>
+
+      <section class="panel-view settings-panel" data-tab-panel="settings" hidden>
+        <div class="settings-shell">
+
+          <nav class="settings-nav" id="settingsNav">
+            <button type="button" class="settings-nav-item active" data-settings-section="general">General</button>
+            <div class="settings-nav-group">
+              <button type="button" class="settings-nav-group-toggle open" data-settings-toggle="basic-config">
+                <span>Basic Configuration</span><span class="chev">▾</span>
+              </button>
+              <div class="settings-nav-sub" id="settingsBasicConfigSub">
+                <button type="button" class="settings-nav-subitem" data-settings-section="warehouse-info">Warehouse Information</button>
+              </div>
+            </div>
+            <button type="button" class="settings-nav-item settings-nav-item--stub" disabled title="Not available in this build">User management</button>
+            <button type="button" class="settings-nav-item settings-nav-item--stub" disabled title="Not available in this build">IP whitelist</button>
+          </nav>
+
+          <div class="settings-content">
+
+            <section class="settings-section" data-settings-content="general">
+              <h2>General</h2>
+              <p class="hint" style="margin-bottom:16px;">
+                This app doesn't have logins — so history entries and manifests need some other way to
+                know who did what. Set your name below and it'll be stamped on new activity you record
+                (asset changes, reassignments, transfers) and pre-filled as "Prepared by" on manifests.
+                It's saved only in this browser.
+              </p>
+              <form id="operatorForm" class="gadget-form" style="max-width:360px;" novalidate>
+                <div class="field">
+                  <label for="operatorNameInput">Your name</label>
+                  <input type="text" id="operatorNameInput" name="operatorName" placeholder="e.g. Maria Santos">
+                </div>
+                <button type="submit" class="btn btn-accent" style="margin-top:8px;">Save</button>
+              </form>
+            </section>
+
+            <section class="settings-section" data-settings-content="warehouse-info" hidden>
+              <h2>Warehouse Information</h2>
+              <div class="warehouse-info-shell">
+
+                <div class="warehouse-tree-panel">
+                  <div class="warehouse-tree-toolbar">
+                    <button type="button" class="btn btn-accent btn-sm" id="whAddBtn">+ Add</button>
+                    <button type="button" class="btn btn-outline btn-sm" id="whImportBtn">Import</button>
+                    <input type="file" id="whImportFileInput" accept=".csv,text/csv" hidden>
+                  </div>
+                  <div class="warehouse-tree" id="warehouseTree"></div>
+                </div>
+
+                <div class="warehouse-detail-panel" id="warehouseDetailPanel">
+                  <div class="warehouse-detail-empty">Select a warehouse on the left, or add a new one.</div>
+                </div>
+
+              </div>
+            </section>
+
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal and toast containers are created dynamically by js/components/Modal.js and Toast.js -->
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

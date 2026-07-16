@@ -1,0 +1,269 @@
+.overlay{
+  position: fixed; inset: 0; background: rgba(28, 29, 33, 0.5);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  z-index: 100;
+  opacity: 0; pointer-events: none; transition: opacity 0.15s ease;
+}
+.overlay.open{ opacity: 1; pointer-events: auto; }
+
+.modal{
+  background: var(--surface); border-radius: 8px; width: 100%; max-width: 480px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  transform: translateY(8px) scale(0.98); transition: transform 0.15s ease;
+  max-height: 88vh; display: flex; flex-direction: column;
+}
+.modal.modal--md{ max-width: 600px; }
+.modal.modal--lg{ max-width: 1180px; }
+.overlay.open .modal{ transform: translateY(0) scale(1); }
+
+.modal-head{
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+}
+.modal-head h2{ font-family: var(--font-display); font-size: 18px; margin: 0; font-weight: 600; }
+.modal-close{ background: none; border: none; cursor: pointer; color: var(--ink-faint); font-size: 18px; line-height: 1; padding: 4px; }
+.modal-close:hover{ color: var(--ink); }
+
+.modal-body{ padding: 18px 20px; overflow-y: auto; }
+.modal-foot{ padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+.modal-body.modal-body--message{ font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; }
+
+/* Form fields, used inside modal bodies */
+.field{ margin-bottom: 14px; }
+.field label{ display: block; font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 5px; }
+.field-row{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field-error{ font-size: 11px; color: var(--bad); margin-top: 4px; }
+.hint{ font-size: 11px; color: var(--ink-faint); margin-top: 4px; }
+
+input[type=text], input[type=number], input[type=password], select.field-input, input[list], textarea{
+  width: 100%; padding: 9px 11px; border-radius: 5px; border: 1px solid var(--border);
+  font-size: 13.5px; color: var(--ink); background: var(--surface); font-family: inherit;
+}
+textarea{ resize: vertical; }
+input:focus, select:focus, textarea:focus{ outline: none; border-color: var(--steel); box-shadow: 0 0 0 3px var(--steel-soft); }
+input.invalid, textarea.invalid{ border-color: var(--bad); }
+input.invalid:focus, textarea.invalid:focus{ box-shadow: 0 0 0 3px var(--bad-soft); }
+
+/* Password field with reveal toggle, used in GadgetForm */
+.password-field{ position: relative; display: flex; align-items: center; }
+.password-field input{ padding-right: 38px; }
+.password-toggle{
+  position: absolute; right: 6px; background: none; border: none; cursor: pointer;
+  color: var(--ink-faint); padding: 6px; display: flex; align-items: center; justify-content: center;
+}
+.password-toggle:hover{ color: var(--ink); }
+
+/* Transfer form */
+.transfer-current{
+  padding: 9px 11px; border-radius: 5px; background: var(--surface-sunk);
+  border: 1px solid var(--border); font-size: 13.5px; color: var(--ink-soft);
+}
+
+/* Log / history modal */
+.log-modal-body{ display: flex; flex-direction: column; gap: 12px; }
+.log-tabs{ display: flex; gap: 4px; border-bottom: 1px solid var(--border); }
+.log-tab{
+  background: none; border: none; cursor: pointer;
+  padding: 8px 10px; font-size: 12.5px; font-weight: 600; color: var(--ink-faint);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.log-tab:hover{ color: var(--ink-soft); }
+.log-tab.active{ color: var(--accent-ink); border-bottom-color: var(--accent); }
+.log-list-wrap{ max-height: 340px; overflow-y: auto; }
+.log-list{ list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.log-entry{ display: flex; gap: 10px; padding: 10px 2px; border-bottom: 1px solid var(--border); }
+.log-entry:last-child{ border-bottom: none; }
+.log-dot{
+  width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0;
+  background: var(--steel);
+}
+.log-entry--create .log-dot{ background: var(--good); }
+.log-entry--transfer .log-dot{ background: var(--accent); }
+.log-entry--update .log-dot{ background: var(--steel); }
+.log-entry-body{ min-width: 0; }
+.log-message{ font-size: 13.5px; color: var(--ink); }
+.log-time{ font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+.log-sep{ opacity: 0.6; }
+.log-user{ font-weight: 500; color: var(--ink-soft); }
+
+/* Manifest / Transmittal preview */
+.manifest-doc{ font-size: 13px; color: var(--ink); }
+
+.manifest-summary-head{
+  display: flex; align-items: flex-end; justify-content: center; gap: 20px;
+  margin-bottom: 8px; flex-wrap: wrap;
+}
+.manifest-summary-table{ border-collapse: collapse; width: auto; max-width: 190px; border-bottom: 1px solid var(--border); }
+.manifest-summary-table th, .manifest-summary-table td{
+  border: 1px solid var(--border); padding: 4px 8px; font-size: 11px; text-align: left;
+}
+.manifest-summary-table thead th{
+  position: static; background: var(--surface-sunk); font-style: italic; font-weight: 600;
+  text-transform: none; letter-spacing: 0; height: auto; color: var(--ink-soft);
+}
+.manifest-summary-table td:last-child, .manifest-summary-table th:last-child{ width: 40px; text-align: right; }
+.manifest-summary-grand td{ font-weight: 700; border-bottom: 1px solid var(--border);}
+
+.manifest-title{
+  font-family: var(--font-display); font-weight: 700; font-size: 26px;
+  letter-spacing: 0.02em; white-space: nowrap; text-align: right;
+}
+
+.manifest-meta-grid{
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px;
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px;
+  background: var(--surface-sunk);
+}
+.manifest-meta-row{ display: flex; align-items: center; gap: 10px; }
+/* .manifest-meta-row--signature{ grid-column: 1 / -1; } */
+.manifest-meta-row label{
+  flex: 0 0 100px; font-size: 11.5px; font-weight: 700; color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: 0.04em; margin: 0;
+}
+.manifest-meta-row label .required-mark{ color: var(--bad); margin-right: 2px; }
+.manifest-meta-row input{ flex: 1; background: var(--surface); }
+.manifest-signature-line{ flex: 1; border-bottom: 1px solid var(--ink-faint); height: 22px; }
+
+.manifest-table-wrap{ overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+.manifest-detail-table{ border-collapse: collapse; width: 100%; table-layout: fixed; }
+.manifest-detail-table th, .manifest-detail-table td{
+  border: 1px solid var(--border); padding: 0;
+  white-space: normal; word-break: break-word; overflow-wrap: break-word;
+}
+.manifest-detail-table thead th{
+  position: static; background: var(--surface-sunk); padding: 7px 6px; font-size: 10.5px;
+  text-transform: none; letter-spacing: 0; height: auto; color: var(--ink-soft); font-weight: 700;
+}
+.manifest-detail-table td input{
+  border: none; border-radius: 0; width: 100%; min-width: 0; padding: 6px 7px;
+  font-size: 11.5px; background: transparent;
+}
+.manifest-detail-table td input:focus{ box-shadow: inset 0 0 0 2px var(--steel-soft); outline: none; }
+.manifest-row-remove{ text-align: center; padding: 0 !important; }
+.manifest-row-remove .icon-btn{ display: inline-flex; }
+.manifest-pad-row td{ height: 24px; }
+.manifest-pad-row input{ pointer-events: none; }
+
+/* Proportional widths (sum to 100%) so all 11 data columns plus the
+   remove-row action column always fit the modal on screen — the same
+   idea the print stylesheet below already used for the printed page,
+   just also applied here so the on-screen table doesn't force a
+   horizontal scrollbar the way a 1000px min-width table did before. */
+.manifest-detail-table th:nth-child(1), .manifest-detail-table td:nth-child(1){ width: 8%; }
+.manifest-detail-table th:nth-child(2), .manifest-detail-table td:nth-child(2){ width: 7%; }
+.manifest-detail-table th:nth-child(3), .manifest-detail-table td:nth-child(3){ width: 7%; }
+.manifest-detail-table th:nth-child(4), .manifest-detail-table td:nth-child(4){ width: 10%; }
+.manifest-detail-table th:nth-child(5), .manifest-detail-table td:nth-child(5){ width: 8%; }
+.manifest-detail-table th:nth-child(6), .manifest-detail-table td:nth-child(6){ width: 6%; }
+.manifest-detail-table th:nth-child(7), .manifest-detail-table td:nth-child(7){ width: 9%; }
+.manifest-detail-table th:nth-child(8), .manifest-detail-table td:nth-child(8){ width: 6%; }
+.manifest-detail-table th:nth-child(9), .manifest-detail-table td:nth-child(9){ width: 8%; }
+.manifest-detail-table th:nth-child(10), .manifest-detail-table td:nth-child(10){ width: 23%; }
+.manifest-detail-table th:nth-child(11), .manifest-detail-table td:nth-child(11){ width: 8%; }
+.manifest-detail-table th:nth-child(12), .manifest-detail-table td:nth-child(12){ width: 32px; }
+
+
+@page {
+  size: landscape;
+  margin: 12mm;
+}
+
+@media print {
+  body.printing-manifest > *:not(.overlay){ visibility: hidden; }
+  body.printing-manifest .overlay{
+    position: absolute; inset: 0; background: none; padding: 0; opacity: 1;
+    /* The screen-mode .overlay centers its content with flexbox, which is
+       fine for a modal that fits on one screen. A manifest is routinely
+       taller than one printed page, though, and centering a multi-page-tall
+       flex child pushes roughly half of its overflow above the page box —
+       where it's simply never rendered. That's the exact bug this fixes:
+       switching to normal block flow lets the modal start at the top of
+       page 1 and paginate downward like any other tall document. */
+    display: block;
+  }
+  body.printing-manifest .overlay *{ visibility: visible; }
+  body.printing-manifest .modal{ box-shadow: none; max-width: none; width: 100%; max-height: none; transform: none; }
+  body.printing-manifest .modal-head, body.printing-manifest .modal-foot, body.printing-manifest .no-print{ display: none !important; }
+  body.printing-manifest .modal-body{ overflow: visible; padding: 0; }
+  /* Placeholder text (e.g. "Name of consignor") is meant as on-screen
+     guidance only — an empty field should print blank, not print its
+     hint as if it were real data. Scoped to the meta grid specifically;
+     the detail table's "—" placeholder is an intentional blank-cell
+     marker and is left alone. */
+  body.printing-manifest .manifest-meta-row input::placeholder{ color: transparent; }
+
+  /* Force the table to the page's own width (never a fixed min-width) and
+     let cells wrap instead of scrolling, so all 11 columns always fit
+     regardless of the paper size/orientation the user picks in the print
+     dialog. Display roles are also pinned explicitly — belt-and-suspenders
+     against anything else on the page trying to collapse tables into
+     stacked blocks the way the mobile card view does on screen. */
+  body.printing-manifest .manifest-table-wrap{ overflow: visible; border: none; }
+  body.printing-manifest .manifest-summary-table,
+  body.printing-manifest .manifest-detail-table{ display: table !important; }
+  body.printing-manifest .manifest-summary-table thead,
+  body.printing-manifest .manifest-detail-table thead{ display: table-header-group !important; }
+  body.printing-manifest .manifest-summary-table tbody,
+  body.printing-manifest .manifest-detail-table tbody{ display: table-row-group !important; }
+  body.printing-manifest .manifest-summary-table tr,
+  body.printing-manifest .manifest-detail-table tr{ display: table-row !important; }
+  body.printing-manifest .manifest-summary-table th, body.printing-manifest .manifest-summary-table td,
+  body.printing-manifest .manifest-detail-table th, body.printing-manifest .manifest-detail-table td{
+    display: table-cell !important; width: auto;
+  }
+  body.printing-manifest .manifest-detail-table{
+    table-layout: fixed; width: 100%; min-width: 0; border: 1px solid var(--border);
+  }
+  body.printing-manifest .manifest-detail-table th,
+  body.printing-manifest .manifest-detail-table td{
+    white-space: normal; word-break: break-word; overflow-wrap: break-word;
+    font-size: 9.5px; padding: 4px 5px; line-height: 1.25;
+  }
+  body.printing-manifest .manifest-detail-table td input{
+    min-width: 0; width: 100%; font-size: 9.5px; padding: 0; white-space: normal;
+  }
+  body.printing-manifest .manifest-pad-row td{ height: 22px; }
+
+  /* Print gets its own tuned proportional widths (still summing to 100%
+     across the 11 visible columns — the action column is hidden via
+     .no-print and drops out of the layout entirely) since paper is
+     narrower than the modal and can't spare as much room for Description. */
+  body.printing-manifest .manifest-detail-table th:nth-child(1),
+  body.printing-manifest .manifest-detail-table td:nth-child(1){ width: 9%; }
+  body.printing-manifest .manifest-detail-table th:nth-child(2),
+  body.printing-manifest .manifest-detail-table td:nth-child(2){ width: 8%; }
+  body.printing-manifest .manifest-detail-table th:nth-child(3),
+  body.printing-manifest .manifest-detail-table td:nth-child(3){ width: 8%; }
+  body.printing-manifest .manifest-detail-table th:nth-child(4),
+  body.printing-manifest .manifest-detail-table td:nth-child(4){ width: 11%; }
+  body.printing-manifest .manifest-detail-table th:nth-child(5),
+  body.printing-manifest .manifest-detail-table td:nth-child(5){ width: 9%; }
+  body.printing-manifest .manifest-detail-table th:nth-child(6),
+  body.printing-manifest .manifest-detail-table td:nth-child(6){ width: 7%; }
+  body.printing-manifest .manifest-detail-table th:nth-child(7),
+  body.printing-manifest .manifest-detail-table td:nth-child(7){ width: 10%; }
+  body.printing-manifest .manifest-detail-table th:nth-child(8),
+  body.printing-manifest .manifest-detail-table td:nth-child(8){ width: 7%; }
+  body.printing-manifest .manifest-detail-table th:nth-child(9),
+  body.printing-manifest .manifest-detail-table td:nth-child(9){ width: 9%; }
+  body.printing-manifest .manifest-detail-table th:nth-child(10),
+  body.printing-manifest .manifest-detail-table td:nth-child(10){ width: 13%; }
+  body.printing-manifest .manifest-detail-table th:nth-child(11),
+  body.printing-manifest .manifest-detail-table td:nth-child(11){ width: 9%; }
+
+  body.printing-manifest .manifest-summary-table{ font-size: 10.5px; }
+  body.printing-manifest .manifest-title{ font-size: 20px; }
+  body.printing-manifest .manifest-meta-grid{ padding: 8px 12px; margin-bottom: 12px; }
+}
+
+/* Move to temporary bin — the Position Type select uses a disabled+hidden
+   placeholder option (see ManageController.js) instead of a real "Select…"
+   choice in the list, so it needs its own :invalid-based placeholder color
+   the same way text inputs get it from the placeholder attribute. */
+.tempbin-modal select{
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: var(--radius); background: var(--surface); color: var(--ink);
+  font-size: 12.5px; font-family: inherit;
+}
+.tempbin-modal select:invalid{ color: var(--ink-faint); }

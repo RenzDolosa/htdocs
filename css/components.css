@@ -1,0 +1,178 @@
+/* Buttons */
+.btn{
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 13.5px; font-weight: 600;
+  padding: 9px 15px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.btn:active{ transform: translateY(1px); }
+.btn:disabled{ opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+.btn-accent{ background: var(--accent); color: #fff; }
+.btn-accent:hover{ background: #e85f00; }
+.btn-ghost{ background: transparent; color: #f5f3ee; border-color: #4a4b52; }
+.btn-ghost:hover{ background: #33343a; }
+.btn-outline{ background: var(--surface); color: var(--ink); border-color: var(--border); }
+.btn-outline:hover{ border-color: var(--ink-faint); }
+.btn-danger{ background: var(--bad); color: #fff; }
+.btn-danger:hover{ background: #a62f21; }
+.btn-sm{ padding: 6px 12px; font-size: 12.5px; border-radius: 5px; }
+
+/* Table (dense grid) */
+.panel{
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+table{ width: 100%; border-collapse: separate; border-spacing: 0; }
+thead th{
+  position: sticky; top: 0; z-index: 1;
+  text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-soft); font-weight: 600; padding: 1px 0;
+  background: var(--surface-sunk);
+  height: 35px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; user-select: none; white-space: nowrap;
+}
+thead th:hover{ color: var(--ink); }
+thead div{ display: flex; justify-content: start; padding: 0 5px; }
+thead th.checkbox-col{ cursor: default; width: 34px; }
+thead th.sn-col{ cursor: default; width: 34px; }
+thead th[data-sort]{ cursor: pointer; }
+thead th .arrow{ opacity: 0.4; font-size: 10px; margin-left: 3px; }
+thead th.sorted .arrow{ opacity: 1; color: var(--accent); }
+tbody td{ padding: 7px 0px; border-bottom: 1px solid var(--border); font-size: 12.5px; vertical-align: middle; }
+tbody div{ display: flex; justify-content: start; padding: 0 5px; }
+tbody tr:last-child td{ border-bottom: none; }
+tbody tr:hover{ background: var(--surface-sunk); }
+tbody tr.row-selected{ background: var(--accent-soft); }
+td.checkbox-col{ width: 34px; }
+td.sn-col{ width: 34px; }
+
+
+.item-name{ font-weight: 600; color: var(--ink); }
+
+.pill{ display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.pill-cat{ background: var(--steel-soft); color: var(--steel); }
+.pill-warehouse{ background: var(--accent-soft); color: var(--accent-ink); }
+/* .pill-tempbin{ background: var(--warn-soft); color: var(--warn); } */
+
+.code-tag{
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft);
+  background: var(--surface-sunk); border: 1px solid var(--border);
+  padding: 3px 8px 3px 6px; border-radius: 4px;
+}
+.code-tag .bars{
+  width: 20px; height: 13px; flex-shrink: 0;
+  background: repeating-linear-gradient(90deg,
+    var(--ink) 0 2px, transparent 2px 3px,
+    var(--ink) 3px 4px, transparent 4px 6px,
+    var(--ink) 6px 7px, transparent 7px 9px,
+    var(--ink) 9px 10px, transparent 10px 12px,
+    var(--ink) 12px 13px, transparent 13px 15px,
+    var(--ink) 15px 16px, transparent 16px 18px);
+}
+
+td.cell-duplicate-serial{
+  background: var(--bad-soft);
+}
+td.cell-duplicate-serial .code-tag{
+  background: transparent;
+  border-color: var(--bad);
+  color: var(--bad);
+}
+td.cell-duplicate-serial .code-tag .bars{
+  background: repeating-linear-gradient(90deg,
+    var(--bad) 0 2px, transparent 2px 3px,
+    var(--bad) 3px 4px, transparent 4px 6px,
+    var(--bad) 6px 7px, transparent 7px 9px,
+    var(--bad) 9px 10px, transparent 10px 12px,
+    var(--bad) 12px 13px, transparent 13px 15px,
+    var(--bad) 15px 16px, transparent 16px 18px);
+}
+
+/* A field that doesn't match (or can't be verified against) the
+   Inventory Assets catalog — distinct amber from the red used for
+   in-Manage duplicate serials, since this is a "reconcile with the
+   catalog" issue rather than a same-table data conflict. */
+td.cell-catalog-invalid{
+  background: var(--warn-soft);
+}
+.catalog-flag{
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--warn); font-size: 12px; cursor: help; margin-left: 2px;
+}
+
+.clamp-text{
+  max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; color: var(--ink-soft); font-size: 12.5px;
+}
+
+.password-cell{ display: flex; align-items: center; gap: 6px; }
+.password-value{ font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft); letter-spacing: 0.05em; }
+.password-reveal-btn{ width: 22px; height: 22px; }
+
+.row-actions{ display: flex; gap: 5px; justify-content: flex-end; }
+.icon-btn{
+  width: 26px; height: 26px; border-radius: 5px; border: 1px solid var(--border);
+  background: var(--surface); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--ink-soft);
+}
+.icon-btn:hover{ background: var(--surface-sunk); color: var(--ink); }
+.icon-btn.danger:hover{ background: var(--bad-soft); color: var(--bad); border-color: #efc1ba; }
+
+/* Pagination controls */
+.page-nav, .page-btn{
+  min-width: 26px; height: 26px; padding: 0 6px;
+  border-radius: 5px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--ink-soft); cursor: pointer;
+  font-size: 12.5px; display: inline-flex; align-items: center; justify-content: center;
+}
+.page-nav:hover, .page-btn:hover{ border-color: var(--ink-faint); color: var(--ink); }
+.page-nav:disabled{ opacity: 0.4; cursor: not-allowed; }
+.page-btn.active{ background: var(--accent); border-color: var(--accent); color: #fff; }
+.page-numbers{ display: flex; align-items: center; gap: 4px; }
+.page-ellipsis{ color: var(--ink-faint); padding: 0 2px; font-size: 12.5px; }
+
+/* Dropdown / popover menu (DropdownMenu.js) */
+.dropdown-menu{
+  position: absolute; z-index: 120; min-width: 170px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 6px; display: flex; flex-direction: column; gap: 2px;
+  opacity: 0; transform: translateY(-4px); pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.dropdown-menu.open{ opacity: 1; transform: translateY(0); pointer-events: auto; }
+.dropdown-menu-item{
+  display: flex; align-items: center; width: 100%; text-align: left;
+  background: none; border: none; border-radius: 4px; cursor: pointer;
+  padding: 8px 10px; font-size: 13px; font-weight: 500; color: var(--ink);
+}
+.dropdown-menu-item:hover{ background: var(--surface-sunk); }
+
+/* Import modal body (ManageController import-via-CSV flow) */
+.import-dropzone{
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px; border: 1px dashed var(--border); border-radius: var(--radius);
+  background: var(--surface-sunk);
+}
+.import-file-name{ font-size: 12.5px; color: var(--ink-soft); }
+
+.empty-state{ padding: 60px 20px; text-align: center; color: var(--ink-soft); }
+.empty-state .glyph{
+  width: 46px; height: 30px; margin: 0 auto 14px; opacity: 0.55;
+  background: repeating-linear-gradient(90deg,
+    var(--ink-faint) 0 3px, transparent 3px 5px,
+    var(--ink-faint) 5px 6px, transparent 6px 10px,
+    var(--ink-faint) 10px 12px, transparent 12px 16px,
+    var(--ink-faint) 16px 17px, transparent 17px 21px,
+    var(--ink-faint) 21px 23px, transparent 23px 27px,
+    var(--ink-faint) 27px 29px, transparent 29px 33px,
+    var(--ink-faint) 33px 35px, transparent 35px 39px,
+    var(--ink-faint) 39px 41px, transparent 41px 46px);
+}
