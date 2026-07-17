@@ -33,3 +33,12 @@ export function fmtLocalDateStamp(date = new Date()) {
 export function fmtManifestDate(date = new Date()) {
   return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
+
+/** Formats a stored epoch-ms timestamp as a short, locale-aware date. */
+export function fmtDate(ms) {
+  if (!ms) return '—';
+  return new Date(ms).toLocaleString(undefined, {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+}

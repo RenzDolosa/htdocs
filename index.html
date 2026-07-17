@@ -67,7 +67,6 @@
           <div class="filterbar-row">
             <input id="filterKeyword" type="text" placeholder="Keyword (user, tag, remarks…)">
             <select id="filterCategory"><option value="all">All categories</option></select>
-            <select id="filterWarehouse"><option value="all">All warehouses</option></select>
             <button class="btn btn-accent btn-sm" id="searchBtn">Search</button>
             <button class="btn btn-outline btn-sm" id="resetBtn">Reset</button>
             <button type="button" class="filterbar-toggle" id="filterAdvancedToggle" aria-expanded="false" aria-controls="filterAdvancedRow">
@@ -104,7 +103,9 @@
         </div>
 
         <div class="assets-body">
-          <aside class="warehouse-tabs" id="warehouseTabs" hidden></aside>
+          <div class="warehouse-tab">
+            <button type="button" class="warehouse-filter-btn" id="warehouseFilterBtn" hidden>Warehouse</button>
+          </div>
 
           <div class="panel grid-panel">
           <div class="grid-scroll">
@@ -127,6 +128,8 @@
                   <th data-sort="positionType"><div>Position Type <span class="arrow">↕</span></div></th>
                   <th data-sort="warehouse"><div>Warehouse <span class="arrow">↕</span></div></th>
                   <th data-sort="owner"><div>Owner <span class="arrow">↕</span></div></th>
+                  <th data-sort="createdAt"><div>Created <span class="arrow">↕</span></div></th>
+                  <th data-sort="updatedAt"><div>Updated <span class="arrow">↕</span></div></th>
                   <th style="text-align:right;"><div>Actions</div></th>
                 </tr>
               </thead>

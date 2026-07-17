@@ -36,6 +36,36 @@
 .field-error{ font-size: 11px; color: var(--bad); margin-top: 4px; }
 .hint{ font-size: 11px; color: var(--ink-faint); margin-top: 4px; }
 
+/* Live merchant -> location -> {position type, warehouse, owner} preview
+   (ManageForm's Merchant field, ManifestModal's Transfer to field). */
+.placement-preview{ font-size: 11px; min-height: 14px; }
+.placement-preview-matched{ color: var(--good); }
+.placement-preview-unmatched{ color: var(--warn); }
+
+/* ManifestModal only: the preview sits inline with the "+ Add row" button
+   below the detail table (button flush left, preview flush right — see
+   .manifest-below-table-row), so it needs its own box instead of the bare
+   inline text the shared .placement-preview rule gives ManageForm's
+   Merchant field. */
+.placement-preview-block{
+  margin: 0;
+  padding: 6.5px 15px;
+  min-height: 0;
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-sunk);
+}
+.placement-preview-block:empty{ display: none; }
+
+.manifest-below-table-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 10px;
+}
+
 input[type=text], input[type=number], input[type=password], select.field-input, input[list], textarea{
   width: 100%; padding: 9px 11px; border-radius: 5px; border: 1px solid var(--border);
   font-size: 13.5px; color: var(--ink); background: var(--surface); font-family: inherit;

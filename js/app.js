@@ -12,15 +12,31 @@ import { Warehouse } from './models/Warehouse.js';
 import { WarehouseLocation } from './models/WarehouseLocation.js';
 import { SettingsController } from './features/settings/SettingsController.js';
 
+/**
+ * Merchant is the key for Position Type / Warehouse / Owner (see
+ * utils/merchantPlacement.js): a gadget whose merchant matches a created
+ * warehouse location's name gets those three columns *derived* from where
+ * that location lives, rather than typed by hand. Maria and Jun below are
+ * seeded with merchant 'Samples', which seedWarehouseLocations() creates
+ * under Warehouse 1 · Main Warehouse as a Good Position — so their
+ * positionType/warehouse/owner here are pre-computed to match exactly
+ * what _saveGadget() would derive on save, demonstrating the feature
+ * working end to end from first load. Liza's merchant 'Test Location'
+ * resolves the same way against Warehouse 1 · Damage Warehouse (Inventory
+ * Position). The remaining rows use merchant names with no matching
+ * location — a normal, supported state — so their placement stays
+ * whatever was set by hand (or blank), same as before this feature.
+ */
 function seedGadgets() {
+  const day = 24 * 60 * 60 * 1000;
   const now = Date.now();
   return [
-    { user: 'Maria Santos', role: 'Warehouse Associate', category: 'Laptop', serialNumber: 'SN-88213X', warehouseAssetTag: 'WH-0091', assetTagDefault: 'DELL-77213', macAddress: '3C:22:FB:AA:11:02', password: 'Wh0091!secure', merchant: 'INSPI Group', remarks: 'Assigned on onboarding', description: 'Dell Latitude 5420, 16GB RAM, good condition', positionType: 'Good Position', warehouse: 'Main Warehouse', owner: 'Sample Owner', updatedAt: now },
-    { user: 'Jun Dela Cruz', role: 'Forklift Operator', category: 'Handheld Scanner', serialNumber: 'SN-44120Q', warehouseAssetTag: 'WH-0114', assetTagDefault: 'ZEBRA-9931', macAddress: '', password: '', merchant: 'OCZISE', remarks: '', description: 'Zebra TC21 barcode scanner', positionType: 'Good Position', warehouse: 'Main Warehouse', owner: 'Test Owner', updatedAt: now },
-    { user: '', role: '', category: 'Router', serialNumber: 'SN-77002A', warehouseAssetTag: 'WH-0203', assetTagDefault: 'TPLINK-4410', macAddress: 'A0:B1:C2:D3:E4:F5', password: 'RtrAdm!n88', merchant: 'Kleenfant', remarks: 'Spare, not yet assigned', description: 'TP-Link AX3000, factory reset', positionType: 'Temporary Damage', warehouse: 'North Annex Warehouse', owner: 'No Owner', updatedAt: now },
-    { user: 'Liza Bautista', role: 'Inventory Clerk', category: 'Tablet', serialNumber: 'SN-19087K', warehouseAssetTag: 'WH-0132', assetTagDefault: 'IPAD-2201', macAddress: '', password: '4821', merchant: 'PetMate Corp', remarks: '', description: 'iPad 9th gen with rugged case', positionType: 'Temporary Position', warehouse: 'North Annex Warehouse', owner: '', updatedAt: now },
-    { user: 'Rico Fernandez', role: 'Site Supervisor', category: 'Laptop', serialNumber: 'SN-33501P', warehouseAssetTag: 'WH-0077', assetTagDefault: 'HP-5591', macAddress: '5C:F9:38:AA:2B:10', password: 'SiteS3cure!', merchant: 'Shigetsu', remarks: 'Requested faster charger', description: 'HP EliteBook 840, 32GB RAM', positionType: 'Temporary Returned', warehouse: 'Main Warehouse', owner: '', updatedAt: now },
-    { user: '', role: '', category: 'Handheld Scanner', serialNumber: 'SN-90211M', warehouseAssetTag: '', assetTagDefault: 'ZEBRA-9902', macAddress: '', password: '', merchant: '', remarks: 'Awaiting warehouse assignment', description: 'Zebra TC21, brand new, unboxed', positionType: 'Inventory Position', warehouse: '', owner: '', updatedAt: now }
+    { user: 'Maria Santos', role: 'Warehouse Associate', category: 'Laptop', serialNumber: 'SN-88213X', warehouseAssetTag: 'WH-0091', assetTagDefault: 'DELL-77213', macAddress: '3C:22:FB:AA:11:02', password: 'Wh0091!secure', merchant: 'Samples', remarks: 'Assigned on onboarding', description: 'Dell Latitude 5420, 16GB RAM, good condition', positionType: 'Good Position', warehouse: 'Main Warehouse', owner: 'Warehouse 1', createdAt: now - 30 * day, updatedAt: now },
+    { user: 'Jun Dela Cruz', role: 'Forklift Operator', category: 'Handheld Scanner', serialNumber: 'SN-44120Q', warehouseAssetTag: 'WH-0114', assetTagDefault: 'ZEBRA-9931', macAddress: '', password: '', merchant: 'Samples', remarks: '', description: 'Zebra TC21 barcode scanner', positionType: 'Good Position', warehouse: 'Main Warehouse', owner: 'Warehouse 1', createdAt: now - 30 * day, updatedAt: now },
+    { user: '', role: '', category: 'Router', serialNumber: 'SN-77002A', warehouseAssetTag: 'WH-0203', assetTagDefault: 'TPLINK-4410', macAddress: 'A0:B1:C2:D3:E4:F5', password: 'RtrAdm!n88', merchant: 'Kleenfant', remarks: 'Spare, not yet assigned', description: 'TP-Link AX3000, factory reset', positionType: 'Temporary Damage', warehouse: 'North Annex Warehouse', owner: 'No Owner', createdAt: now - 30 * day, updatedAt: now },
+    { user: 'Liza Bautista', role: 'Inventory Clerk', category: 'Tablet', serialNumber: 'SN-19087K', warehouseAssetTag: 'WH-0132', assetTagDefault: 'IPAD-2201', macAddress: '', password: '4821', merchant: 'Test Location', remarks: '', description: 'iPad 9th gen with rugged case', positionType: 'Inventory Position', warehouse: 'Damage Warehouse', owner: 'Warehouse 1', createdAt: now - 30 * day, updatedAt: now },
+    { user: 'Rico Fernandez', role: 'Site Supervisor', category: 'Laptop', serialNumber: 'SN-33501P', warehouseAssetTag: 'WH-0077', assetTagDefault: 'HP-5591', macAddress: '5C:F9:38:AA:2B:10', password: 'SiteS3cure!', merchant: 'Shigetsu', remarks: 'Requested faster charger', description: 'HP EliteBook 840, 32GB RAM', positionType: 'Temporary Returned', warehouse: 'Main Warehouse', owner: '', createdAt: now - 30 * day, updatedAt: now },
+    { user: '', role: '', category: 'Handheld Scanner', serialNumber: 'SN-90211M', warehouseAssetTag: '', assetTagDefault: 'ZEBRA-9902', macAddress: '', password: '', merchant: '', remarks: 'Awaiting warehouse assignment', description: 'Zebra TC21, brand new, unboxed', positionType: '', warehouse: '', owner: '', createdAt: now - 30 * day, updatedAt: now }
   ];
 }
 
@@ -40,16 +56,44 @@ function seedInventoryAssets() {
   ];
 }
 
-/** Seed data for Settings → Warehouse Information, so the tree isn't empty on first load. */
+/**
+ * Seed data for Settings → Warehouse Information, so the tree isn't empty
+ * on first load. `id` is fixed (rather than left to Warehouse's random
+ * default) so seedWarehouseLocations() below can reference it directly —
+ * the two seed functions run independently, so there's no other way to
+ * wire a location to "whichever id this warehouse happened to get".
+ */
 function seedWarehouses() {
   const now = Date.now();
   return [
     {
-      name: 'Main Warehouse', operationMode: 'self-operate',
+      id: 'wh-seed-1',
+      name: 'Warehouse 1', operationMode: 'self-operate',
       shortName: 'main', currency: 'PHP', country: 'Philippines', region: 'Cagayan Valley',
       city: 'Luna', fullAddress: 'Purok 3, Poblacion, Luna, Cagayan Valley',
       contactPerson: 'Maria Santos', phoneNumber: '09171234567', email: '', zipCode: '3521',
       createdAt: now, updatedAt: now
+    }
+  ];
+}
+
+/**
+ * Seed data for the created warehouse locations that merchant matching
+ * resolves against (see utils/merchantPlacement.js) — mirrors this
+ * feature's own worked example: Warehouse 1 · Main Warehouse has a
+ * "Samples" Good Position, and Warehouse 1 · Damage Warehouse has a
+ * "Test Location" Inventory Position.
+ */
+function seedWarehouseLocations() {
+  const now = Date.now();
+  return [
+    {
+      warehouseId: 'wh-seed-1', zone: 'main', area: 'Samples', locationCode: 'Samples',
+      positionNumber: '9111820000000', property: 'goods', enabled: true, createdAt: now
+    },
+    {
+      warehouseId: 'wh-seed-1', zone: 'damage', area: 'Test Location', locationCode: 'Test Location',
+      positionNumber: '9111690000000', property: 'inventory', enabled: true, createdAt: now
     }
   ];
 }
@@ -59,8 +103,7 @@ function collectRefs() {
     // Filter bar
     filterKeyword: document.getElementById('filterKeyword'),
     filterCategory: document.getElementById('filterCategory'),
-    filterWarehouse: document.getElementById('filterWarehouse'),
-    warehouseTabs: document.getElementById('warehouseTabs'),
+    warehouseFilterBtn: document.getElementById('warehouseFilterBtn'),
     filterSerial: document.getElementById('filterSerial'),
     filterMac: document.getElementById('filterMac'),
     searchBtn: document.getElementById('searchBtn'),
@@ -222,13 +265,13 @@ function main() {
 
   const warehouseLocationStore = new Store({
     key: 'stockroom_warehouse_locations_v1',
-    seed: () => [],
+    seed: seedWarehouseLocations,
     factory: (raw) => new WarehouseLocation(raw)
   });
 
   const refs = collectRefs();
   const view = new ManageView(refs);
-  const controller = new ManageController({ store, view, refs, inventoryAssetStore, warehouseStore });
+  const controller = new ManageController({ store, view, refs, inventoryAssetStore, warehouseStore, locationStore: warehouseLocationStore });
   controller.init();
 
   const inventoryAssetRefs = collectInventoryAssetRefs();

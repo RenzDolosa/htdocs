@@ -11,9 +11,10 @@ import { toCsv, parseCsv, downloadCsv, readCsvFile } from '../../utils/csv.js';
 import { el, esc } from '../../utils/dom.js';
 import { getOperatorName } from '../../core/Operator.js';
 import { fmtLocalDateTime, fmtLocalDateStamp } from '../../utils/format.js';
+import { resolveMerchantPlacement } from '../../utils/merchantPlacement.js';
 
 /** Column order/labels shared by the CSV export, the import template, and the importer. */
-const IMPORT_HEADERS = ['User', 'Role', 'Category', 'Serial Number', 'Warehouse Asset Tag', 'Asset Tag (Default)', 'MAC Address', 'Merchant', 'Remarks', 'Description'];
+const IMPORT_HEADERS = ['User', 'Role', 'Category', 'Serial Number', 'Warehouse Asset Tag', 'Asset Tag (Default)', 'MAC Address', 'Merchant', 'Owner', 'Remarks', 'Description'];
 
 /**
  * ManageController is the feature's entry point: it owns UI state
@@ -22,7 +23,7 @@ const IMPORT_HEADERS = ['User', 'Role', 'Category', 'Serial Number', 'Warehouse 
  * TransferForm/LogModal/DropdownMenu are generic components reused as-is.
  */
 export class ManageController {
-  constructor({ store, view, refs, inventoryAssetStore, warehouseStore }) {
+  constructor({ store, view, refs, inventoryAssetStore, warehouseStore, locationStore }) {
     this.store = store;
     this.view = view;
     this.refs = refs;
@@ -36,9 +37,16 @@ export class ManageController {
     // warehouse shows up as filterable the moment it's added in
     // Settings, even before any asset has been assigned to it.
     this.warehouseStore = warehouseStore;
+    // Read-only reference to Warehouse Information's created locations
+    // (Settings → a warehouse's zone → "create warehouse location").
+    // Merchant is the key: whenever a gadget's merchant is set to a name
+    // that matches one of these locations' codes, Position Type /
+    // Warehouse / Owner are derived from where that location lives (see
+    // utils/merchantPlacement.js) instead of being typed by hand.
+    this.locationStore = locationStore;
 
     this.state = {
-      filters: { keyword: '', category: 'all', warehouse: 'all', serialNumber: '', macAddress: '' },
+      filters: { keyword: '', category: 'all', owner: 'all', serialNumber: '', macAddress: '' },
       sortBy: 'user',
       sortDir: 'asc',
       page: 1,
@@ -48,6 +56,7 @@ export class ManageController {
 
     this.store.on('change', () => this.render());
     this.warehouseStore?.on('change', () => this.render());
+    this.locationStore?.on('change', () => this.render());
     this._bindFilterBar();
     this._bindActionBar();
     this._bindTableHead();
@@ -64,16 +73,45 @@ export class ManageController {
   }
 
   /**
-   * Warehouse names for the filter dropdown, the side tab bar, and the
-   * transfer-destination suggestions: every site configured in Warehouse
-   * Information, unioned with any warehouse name already sitting on an
-   * asset record (covers legacy/free-typed names from before a site was
-   * formally added there). Deduped and sorted either way.
+   * Warehouse names for the transfer-destination suggestions: every site
+   * configured in Warehouse Information, unioned with any warehouse name
+   * already sitting on an asset record (covers legacy/free-typed names
+   * from before a site was formally added there). Deduped and sorted
+   * either way.
    */
   _knownWarehouses() {
     const fromSettings = this.warehouseStore?.list().map((w) => w.name) || [];
     const fromAssets = this.store.list().map((g) => g.warehouse);
     return [...new Set([...fromSettings, ...fromAssets].filter(Boolean))].sort();
+  }
+
+  /**
+   * Warehouse names for the side filter button's flyout — every real site
+   * configured in Warehouse Information (Settings), not just whatever
+   * Owner values happen to already be sitting on a Manage record. A
+   * warehouse should be filterable — and show up as "active" once
+   * selected — the moment it exists in Settings, even before any asset
+   * has actually been assigned to it. Filtering itself still matches
+   * against each record's `owner` field (see _filteredSortedGadgets);
+   * this only changes where the *option list* comes from.
+   */
+  _knownOwners() {
+    return this.warehouseStore ? this.warehouseStore.list().map((w) => w.name).filter(Boolean).sort() : [];
+  }
+
+  /** Created warehouse location names (e.g. "Samples", "Test Location") —
+   * the merchant values that actually resolve to a Position Type /
+   * Warehouse / Owner. Suggested in the Merchant field's datalist. */
+  _locationCodes() {
+    return this.locationStore ? [...new Set(this.locationStore.list().map((l) => l.locationCode).filter(Boolean))].sort() : [];
+  }
+
+  /** Resolves a merchant name against created locations — see
+   * utils/merchantPlacement.js. Bound to this controller's stores so
+   * ManageForm's live preview and the actual save-time derivation both
+   * go through the exact same lookup. */
+  _resolvePlacement(merchant) {
+    return resolveMerchantPlacement(merchant, { locationStore: this.locationStore, warehouseStore: this.warehouseStore });
   }
 
   /** Serial numbers (lowercased, trimmed) that appear on more than one record, inventory-wide. */
@@ -130,12 +168,12 @@ export class ManageController {
 
     let gadgets = this.store.list().filter((g) => {
       if (f.category !== 'all' && g.category !== f.category) return false;
-      const warehouseKey = g.warehouse || 'Unassigned';
-      if (f.warehouse !== 'all' && warehouseKey !== f.warehouse) return false;
+      const ownerKey = g.owner || 'Unassigned';
+      if (f.owner !== 'all' && ownerKey !== f.owner) return false;
       if (serial && !g.serialNumber.toLowerCase().includes(serial)) return false;
       if (mac && !g.macAddress.toLowerCase().includes(mac)) return false;
       if (kw) {
-        const haystack = [g.user, g.role, g.category, g.serialNumber, g.warehouseAssetTag, g.assetTagDefault, g.macAddress, g.warehouse, g.remarks, g.description]
+        const haystack = [g.user, g.role, g.category, g.serialNumber, g.warehouseAssetTag, g.assetTagDefault, g.macAddress, g.warehouse, g.owner, g.remarks, g.description]
           .join(' ').toLowerCase();
         if (!haystack.includes(kw)) return false;
       }
@@ -149,6 +187,7 @@ export class ManageController {
         case 'role': va = a.role.toLowerCase(); vb = b.role.toLowerCase(); break;
         case 'category': va = a.category.toLowerCase(); vb = b.category.toLowerCase(); break;
         case 'warehouse': va = (a.warehouse || '').toLowerCase(); vb = (b.warehouse || '').toLowerCase(); break;
+        case 'createdAt': va = a.createdAt; vb = b.createdAt; break;
         case 'updatedAt': va = a.updatedAt; vb = b.updatedAt; break;
         default: va = (a.user || '').toLowerCase(); vb = (b.user || '').toLowerCase();
       }
@@ -173,8 +212,8 @@ export class ManageController {
     const start = (this.state.page - 1) * this.state.pageSize;
     const pageGadgets = filtered.slice(start, start + this.state.pageSize);
 
-    this.view.renderFilterOptions(this._knownCategories(), this._knownWarehouses(), this.state.filters);
-    this.view.renderWarehouseTabs(this._knownWarehouses(), this.state.filters.warehouse, (value) => this._selectWarehouseTab(value));
+    this.view.renderFilterOptions(this._knownCategories(), this.state.filters);
+    this.view.renderWarehouseFilterButton(this._knownOwners().length > 0, this.state.filters.owner);
     this.view.renderTable(pageGadgets, this.selected, {
       onEdit: (id) => this.openEditModal(id),
       onTransfer: (id) => this.openTransferModal(id),
@@ -203,10 +242,28 @@ export class ManageController {
     this.render();
   }
 
-  /** Clicking a side tab drives the same select-backed filter the dropdown uses, so both stay in sync automatically. */
-  _selectWarehouseTab(value) {
-    this.refs.filterWarehouse.value = value;
-    this._applyFilters();
+  /** Opens the "Warehouse" button's flyout: a DropdownMenu (same singleton
+   * used everywhere else in the app) listing "All" plus every warehouse
+   * configured in Warehouse Information. Picking one filters the table to
+   * records whose `owner` matches that warehouse's name — see
+   * _knownOwners() for why the option list is sourced from Settings
+   * rather than from whatever's already on Manage's own records. */
+  _openWarehouseFilterMenu() {
+    const owners = this._knownOwners();
+    const active = this.state.filters.owner;
+    openDropdownMenu({
+      anchor: this.refs.warehouseFilterBtn,
+      items: [
+        { label: active === 'all' ? '✓ All' : 'All', onClick: () => this._selectOwnerFilter('all') },
+        ...owners.map((o) => ({ label: o === active ? `✓ ${o}` : o, onClick: () => this._selectOwnerFilter(o) }))
+      ]
+    });
+  }
+
+  _selectOwnerFilter(value) {
+    this.state.filters.owner = value;
+    this.state.page = 1;
+    this.render();
   }
 
   // ---------- Selection ----------
@@ -260,17 +317,17 @@ export class ManageController {
     // state to wait out, so requiring a separate Search click just makes them
     // look broken.
     this.refs.filterCategory.addEventListener('change', () => this._applyFilters());
-    this.refs.filterWarehouse.addEventListener('change', () => this._applyFilters());
 
     this.refs.searchBtn.addEventListener('click', () => this._applyFilters());
     this.refs.resetBtn.addEventListener('click', () => this._resetFilters());
+    this.refs.warehouseFilterBtn?.addEventListener('click', () => this._openWarehouseFilterMenu());
   }
 
   _applyFilters() {
     this.state.filters = {
       keyword: this.refs.filterKeyword.value,
       category: this.refs.filterCategory.value,
-      warehouse: this.refs.filterWarehouse.value,
+      owner: this.state.filters.owner,
       serialNumber: this.refs.filterSerial.value,
       macAddress: this.refs.filterMac.value
     };
@@ -282,7 +339,7 @@ export class ManageController {
     this.refs.filterKeyword.value = '';
     this.refs.filterSerial.value = '';
     this.refs.filterMac.value = '';
-    this.state.filters = { keyword: '', category: 'all', warehouse: 'all', serialNumber: '', macAddress: '' };
+    this.state.filters = { keyword: '', category: 'all', owner: 'all', serialNumber: '', macAddress: '' };
     this.state.page = 1;
     this.render();
   }
@@ -402,7 +459,9 @@ export class ManageController {
     const form = buildManageForm(gadget, {
       userOptions: this._knownUsers(),
       inventoryAssets,
-      usedSerials: this._usedSerialSet(gadget ? gadget.id : null)
+      usedSerials: this._usedSerialSet(gadget ? gadget.id : null),
+      locationCodes: this._locationCodes(),
+      resolvePlacement: (merchant) => this._resolvePlacement(merchant)
     });
 
     const modal = new Modal({
@@ -448,17 +507,41 @@ export class ManageController {
       warehouseAssetTag: raw.warehouseAssetTag,
       assetTagDefault: raw.assetTagDefault,
       password: raw.password,
+      merchant: raw.merchant,
       remarks: raw.remarks,
       description: raw.description
     };
 
+    // Merchant is the key for Position Type / Warehouse / Owner (see
+    // utils/merchantPlacement.js): only recompute them when the merchant
+    // actually changed (a new gadget always counts as "changed"), and
+    // leave them alone otherwise so unrelated edits — e.g. just fixing a
+    // remark — don't quietly wipe out a placement set by the Transfer
+    // action. A changed merchant that no longer resolves to any created
+    // location clears the three fields to unassigned rather than leaving
+    // a stale placement from whatever the merchant used to be.
+    const merchantChanged = !existingGadget || existingGadget.merchant !== raw.merchant;
+    let placement = { matched: false };
+    if (merchantChanged) {
+      placement = this._resolvePlacement(raw.merchant);
+      payload.positionType = placement.matched ? placement.positionType : '';
+      payload.warehouse = placement.matched ? placement.warehouse : '';
+      payload.owner = placement.matched ? placement.owner : '';
+    }
+
     if (existingGadget) {
-      this._logFieldChanges(existingGadget, payload);
+      this._logFieldChanges(existingGadget, payload, merchantChanged);
       this.store.update(existingGadget.id, payload);
       Toast.success(`Saved changes for ${payload.user || 'this asset'}.`);
     } else {
       const gadget = new Gadget(payload);
       gadget.addLogEntry('Asset added to inventory.', 'create', null, getOperatorName());
+      if (payload.merchant) {
+        const note = placement.matched
+          ? `Merchant '${payload.merchant}' resolved to ${payload.positionType} · ${payload.warehouse} · ${payload.owner}.`
+          : `Merchant '${payload.merchant}' does not match any created warehouse location — position left unassigned.`;
+        gadget.addLogEntry(note, 'transfer', { from: '', to: payload.merchant }, getOperatorName());
+      }
       this.store.create(gadget);
       Toast.success(`Added asset for ${payload.user || 'unassigned user'}.`);
     }
@@ -468,13 +551,24 @@ export class ManageController {
    * Compares the record's current values against the incoming payload
    * *before* the store overwrites them, and writes typed log entries so
    * LogModal's Users/Remarks tabs have something to show. Warehouse
-   * changes are logged separately by openTransferModal.
+   * transfers made through the Transfer action are logged separately by
+   * openTransferModal/openBulkWarehouseTransferModal; `merchantChanged`
+   * covers the merchant-driven Position Type/Warehouse/Owner resolution
+   * that happens right here in _saveGadget.
    */
-  _logFieldChanges(gadget, payload) {
+  _logFieldChanges(gadget, payload, merchantChanged) {
     if (gadget.user !== payload.user) {
       const from = gadget.user || 'Unassigned';
       const to = payload.user || 'Unassigned';
       gadget.addLogEntry(`Reassigned from ${from} to ${to}.`, 'user', { from, to }, getOperatorName());
+    }
+    if (merchantChanged) {
+      const from = gadget.merchant || 'None';
+      const to = payload.merchant || 'None';
+      const placementNote = payload.positionType
+        ? ` Resolved to ${payload.positionType} · ${payload.warehouse} · ${payload.owner}.`
+        : ' No matching warehouse location — position left unassigned.';
+      gadget.addLogEntry(`Transferred merchant from '${from}' to '${to}'.${placementNote}`, 'transfer', { from: gadget.merchant || '', to: payload.merchant || '' }, getOperatorName());
     }
     if (gadget.remarks !== payload.remarks) {
       gadget.addLogEntry(payload.remarks ? `Remarks updated: "${payload.remarks}"` : 'Remarks cleared.', 'remarks', null, getOperatorName());
@@ -531,7 +625,7 @@ export class ManageController {
   openManifestModal() {
     if (this.selected.size === 0) return;
     const gadgets = this._filteredSortedGadgets().filter((g) => this.selected.has(g.id));
-    showManifestModal({ gadgets, store: this.store });
+    showManifestModal({ gadgets, store: this.store, locationStore: this.locationStore, warehouseStore: this.warehouseStore });
   }
 
   /**
@@ -790,10 +884,10 @@ export class ManageController {
     }
     // Password is intentionally excluded from CSV export to avoid writing
     // plaintext credentials to disk.
-    const headers = ['User', 'Role', 'Category', 'Serial Number', 'Warehouse Asset Tag', 'Asset Tag (Default)', 'MAC Address', 'Merchant', 'Remarks', 'Description', 'Last Updated'];
+    const headers = ['User', 'Role', 'Category', 'Serial Number', 'Warehouse Asset Tag', 'Asset Tag (Default)', 'MAC Address', 'Merchant', 'Owner', 'Remarks', 'Description', 'Warehouse', 'Created', 'Last Updated'];
     const rows = gadgets.map((g) => [
       g.user, g.role, g.category, g.serialNumber, g.warehouseAssetTag, g.assetTagDefault,
-      g.macAddress, g.merchant, g.remarks, g.description, g.warehouse, fmtLocalDateTime(g.updatedAt)
+      g.macAddress, g.merchant, g.owner, g.remarks, g.description, g.warehouse, fmtLocalDateTime(g.createdAt), fmtLocalDateTime(g.updatedAt)
     ].map((v) => {
       let s = String(v == null ? '' : v);
       if (s.includes(',') || s.includes('"')) s = `"${s.replace(/"/g, '""')}"`;
@@ -848,7 +942,7 @@ export class ManageController {
 
   /** Downloads a blank CSV with the exact headers the importer expects. */
   exportTemplate() {
-    const exampleRow = ['Maria Santos', 'Warehouse Associate', 'Laptop', 'SN-EXAMPLE-0001', 'WH-EXAMPLE', 'DELL-EXAMPLE', 'AA:BB:CC:DD:EE:FF', 'Merchant', '', '', 'Main Warehouse'];
+    const exampleRow = ['Maria Santos', 'Warehouse Associate', 'Laptop', 'SN-EXAMPLE-0001', 'WH-EXAMPLE', 'DELL-EXAMPLE', 'AA:BB:CC:DD:EE:FF', 'Merchant', 'Sample Owner', '', ''];
     const csv = toCsv(IMPORT_HEADERS, [exampleRow]);
     downloadCsv(csv, 'stockroom-assets-template.csv');
     Toast.show('Template downloaded. Replace the example row with your data, then use Import.');
@@ -895,6 +989,7 @@ export class ManageController {
       assetTagDefault: header.indexOf('asset tag (default)'),
       macAddress: header.indexOf('mac address'),
       merchant: header.indexOf('merchant'),
+      owner: header.indexOf('owner'),
       remarks: header.indexOf('remarks'),
       description: header.indexOf('description')
     };
@@ -932,6 +1027,14 @@ export class ManageController {
 
       if (serialKey) seenSerials.add(serialKey);
 
+      // Merchant is the key: if it matches a created warehouse location,
+      // Position Type / Warehouse / Owner are derived from that location
+      // rather than trusted from the file. An imported Owner column is
+      // kept only as a manual fallback when the merchant doesn't resolve
+      // to anything (e.g. the location hasn't been created yet).
+      const merchant = pick(cells, 'merchant');
+      const placement = this._resolvePlacement(merchant);
+
       const gadget = new Gadget({
         user: pick(cells, 'user'),
         role: pick(cells, 'role'),
@@ -940,7 +1043,10 @@ export class ManageController {
         warehouseAssetTag: pick(cells, 'warehouseAssetTag'),
         assetTagDefault,
         macAddress: pick(cells, 'macAddress'),
-        merchant: pick(cells, 'merchant'),
+        merchant,
+        owner: placement.matched ? placement.owner : pick(cells, 'owner'),
+        positionType: placement.matched ? placement.positionType : '',
+        warehouse: placement.matched ? placement.warehouse : '',
         remarks: pick(cells, 'remarks'),
         description: pick(cells, 'description')
       });

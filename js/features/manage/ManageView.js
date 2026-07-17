@@ -1,5 +1,5 @@
 import { esc, qsa } from '../../utils/dom.js';
-import { fmtInt } from '../../utils/format.js';
+import { fmtInt, fmtDate } from '../../utils/format.js';
 import { temporaryPositionLabel } from '../../models/Gadget.js';
 
 /**
@@ -12,37 +12,31 @@ export class ManageView {
     this._revealedPasswords = new Set();
   }
 
-  /** Populates the Category/Warehouse <select> filters, preserving the current selection. */
-  renderFilterOptions(categories, warehouses, filters) {
+  /** Populates the Category <select> filter, preserving the current selection.
+   * Warehouse has exactly one filter control now — the side tab bar
+   * (see renderWarehouseFilterButton) — so there's no dropdown to keep in sync here. */
+  renderFilterOptions(categories, filters) {
     this._fillSelect(this.refs.filterCategory, categories, 'All categories', filters.category);
-    this._fillSelect(this.refs.filterWarehouse, warehouses, 'All warehouses', filters.warehouse);
   }
 
   /**
-   * Renders the left-side vertical warehouse tab bar: "All Warehouse"
-   * plus one tab per known warehouse name (sourced from Warehouse
-   * Information — see ManageController._knownWarehouses). Hidden
-   * entirely when there are no warehouses configured yet, since a lone
-   * "All Warehouse" tab controlling nothing isn't useful.
+   * Reflects state on the single, always-present "Warehouse" filter
+   * button: hidden entirely when there's nothing to filter by (no
+   * warehouse exists in Settings yet), otherwise shown and highlighted
+   * while a non-"all" filter is active. Its label shows the selected
+   * warehouse's name (or "Warehouse" when nothing's selected) — it was
+   * previously left as static placeholder text in the HTML and never
+   * actually updated here. The button's click handler (which opens the
+   * actual flyout of warehouse options) is wired once by the controller —
+   * this method never touches innerHTML, so nothing needs re-binding on
+   * every render.
    */
-  renderWarehouseTabs(warehouses, activeWarehouse, onSelect) {
-    const container = this.refs.warehouseTabs;
-    if (!container) return;
-
-    if (warehouses.length === 0) {
-      container.hidden = true;
-      container.innerHTML = '';
-      return;
-    }
-    container.hidden = false;
-
-    const entries = [{ value: 'all', label: 'All Warehouse' }, ...warehouses.map((w) => ({ value: w, label: w }))];
-    container.innerHTML = entries.map((entry) =>
-      `<button type="button" class="warehouse-tab-item${entry.value === activeWarehouse ? ' active' : ''}" data-warehouse="${esc(entry.value)}">${esc(entry.label)}</button>`
-    ).join('');
-    qsa('.warehouse-tab-item', container).forEach((btn) => {
-      btn.addEventListener('click', () => onSelect(btn.getAttribute('data-warehouse')));
-    });
+  renderWarehouseFilterButton(hasOptions, activeOwner) {
+    const btn = this.refs.warehouseFilterBtn;
+    if (!btn) return;
+    btn.hidden = !hasOptions;
+    btn.classList.toggle('active', activeOwner !== 'all');
+    btn.textContent = activeOwner === 'all' ? 'Warehouse' : activeOwner;
   }
 
   _fillSelect(selectEl, options, allLabel, currentValue) {
@@ -65,7 +59,6 @@ export class ManageView {
     qsa('tr[data-id]', this.refs.tableBody).forEach((row) => {
       const id = row.getAttribute('data-id');
       row.querySelector('[data-action="edit"]').addEventListener('click', () => handlers.onEdit(id));
-      row.querySelector('[data-action="transfer"]').addEventListener('click', () => handlers.onTransfer(id));
       row.querySelector('[data-action="log"]').addEventListener('click', () => handlers.onViewLog(id));
       row.querySelector('[data-action="delete"]').addEventListener('click', () => handlers.onDelete(id));
       row.querySelector('[data-action="select-row"]').addEventListener('change', (e) => handlers.onToggleSelect(id, e.target.checked));
@@ -201,14 +194,13 @@ export class ManageView {
             : (g.positionType ? esc(g.positionType) : '<span style="color:var(--ink-faint);">Unassigned</span>')
         }</div></td>
         <td data-label="Warehouse"><div>${g.warehouse ? `<span class="pill pill-warehouse">${esc(g.warehouse)}</span>` : '<span style="color:var(--ink-faint);">Unassigned</span>'}</div></td>
-        <td data-label="Owner" style="font-family:var(--font-mono); font-size:12px;"><div>${g.owner ? esc(g.owner) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
+        <td data-label="Owner" class="owner-col" style="font-family:var(--font-mono); font-size:12px;"><div>${g.owner ? esc(g.owner) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
+        <td data-label="Created"><div><small>${fmtDate(g.createdAt)}</small></div></td>
+        <td data-label="Updated"><div><small>${fmtDate(g.updatedAt)}</small></div></td>
         <td data-label="Actions">
           <div class="row-actions">
             <button class="icon-btn" data-action="edit" aria-label="Edit asset" title="Edit">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-            </button>
-            <button class="icon-btn" data-action="transfer" aria-label="Transfer warehouse" title="Transfer to another warehouse">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3l4 4-4 4"/><path d="M3 11V9a2 2 0 0 1 2-2h16"/><path d="M7 21l-4-4 4-4"/><path d="M21 13v2a2 2 0 0 1-2 2H3"/></svg>
             </button>
             <button class="icon-btn" data-action="log" aria-label="View history log" title="View log">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>

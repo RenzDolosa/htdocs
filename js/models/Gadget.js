@@ -39,11 +39,13 @@ export class Gadget {
     this.macAddress = data.macAddress || '';
     this.password = data.password || '';
     this.merchant = data.merchant || '';
+    this.owner = data.owner || '';
     this.remarks = data.remarks || '';
     this.description = data.description || '';
     this.positionType = data.positionType || '';
     this.warehouse = data.warehouse || '';
     this.temporaryPosition = data.temporaryPosition || '';
+    this.createdAt = data.createdAt || Date.now();
     this.updatedAt = data.updatedAt || Date.now();
     this.history = Array.isArray(data.history) ? data.history : [];
   }

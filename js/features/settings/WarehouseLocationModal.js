@@ -6,17 +6,12 @@ import { openDropdownMenu } from '../../components/DropdownMenu.js';
 import { generateId } from '../../utils/id.js';
 import { toCsv, downloadCsv } from '../../utils/csv.js';
 import { fmtLocalDateStamp } from '../../utils/format.js';
+import { POSITION_TYPES, TYPE_LABEL } from '../../models/WarehouseLocation.js';
 
-/** The two position types a location can be. Single source of truth for
- * both the "Generate a new position" radios and the table/filter labels —
- * previously these disagreed (the form said "Goods picking"/"temporary
- * storage" while the table displayed "Inventory Position" for the same
- * "picking" value), which is exactly the kind of mismatch this fixes. */
-const POSITION_TYPES = [
-  { value: 'goods', label: 'Goods Position' },
-  { value: 'inventory', label: 'Inventory Position' }
-];
-const TYPE_LABEL = Object.fromEntries(POSITION_TYPES.map((t) => [t.value, t.label]));
+// POSITION_TYPES / TYPE_LABEL now live in models/WarehouseLocation.js — the
+// single source of truth shared with utils/merchantPlacement.js, so a
+// position's type reads identically here, in Manage's derived Position
+// Type column, and in the manifest placement preview.
 
 /**
  * A select-like filter control that looks like a bordered input with a

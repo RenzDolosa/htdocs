@@ -1,6 +1,19 @@
 import { generateId } from '../utils/id.js';
 
 /**
+ * The two position types a location can be. Single source of truth for
+ * the "Generate a new position" radios, the location table/filter labels
+ * (WarehouseLocationModal.js), and — via utils/merchantPlacement.js — the
+ * Manage grid's derived Position Type column. 'goods' reads as "Good
+ * Position" (a slot for sellable/undamaged stock), not "Goods Position".
+ */
+export const POSITION_TYPES = [
+  { value: 'goods', label: 'Good Position' },
+  { value: 'inventory', label: 'Inventory Position' }
+];
+export const TYPE_LABEL = Object.fromEntries(POSITION_TYPES.map((t) => [t.value, t.label]));
+
+/**
  * WarehouseLocation is a single storage position/slot inside one zone
  * (Main / Purchase / Returns / Damage — see WAREHOUSE_TYPES in
  * Warehouse.js) of one warehouse site. `zone` is what keeps the four

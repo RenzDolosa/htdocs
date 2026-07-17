@@ -30,7 +30,7 @@
 }
 table{ width: 100%; border-collapse: separate; border-spacing: 0; }
 thead th{
-  position: sticky; top: 0; z-index: 1;
+  position: sticky; top: 0; z-index: 2;
   text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--ink-soft); font-weight: 600; padding: 1px 0;
   background: var(--surface-sunk);
@@ -42,6 +42,7 @@ thead th:hover{ color: var(--ink); }
 thead div{ display: flex; justify-content: start; padding: 0 5px; }
 thead th.checkbox-col{ cursor: default; width: 34px; }
 thead th.sn-col{ cursor: default; width: 34px; }
+thead th.owner-col{ cursor: default; width: 110px; }
 thead th[data-sort]{ cursor: pointer; }
 thead th .arrow{ opacity: 0.4; font-size: 10px; margin-left: 3px; }
 thead th.sorted .arrow{ opacity: 1; color: var(--accent); }
@@ -51,7 +52,31 @@ tbody tr:last-child td{ border-bottom: none; }
 tbody tr:hover{ background: var(--surface-sunk); }
 tbody tr.row-selected{ background: var(--accent-soft); }
 td.checkbox-col{ width: 34px; }
-td.sn-col{ width: 34px; }
+td.sn-col{ width: 34px; min-width: 34px; }
+td.owner-col{ width: 110px; min-width: 110px; }
+
+/* Frozen leftmost columns (row number + row-select checkbox): the same
+   sticky trick as the header above, just pinned to the left edge of
+   .grid-scroll instead of the top. Both columns are a fixed 34px (see
+   the width rules above), so the checkbox column's offset is exactly
+   the sn column's width — if either width ever changes, this offset
+   must change with it.
+   Stacking order (highest wins): frozen header corner (4) > plain
+   sticky header (2) > frozen body cells (1) > everything else (auto).
+   The header corner has to beat the plain header too, since both are
+   sticky on the same top edge and the corner also needs to stay above
+   body cells scrolling both underneath and to the left of it. */
+thead th.sn-col, tbody td.sn-col{ position: sticky; left: 0; }
+thead th.checkbox-col, tbody td.checkbox-col{ position: sticky; left: 34px; }
+thead th.sn-col, thead th.checkbox-col{ z-index: 4; }
+tbody td.sn-col, tbody td.checkbox-col{
+  z-index: 1;
+  background: var(--surface);
+  box-shadow: 2px 0 4px -2px rgba(28, 29, 33, 0.15);
+}
+thead th.checkbox-col{ box-shadow: 2px 0 4px -2px rgba(28, 29, 33, 0.15); }
+tbody tr:hover td.sn-col, tbody tr:hover td.checkbox-col{ background: var(--surface-sunk); }
+tbody tr.row-selected td.sn-col, tbody tr.row-selected td.checkbox-col{ background: var(--accent-soft); }
 
 
 .item-name{ font-weight: 600; color: var(--ink); }

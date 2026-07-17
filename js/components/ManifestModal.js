@@ -5,6 +5,7 @@ import { fmtManifestDate } from '../utils/format.js';
 import { getOperatorName } from '../core/Operator.js';
 import { Toast } from './Toast.js';
 import { confirmDialog } from './ConfirmDialog.js';
+import { resolveMerchantPlacement } from '../utils/merchantPlacement.js';
 
 /**
  * ManifestModal renders a printable "Manifest / Transmittal" document for
@@ -26,6 +27,15 @@ import { confirmDialog } from './ConfirmDialog.js';
  * passed in. That confirmation step exists because browsers give no way
  * to tell "printed" apart from "hit Cancel" — pass no `store` and this
  * whole step is skipped, printing still works.
+ *
+ * "Transfer to" doubles as the merchant/location key: when `locationStore`
+ * and `warehouseStore` are supplied, the field suggests the location names
+ * actually created under Settings → Warehouse Information (e.g. "Samples",
+ * "Test Location") and shows a live preview of the Position Type /
+ * Warehouse / Owner that name resolves to — the same resolution
+ * applyMerchantTransfer() writes back to each asset once the transfer is
+ * confirmed. Without those two stores the field behaves exactly as
+ * before: a plain free-text merchant name.
  */
 
 /** Column order/labels for the manifest detail table, matching the printed transmittal layout. */
@@ -103,10 +113,14 @@ const REQUIRED_META_KEYS = ['consignor', 'department', 'preparedBy', 'merchant',
  * @param {import('../core/Store.js').Store} [opts.store] - the Manage store these
  *        gadgets came from. Without it, Transfer / Print still prints, it just can't
  *        persist the merchant change or log it to history.
+ * @param {import('../core/Store.js').Store} [opts.locationStore] - created warehouse
+ *        locations, for the "Transfer to" field's suggestions and live placement preview.
+ * @param {import('../core/Store.js').Store} [opts.warehouseStore] - warehouse sites, paired
+ *        with locationStore to resolve a location's owning warehouse for that same preview.
  * @param {string} [opts.defaultConsignor] - pre-fills the Consignor field.
  * @param {string} [opts.defaultDepartment] - pre-fills the Department field.
  */
-export function openManifestModal({ gadgets = [], store = null, defaultConsignor = '', defaultDepartment = '' } = {}) {
+export function openManifestModal({ gadgets = [], store = null, locationStore = null, warehouseStore = null, defaultConsignor = '', defaultDepartment = '' } = {}) {
   const initialRows = gadgets.length ? gadgets.map(rowFromGadget) : [blankRow()];
   let transferBtn = null;
 
@@ -140,7 +154,8 @@ export function openManifestModal({ gadgets = [], store = null, defaultConsignor
             </div>
             <div class="manifest-meta-row">
               <label><span class="required-mark">*</span>Transfer to</label>
-              <input type="text" data-meta="merchant" placeholder="Merchant">
+              <input type="text" data-meta="merchant" list="manifestMerchantOptions" placeholder="Merchant">
+              <datalist id="manifestMerchantOptions"></datalist>
             </div>
             <div class="manifest-meta-row manifest-meta-row--signature">
               <label>Signature</label>
@@ -154,19 +169,23 @@ export function openManifestModal({ gadgets = [], store = null, defaultConsignor
         </div>
       </div>
 
+      
       <div class="manifest-table-wrap">
-        <table class="manifest-detail-table">
-          <thead>
-            <tr>
-              ${COLUMNS.map((c) => `<th>${esc(c.label)}</th>`).join('')}
-              <th class="no-print"></th>
+      <table class="manifest-detail-table">
+      <thead>
+      <tr>
+      ${COLUMNS.map((c) => `<th>${esc(c.label)}</th>`).join('')}
+      <th class="no-print"></th>
             </tr>
-          </thead>
-          <tbody data-role="manifest-body"></tbody>
+            </thead>
+            <tbody data-role="manifest-body"></tbody>
         </table>
-      </div>
+        </div>
 
-      <button type="button" class="btn btn-outline btn-sm no-print" data-action="add-manifest-row" style="margin-top:10px;">+ Add row</button>
+        <div class="manifest-below-table-row">
+          <button type="button" class="btn btn-outline btn-sm no-print" data-action="add-manifest-row">+ Add row</button>
+          <div class="placement-preview placement-preview-block no-print" data-role="manifest-placement-preview"></div>
+        </div>
     </div>
   `);
 
@@ -177,6 +196,31 @@ export function openManifestModal({ gadgets = [], store = null, defaultConsignor
   body.querySelector('[data-meta="department"]').value = defaultDepartment;
   body.querySelector('[data-meta="date"]').value = fmtManifestDate();
   body.querySelector('[data-meta="preparedBy"]').value = getOperatorName();
+
+  // "Transfer to" doubles as the merchant/location key (Task 1): suggest
+  // the location names actually created under Warehouse Information, and
+  // show what each one resolves to before the transfer is even confirmed.
+  const merchantMetaInput = body.querySelector('[data-meta="merchant"]');
+  const merchantPreviewEl = body.querySelector('[data-role="manifest-placement-preview"]');
+  if (locationStore) {
+    const locationCodes = [...new Set(locationStore.list().map((l) => l.locationCode).filter(Boolean))].sort();
+    body.querySelector('#manifestMerchantOptions').innerHTML =
+      locationCodes.map((code) => `<option value="${esc(code)}">`).join('');
+  }
+  function updateMerchantPreview() {
+    const value = merchantMetaInput.value.trim();
+    merchantPreviewEl.classList.remove('placement-preview-matched', 'placement-preview-unmatched');
+    if (!value || !locationStore || !warehouseStore) { merchantPreviewEl.textContent = ''; return; }
+    const placement = resolveMerchantPlacement(value, { locationStore, warehouseStore });
+    if (placement.matched) {
+      merchantPreviewEl.textContent = `→ Position Type: ${placement.positionType} · Warehouse: ${placement.warehouse} · Owner: ${placement.owner}`;
+      merchantPreviewEl.classList.add('placement-preview-matched');
+    } else {
+      merchantPreviewEl.textContent = 'No warehouse location named this yet — Position Type / Warehouse / Owner will stay unassigned for the assets transferred here.';
+      merchantPreviewEl.classList.add('placement-preview-unmatched');
+    }
+  }
+  merchantMetaInput.addEventListener('input', updateMerchantPreview);
 
   /** True once every required meta field (Consignor/Department/Prepared
    * by/Transfer to/Date) has a non-blank value. Gates the Transfer / Print
@@ -262,11 +306,27 @@ export function openManifestModal({ gadgets = [], store = null, defaultConsignor
    * elsewhere: log the change on the gadget first, then persist through
    * the store so the append-only history array is saved along with the
    * updated field in the same write.
+   *
+   * Merchant is the key (Task 2): when locationStore/warehouseStore were
+   * supplied and "Transfer to" matches a created location, Position Type
+   * / Warehouse / Owner are resolved from that location and written back
+   * to every transferred asset in the same update — this is the piece
+   * that actually changes all three columns, not just the merchant name.
    */
   function applyMerchantTransfer() {
     if (!store) return;
     const transferTo = body.querySelector('[data-meta="merchant"]').value.trim();
     if (!transferTo) return;
+
+    const placement = (locationStore && warehouseStore)
+      ? resolveMerchantPlacement(transferTo, { locationStore, warehouseStore })
+      : { matched: false };
+    const placementPatch = placement.matched
+      ? { positionType: placement.positionType, warehouse: placement.warehouse, owner: placement.owner }
+      : {};
+    const placementNote = placement.matched
+      ? ` Resolved to ${placement.positionType} · ${placement.warehouse} · ${placement.owner}.`
+      : '';
 
     let updatedCount = 0;
     qsa('tr[data-row-id]', tbody).forEach((tr) => {
@@ -278,12 +338,12 @@ export function openManifestModal({ gadgets = [], store = null, defaultConsignor
       if (previousMerchant === transferTo) return;
 
       gadget.addLogEntry(
-        `Transferred merchant from '${previousMerchant}' to '${transferTo}'.`,
+        `Transferred merchant from '${previousMerchant}' to '${transferTo}'.${placementNote}`,
         'transfer',
         { from: previousMerchant, to: transferTo },
         getOperatorName()
       );
-      store.update(gadget.id, { merchant: transferTo });
+      store.update(gadget.id, { merchant: transferTo, ...placementPatch });
       updatedCount++;
 
       // Reflect the new merchant in the manifest row itself so the
@@ -293,7 +353,10 @@ export function openManifestModal({ gadgets = [], store = null, defaultConsignor
     });
 
     if (updatedCount > 0) {
-      Toast.success(`Updated merchant to "${transferTo}" for ${updatedCount} asset${updatedCount === 1 ? '' : 's'}.`);
+      const suffix = placement.matched
+        ? ` (${placement.positionType} · ${placement.warehouse} · ${placement.owner})`
+        : '';
+      Toast.success(`Updated merchant to "${transferTo}" for ${updatedCount} asset${updatedCount === 1 ? '' : 's'}${suffix}.`);
     }
   }
 

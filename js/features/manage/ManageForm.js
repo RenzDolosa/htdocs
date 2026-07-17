@@ -23,13 +23,24 @@ function distinctOptions(values) {
  * Picking (or typing) a serial number that matches a catalog entry
  * auto-fills MAC address and Asset tag (default) from that entry.
  *
+ * Merchant is a bit different from the fields above: it's not just free
+ * text, it's the *key* that Position Type / Warehouse / Owner are derived
+ * from (see utils/merchantPlacement.js) — typing or picking a merchant
+ * name that matches a created warehouse location resolves those three
+ * columns automatically on save. `locationCodes` suggests the names that
+ * actually resolve to something; `resolvePlacement` powers the live
+ * preview under the field so that resolution is visible before saving,
+ * not just after.
+ *
  * @param {object} [gadget] - existing Gadget to prefill, or omit for a blank form.
  * @param {object} [source]
  * @param {string[]} [source.userOptions] - known users from Manage's own records.
  * @param {object[]} [source.inventoryAssets] - InventoryAsset records (category, serialNumber, assetTag, macAddress).
  * @param {Set<string>} [source.usedSerials] - serial numbers (lowercased, trimmed) already assigned to some other Manage record, excluded from suggestions so the dropdown doesn't offer a serial that would just fail the duplicate-serial check.
+ * @param {string[]} [source.locationCodes] - created warehouse location names (e.g. "Samples", "Test Location"), suggested for the Merchant field.
+ * @param {(merchant: string) => object} [source.resolvePlacement] - merchantPlacement.resolveMerchantPlacement bound to the app's stores; called on every Merchant keystroke to drive the live preview.
  */
-export function buildManageForm(gadget = null, { userOptions = [], inventoryAssets = [], usedSerials = new Set() } = {}) {
+export function buildManageForm(gadget = null, { userOptions = [], inventoryAssets = [], usedSerials = new Set(), locationCodes = [], resolvePlacement = () => ({ matched: false }) } = {}) {
   const node = el(`
     <form class="gadget-form" novalidate>
       <div class="field-row">
@@ -85,6 +96,12 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
         </div>
       </div>
       <div class="field">
+        <label for="gMerchant">Merchant</label>
+        <input type="text" id="gMerchant" name="merchant" list="gadgetMerchantOptions" placeholder="e.g. Samples">
+        <datalist id="gadgetMerchantOptions"></datalist>
+        <div class="placement-preview" data-role="placement-preview"></div>
+      </div>
+      <div class="field">
         <label for="gRemarks">Remarks</label>
         <input type="text" id="gRemarks" name="remarks" placeholder="Any notes worth flagging">
       </div>
@@ -102,6 +119,12 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
   // Manage's own records are the source of truth for who's already been assigned something.
   node.querySelector('#gadgetUserOptions').innerHTML =
     distinctOptions(userOptions).map((v) => `<option value="${esc(v)}">`).join('');
+
+  // Settings → Warehouse Information's created locations are the source of
+  // truth for which merchant names actually resolve to a Position Type /
+  // Warehouse / Owner — see the placement preview wired below.
+  node.querySelector('#gadgetMerchantOptions').innerHTML =
+    distinctOptions(locationCodes).map((v) => `<option value="${esc(v)}">`).join('');
 
   const categoryInput = node.querySelector('#gCategory');
   const serialOptionsEl = node.querySelector('#gadgetSerialOptions');
@@ -156,6 +179,27 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
     assetTagInput.value = match.assetTag || '';
   });
 
+  // Live placement preview: shows what Position Type / Warehouse / Owner
+  // will resolve to *before* Save is clicked, so the merchant -> location
+  // -> {position type, warehouse, owner} chain is visible while editing,
+  // not just discoverable afterward in the Manage grid.
+  const merchantInput = node.querySelector('#gMerchant');
+  const previewEl = node.querySelector('[data-role="placement-preview"]');
+  function updatePlacementPreview() {
+    const value = merchantInput.value.trim();
+    previewEl.classList.remove('placement-preview-matched', 'placement-preview-unmatched');
+    if (!value) { previewEl.textContent = ''; return; }
+    const placement = resolvePlacement(value);
+    if (placement.matched) {
+      previewEl.textContent = `→ Position Type: ${placement.positionType} · Warehouse: ${placement.warehouse} · Owner: ${placement.owner}`;
+      previewEl.classList.add('placement-preview-matched');
+    } else {
+      previewEl.textContent = 'No warehouse location named this yet — Position Type / Warehouse / Owner will stay unassigned until one is created under this name.';
+      previewEl.classList.add('placement-preview-unmatched');
+    }
+  }
+  merchantInput.addEventListener('input', updatePlacementPreview);
+
   node.querySelector('[data-action="toggle-password"]').addEventListener('click', (e) => {
     const input = node.querySelector('#gPassword');
     const showing = input.type === 'text';
@@ -172,6 +216,7 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
     node.querySelector('#gWhTag').value = gadget.warehouseAssetTag;
     node.querySelector('#gDefTag').value = gadget.assetTagDefault;
     node.querySelector('#gPassword').value = gadget.password;
+    node.querySelector('#gMerchant').value = gadget.merchant;
     node.querySelector('#gRemarks').value = gadget.remarks;
     node.querySelector('#gDescription').value = gadget.description;
   }
@@ -179,6 +224,7 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
   // Populate suggestions once up front — either narrowed to the prefilled
   // edit-mode category, or the full catalog for a blank add-mode form.
   refreshCatalogSuggestions();
+  updatePlacementPreview();
 
   function getData() {
     return {
@@ -190,6 +236,7 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
       warehouseAssetTag: node.querySelector('#gWhTag').value.trim(),
       assetTagDefault: node.querySelector('#gDefTag').value.trim(),
       password: node.querySelector('#gPassword').value,
+      merchant: node.querySelector('#gMerchant').value.trim(),
       remarks: node.querySelector('#gRemarks').value.trim(),
       description: node.querySelector('#gDescription').value.trim()
     };
