@@ -123,6 +123,9 @@ html, body{ height: 100%; }
   border-top: 1px dashed var(--border);
 }
 .filterbar-row.filterbar-advanced[hidden]{ display: none; }
+.filterbar-col{
+  display: flex; flex-direction: row; gap: 8px;
+}
 .filterbar input, .filterbar select{
   padding: 7px 10px; border-radius: 5px; border: 1px solid var(--border);
   font-size: 12.5px; color: var(--ink); background: var(--surface);
@@ -160,7 +163,7 @@ html, body{ height: 100%; }
 .link-sep{ color: var(--border); font-size: 12px; }
 
 .grid-panel{
-  margin: 0 16px 16px;
+  margin: 0 8px;
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -172,10 +175,10 @@ html, body{ height: 100%; }
 /* Warehouse side tabs (Manage/assets page) — sourced from Warehouse
    Information; sits to the left of the assets grid. */
 .assets-body{
-  display: flex; gap: 7px; align-items: flex-start;
-  margin: 0 8px 0 0; flex: 1; min-width: 0; min-height: 0;
+  display: flex; align-items: stretch;
+  margin: 0; flex: 1; min-width: 0; min-height: 0;
 }
-.assets-body .grid-panel{ margin: 0; }
+/* .assets-body .grid-panel{ margin: 0; } */
 .warehouse-tab{
   width: 22px; height: 100%;
   background: var(--surface);
@@ -207,7 +210,9 @@ html, body{ height: 100%; }
 }
 .goto-label{ font-size: 12.5px; color: var(--ink-faint); margin-left: 4px; }
 #gotoPageInput,
-#iaGotoPageInput{
+#iaGotoPageInput,
+#ugGotoPageInput,
+#uaGotoPageInput{
   width: 48px; padding: 6px 6px; border-radius: 5px; border: 1px solid var(--border);
   font-size: 12.5px; text-align: center;
 }

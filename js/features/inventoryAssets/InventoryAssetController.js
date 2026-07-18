@@ -5,6 +5,8 @@ import { openDropdownMenu } from '../../components/DropdownMenu.js';
 import { InventoryAsset } from '../../models/InventoryAsset.js';
 import { buildInventoryAssetForm } from './InventoryAssetForm.js';
 import { toCsv, parseCsv, downloadCsv, readCsvFile } from '../../utils/csv.js';
+import { processInChunks } from '../../utils/asyncBatch.js';
+import { buildImportProgress } from '../../components/ImportProgress.js';
 import { el } from '../../utils/dom.js';
 import { fmtLocalDateTime, fmtLocalDateStamp } from '../../utils/format.js';
 
@@ -334,6 +336,7 @@ export class InventoryAssetController {
    * the file picker that triggers the actual import. Mirrors
    * ManageController.openImportModal() exactly. */
   openImportModal() {
+    const progress = buildImportProgress();
     const body = el(`
       <div class="import-modal-body">
         <p class="hint" style="margin-bottom:14px;">Import inventory assets from a CSV file. Download the template to see the exact column format expected, fill it in, then choose your file below.</p>
@@ -344,6 +347,7 @@ export class InventoryAssetController {
         </div>
       </div>
     `);
+    body.appendChild(progress.node);
 
     const modal = new Modal({
       title: 'Import assets',
@@ -356,6 +360,7 @@ export class InventoryAssetController {
     body.querySelector('#iaImportExportTemplateBtn').addEventListener('click', () => this.exportTemplate());
     body.querySelector('#iaImportChooseFileBtn').addEventListener('click', () => {
       this._pendingImportModal = modal;
+      this._pendingImportProgress = progress;
       this.refs.importFileInput.click();
     });
 
@@ -376,13 +381,25 @@ export class InventoryAssetController {
     // still fires a change event next time.
     event.target.value = '';
     const modal = this._pendingImportModal;
+    const progress = this._pendingImportProgress;
     this._pendingImportModal = null;
+    this._pendingImportProgress = null;
     if (!file) return;
 
     readCsvFile(file)
-      .then((text) => {
-        this._importCsvText(text);
-        modal?.close();
+      .then(async (text) => {
+        const chooseBtn = modal?.bodyEl?.querySelector('#iaImportChooseFileBtn');
+        const templateBtn = modal?.bodyEl?.querySelector('#iaImportExportTemplateBtn');
+        if (chooseBtn) chooseBtn.disabled = true;
+        if (templateBtn) templateBtn.disabled = true;
+        progress?.start();
+
+        await this._importCsvText(text, progress);
+
+        progress?.finish('Import complete.');
+        // Brief pause so "Import complete" is actually readable instead of
+        // flashing past on its way to the modal closing.
+        setTimeout(() => modal?.close(), 600);
       })
       .catch(() => Toast.error('Could not read that file.'));
   }
@@ -394,8 +411,13 @@ export class InventoryAssetController {
    * category, or a serial number that collides with an existing record
    * or an earlier row in the same file, are skipped and counted rather
    * than aborting the whole import.
+   *
+   * Runs in small chunks (see utils/asyncBatch.js) rather than one tight
+   * forEach — a large file would otherwise block the tab for however
+   * long the whole loop takes, and `progress` would only ever jump
+   * straight to 100% once the browser got a chance to repaint at all.
    */
-  _importCsvText(text) {
+  async _importCsvText(text, progress = null) {
     const rows = parseCsv(text);
     if (rows.length === 0) {
       Toast.error('That file has no rows to import.');
@@ -424,7 +446,7 @@ export class InventoryAssetController {
     let skippedNoCategory = 0;
     let skippedDuplicateSerial = 0;
 
-    rows.forEach((cells) => {
+    await processInChunks(rows, (cells) => {
       if (cells.every((c) => c.trim() === '')) return; // blank line
 
       const category = (cells[colIndex.category] || '').trim();
@@ -448,6 +470,9 @@ export class InventoryAssetController {
 
       this.store.create(new InventoryAsset({ category, serialNumber, assetTag, macAddress, imei1, imei2 }));
       created++;
+    }, {
+      chunkSize: 25,
+      onProgress: (done, total) => progress?.update(done, total)
     });
 
     if (created > 0) {

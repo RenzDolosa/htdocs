@@ -202,8 +202,8 @@ export function openWarehouseLocationModal({ warehouse, zone, locationStore }) {
           <table>
             <thead>
               <tr>
-                <th data-label="SN" class="sn-col" style="width:30px;"><div style="display: flex; justify-content: end; padding: 0;"></div></th>
-                <th class="checkbox-col" style="width:36px;"><div><input type="checkbox" class="loc-select-all" aria-label="Select all on this page" style="height: 15px; width: 15px;"></div></th>
+                <th data-label="SN" class="sn-col"><div style="display: flex; justify-content: end; padding: 0;"></div></th>
+                <th class="checkbox-col"><div><input type="checkbox" class="loc-select-all" aria-label="Select all on this page" style="height: 15px; width: 15px;"></div></th>
                 <th data-label="Location"><div>Location</div></th>
                 <th data-label="Enable" style="width:80px;"><div>Enable</div></th>
                 <th data-label="Types of"><div>Types of</div></th>

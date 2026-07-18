@@ -1,6 +1,7 @@
 import { esc, qsa } from '../../utils/dom.js';
 import { fmtInt, fmtDate } from '../../utils/format.js';
 import { temporaryPositionLabel } from '../../models/Gadget.js';
+import { renderPagination } from '../../components/Pagination.js';
 
 /**
  * ManageView owns DOM rendering only. It receives plain data and a table
@@ -107,46 +108,7 @@ export class ManageView {
     this.refs.resultCount.textContent = `${fmtInt(totalItems)} ${totalItems === 1 ? 'asset' : 'assets'}`;
     this.refs.selectedCount.textContent = `Checked ${fmtInt(selectedCount)}`;
 
-    this.refs.pageSizeSelect.value = String(pageSize);
-    this.refs.pageSizeSelect.onchange = (e) => handlers.onPageSizeChange(Number(e.target.value));
-
-    this.refs.prevPageBtn.disabled = page <= 1;
-    this.refs.prevPageBtn.onclick = () => handlers.onPrevPage();
-    this.refs.nextPageBtn.disabled = page >= totalPages;
-    this.refs.nextPageBtn.onclick = () => handlers.onNextPage();
-
-    this.refs.pageNumbers.innerHTML = this._pageList(page, totalPages).map((entry) =>
-      entry === '…'
-        ? `<span class="page-ellipsis">…</span>`
-        : `<button type="button" class="page-btn${entry === page ? ' active' : ''}" data-page="${entry}">${entry}</button>`
-    ).join('');
-    qsa('.page-btn', this.refs.pageNumbers).forEach((btn) => {
-      btn.addEventListener('click', () => handlers.onPageClick(Number(btn.getAttribute('data-page'))));
-    });
-
-    this.refs.gotoPageInput.max = String(totalPages);
-    this.refs.gotoPageInput.value = String(page);
-    this.refs.gotoPageBtn.onclick = () => handlers.onGotoPage(Number(this.refs.gotoPageInput.value));
-  }
-
-  /** Builds a compact page-number list with 1 / current-neighbors / last, using '…' for gaps. */
-  _pageList(current, total) {
-    const delta = 1;
-    const range = [];
-    for (let i = 1; i <= total; i++) {
-      if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) range.push(i);
-    }
-    const withDots = [];
-    let last = null;
-    range.forEach((i) => {
-      if (last !== null) {
-        if (i - last === 2) withDots.push(last + 1);
-        else if (i - last > 2) withDots.push('…');
-      }
-      withDots.push(i);
-      last = i;
-    });
-    return withDots;
+    renderPagination(this.refs, { page, pageSize, totalPages }, handlers);
   }
 
   _rowHTML(g, index, selected, duplicateSerials = new Set(), catalogIssue = null) {
@@ -195,8 +157,8 @@ export class ManageView {
         }</div></td>
         <td data-label="Warehouse"><div>${g.warehouse ? `<span class="pill pill-warehouse">${esc(g.warehouse)}</span>` : '<span style="color:var(--ink-faint);">Unassigned</span>'}</div></td>
         <td data-label="Owner" class="owner-col" style="font-family:var(--font-mono); font-size:12px;"><div>${g.owner ? esc(g.owner) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
-        <td data-label="Created"><div><small>${fmtDate(g.createdAt)}</small></div></td>
-        <td data-label="Updated"><div><small>${fmtDate(g.updatedAt)}</small></div></td>
+        <td data-label="Created" class="created-col"><div><small>${fmtDate(g.createdAt)}</small></div></td>
+        <td data-label="Updated" class="updated-col"><div><small>${fmtDate(g.updatedAt)}</small></div></td>
         <td data-label="Actions">
           <div class="row-actions">
             <button class="icon-btn" data-action="edit" aria-label="Edit asset" title="Edit">

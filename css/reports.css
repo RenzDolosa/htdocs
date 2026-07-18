@@ -1,0 +1,61 @@
+/* ---- Reports: stat cards, breakdown bars, activity feed ---- */
+.reports-panel{ padding: 0 !important; overflow: hidden; }
+.reports-scroll{ height: 100%; overflow-y: auto; padding: 8px 8px 40px; flex: 1; min-width: 0; }
+.reports-scroll h2{ font-family: var(--font-display); font-size: 22px; margin: 0 0 16px; color: var(--ink); }
+
+.reports-toolbar{ display: flex; justify-content: flex-end; margin-bottom: 14px; }
+
+.report-stats{
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px; margin-bottom: 22px;
+}
+.report-stat{
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.report-stat--clickable{ cursor: pointer; transition: border-color 0.15s ease, transform 0.08s ease; }
+.report-stat--clickable:hover{ border-color: var(--ink-faint); }
+.report-stat--clickable:active{ transform: translateY(1px); }
+.report-stat-value{ font-family: var(--font-display); font-size: 26px; color: var(--ink); line-height: 1.1; }
+.report-stat-label{ font-size: 12px; color: var(--ink-soft); margin-top: 4px; }
+.report-stat--warn .report-stat-value{ color: var(--warn); }
+.report-stat--bad .report-stat-value{ color: var(--bad); }
+
+.report-columns{
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px; margin-bottom: 14px;
+}
+.report-card{
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  min-height: 100px; padding: 16px 18px;
+}
+.report-card h3{ font-family: var(--font-display); font-size: 14px; margin: 0 0 12px; color: var(--ink); }
+
+.report-bars{ display: flex; flex-direction: column; gap: 10px;
+  max-height: 200px; padding: 0 5px 0;
+  overflow-y: auto;
+}
+.report-bar-row-top{ display: flex; justify-content: space-between; gap: 8px; margin-bottom: 3px; font-size: 12.5px; color: var(--ink-soft); }
+.report-bar-row-top .report-bar-count{ font-weight: 600; color: var(--ink); }
+.report-bar-track{ position: relative; height: 6px; border-radius: 999px; background: var(--surface-sunk); overflow: hidden; }
+.report-bar-fill{ height: 100%; background: var(--steel); border-radius: 999px; }
+.report-bars-empty, .report-activity-empty{ font-size: 12px; color: var(--ink-faint); font-style: italic; }
+
+/* "Gadgets by Category" card only (see ReportsView.renderCategoryBreakdown):
+   each row's bar shows what share of *that category's own* quantity is
+   assigned to a warehouse — 100% is the category's count, not the largest
+   category on the card — without disturbing the plain single-fill bars
+   every other card still uses. */
+.report-bar-metrics{ display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.report-bar-sep{ color: var(--ink-faint); }
+.report-bar-assigned{ font-weight: 600; color: var(--accent-ink); }
+.report-bar-fill--assigned{ height: 100%; border-radius: 999px; background: var(--accent); }
+
+.report-activity .log-list-wrap{ max-height: 420px; overflow-y: auto; }
+.report-log-asset{ font-weight: 600; color: var(--ink-soft); }
+
+.report-dup-group{ padding: 10px 0; border-bottom: 1px solid var(--border); }
+.report-dup-group:last-child{ border-bottom: none; }
+.report-dup-serial{ font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+.report-dup-list{ margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--ink-soft); }
+.report-dup-list li{ margin-bottom: 2px; }

@@ -41,8 +41,11 @@ thead th{
 thead th:hover{ color: var(--ink); }
 thead div{ display: flex; justify-content: start; padding: 0 5px; }
 thead th.checkbox-col{ cursor: default; width: 34px; }
+thead th.checkbox-col input[type="checkbox"]{ cursor: pointer; }
 thead th.sn-col{ cursor: default; width: 34px; }
 thead th.owner-col{ cursor: default; width: 110px; }
+thead th.created-col,
+thead th.updated-col{ cursor: default; width: 150px; }
 thead th[data-sort]{ cursor: pointer; }
 thead th .arrow{ opacity: 0.4; font-size: 10px; margin-left: 3px; }
 thead th.sorted .arrow{ opacity: 1; color: var(--accent); }
@@ -52,8 +55,14 @@ tbody tr:last-child td{ border-bottom: none; }
 tbody tr:hover{ background: var(--surface-sunk); }
 tbody tr.row-selected{ background: var(--accent-soft); }
 td.checkbox-col{ width: 34px; }
-td.sn-col{ width: 34px; min-width: 34px; }
+td.checkbox-col input[type="checkbox"]{ cursor: pointer; }
+td.sn-col{
+  width: 34px; min-width: 34px;
+  cursor: default;
+}
 td.owner-col{ width: 110px; min-width: 110px; }
+td.created-col,
+td.updated-col{ width: 150px; min-width: 150px; }
 
 /* Frozen leftmost columns (row number + row-select checkbox): the same
    sticky trick as the header above, just pinned to the left edge of
@@ -78,8 +87,13 @@ thead th.checkbox-col{ box-shadow: 2px 0 4px -2px rgba(28, 29, 33, 0.15); }
 tbody tr:hover td.sn-col, tbody tr:hover td.checkbox-col{ background: var(--surface-sunk); }
 tbody tr.row-selected td.sn-col, tbody tr.row-selected td.checkbox-col{ background: var(--accent-soft); }
 
+.item-name,
+.um-username-cell{ font-weight: 600; color: var(--ink); }
 
-.item-name{ font-weight: 600; color: var(--ink); }
+/* Generic "this field is blank" placeholder — same intent as the ad hoc
+   inline `style="color:var(--ink-faint);"` spans in Manage/Inventory
+   Assets, factored into a real class for the User management table. */
+.muted{ color: var(--ink-faint); }
 
 .pill{ display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
 .pill-cat{ background: var(--steel-soft); color: var(--steel); }
@@ -187,6 +201,16 @@ td.cell-catalog-invalid{
   background: var(--surface-sunk);
 }
 .import-file-name{ font-size: 12.5px; color: var(--ink-soft); }
+
+.import-progress{ margin-top: 14px; }
+.import-progress-track{
+  height: 8px; border-radius: 999px; overflow: hidden; background: var(--surface-sunk);
+}
+.import-progress-fill{
+  height: 100%; background: var(--accent); border-radius: 999px;
+  transition: width 0.2s ease;
+}
+.import-progress-label{ font-size: 11.5px; color: var(--ink-faint); margin-top: 6px; }
 
 .empty-state{ padding: 60px 20px; text-align: center; color: var(--ink-soft); }
 .empty-state .glyph{

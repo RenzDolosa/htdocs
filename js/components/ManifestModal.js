@@ -10,8 +10,8 @@ import { resolveMerchantPlacement } from '../utils/merchantPlacement.js';
 /**
  * ManifestModal renders a printable "Manifest / Transmittal" document for
  * a set of gadgets — a transfer/hand-over slip pairing each asset with the
- * user it's issued to, plus a header block (consignor / department / date
- * / prepared by / transfer to / signature) and a Gadget Type vs. Total
+ * user it's issued to, plus a header block (prepared by / department / date
+ * / received by / transfer to / signature) and a Gadget Type vs. Total
  * summary.
  *
  * It's mostly a *preview* document: rows are pre-filled from the selected
@@ -19,7 +19,7 @@ import { resolveMerchantPlacement } from '../utils/merchantPlacement.js';
  * printing without having to go edit the underlying asset), and the user
  * can add fully blank rows by hand for items not yet in the system. The
  * one thing it does write back is the merchant transfer: clicking
- * Transfer / Print (only enabled once Consignor/Department/Prepared by/
+ * Transfer / Print (only enabled once Prepared by/Department/Received by/
  * Transfer to/Date are all filled in) opens the print dialog, and once
  * that closes, asks the user to confirm the print/save actually went
  * through before setting every real asset's `merchant` to the "Transfer
@@ -105,7 +105,7 @@ function rowHTML(row) {
 }
 
 /** Meta fields that must all be filled in before Transfer / Print is allowed. */
-const REQUIRED_META_KEYS = ['consignor', 'department', 'preparedBy', 'merchant', 'date'];
+const REQUIRED_META_KEYS = ['preparedBy', 'department', 'receivedBy', 'merchant', 'date'];
 
 /**
  * @param {object} opts
@@ -117,10 +117,10 @@ const REQUIRED_META_KEYS = ['consignor', 'department', 'preparedBy', 'merchant',
  *        locations, for the "Transfer to" field's suggestions and live placement preview.
  * @param {import('../core/Store.js').Store} [opts.warehouseStore] - warehouse sites, paired
  *        with locationStore to resolve a location's owning warehouse for that same preview.
- * @param {string} [opts.defaultConsignor] - pre-fills the Consignor field.
+ * @param {string} [opts.defaultPreparedBy] - pre-fills the Prepared by field.
  * @param {string} [opts.defaultDepartment] - pre-fills the Department field.
  */
-export function openManifestModal({ gadgets = [], store = null, locationStore = null, warehouseStore = null, defaultConsignor = '', defaultDepartment = '' } = {}) {
+export function openManifestModal({ gadgets = [], store = null, locationStore = null, warehouseStore = null, defaultPreparedBy = '', defaultDepartment = '' } = {}) {
   const initialRows = gadgets.length ? gadgets.map(rowFromGadget) : [blankRow()];
   let transferBtn = null;
 
@@ -141,12 +141,12 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
 
           <div class="manifest-meta-grid">
             <div class="manifest-meta-row">
-              <label><span class="required-mark">*</span>Consignor</label>
-              <input type="text" data-meta="consignor" placeholder="Name of consignor">
-            </div>
-            <div class="manifest-meta-row">
               <label><span class="required-mark">*</span>Prepared by</label>
               <input type="text" data-meta="preparedBy" placeholder="Name of preparer">
+            </div>
+            <div class="manifest-meta-row">
+              <label><span class="required-mark">*</span>Received by</label>
+              <input type="text" data-meta="receivedBy" placeholder="Name of receiver">
             </div>
             <div class="manifest-meta-row">
               <label><span class="required-mark">*</span>Department</label>
@@ -192,10 +192,10 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
   const tbody = body.querySelector('[data-role="manifest-body"]');
   const summaryBody = body.querySelector('[data-role="manifest-summary-body"]');
 
-  body.querySelector('[data-meta="consignor"]').value = defaultConsignor;
+  body.querySelector('[data-meta="preparedBy"]').value = defaultPreparedBy;
   body.querySelector('[data-meta="department"]').value = defaultDepartment;
   body.querySelector('[data-meta="date"]').value = fmtManifestDate();
-  body.querySelector('[data-meta="preparedBy"]').value = getOperatorName();
+  body.querySelector('[data-meta="receivedBy"]').value = getOperatorName();
 
   // "Transfer to" doubles as the merchant/location key (Task 1): suggest
   // the location names actually created under Warehouse Information, and
@@ -222,7 +222,7 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
   }
   merchantMetaInput.addEventListener('input', updateMerchantPreview);
 
-  /** True once every required meta field (Consignor/Department/Prepared
+  /** True once every required meta field (Prepared by/Department/Received
    * by/Transfer to/Date) has a non-blank value. Gates the Transfer / Print
    * button so a manifest can't go out half-filled-in. */
   function isMetaComplete() {
@@ -233,7 +233,7 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
     if (!transferBtn) return;
     const ready = isMetaComplete();
     transferBtn.disabled = !ready;
-    transferBtn.title = ready ? '' : 'Fill in Consignor, Department, Prepared by, Transfer to, and Date first.';
+    transferBtn.title = ready ? '' : 'Fill in Prepared by, Department, Received by, Transfer to, and Date first.';
   }
 
   REQUIRED_META_KEYS.forEach((key) => {

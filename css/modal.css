@@ -75,6 +75,11 @@ input:focus, select:focus, textarea:focus{ outline: none; border-color: var(--st
 input.invalid, textarea.invalid{ border-color: var(--bad); }
 input.invalid:focus, textarea.invalid:focus{ box-shadow: 0 0 0 3px var(--bad-soft); }
 
+/* FilterDropdown trigger used as a form field (e.g. User group on the
+   add/edit user form) — same footprint as the text inputs around it. */
+.gadget-form .filter-dropdown-trigger{ width: 100%; padding: 9px 11px; font-size: 13.5px; }
+.gadget-form .filter-dropdown-trigger:focus-visible{ outline: none; border-color: var(--steel); box-shadow: 0 0 0 3px var(--steel-soft); }
+
 /* Password field with reveal toggle, used in GadgetForm */
 .password-field{ position: relative; display: flex; align-items: center; }
 .password-field input{ padding-right: 38px; }
@@ -126,17 +131,17 @@ input.invalid:focus, textarea.invalid:focus{ box-shadow: 0 0 0 3px var(--bad-sof
 }
 .manifest-summary-table{ border-collapse: collapse; width: auto; max-width: 190px; border-bottom: 1px solid var(--border); }
 .manifest-summary-table th, .manifest-summary-table td{
-  border: 1px solid var(--border); padding: 4px 8px; font-size: 11px; text-align: left;
+  border: 1px solid var(--border); padding: 1px 8px; font-size: 10px; text-align: left;
 }
 .manifest-summary-table thead th{
   position: static; background: var(--surface-sunk); font-style: italic; font-weight: 600;
   text-transform: none; letter-spacing: 0; height: auto; color: var(--ink-soft);
 }
-.manifest-summary-table td:last-child, .manifest-summary-table th:last-child{ width: 40px; text-align: right; }
+.manifest-summary-table td:last-child, .manifest-summary-table th:last-child{ width: 40px; text-align: center; }
 .manifest-summary-grand td{ font-weight: 700; border-bottom: 1px solid var(--border);}
 
 .manifest-title{
-  font-family: var(--font-display); font-weight: 700; font-size: 26px;
+  font-family: var(--font-display); font-weight: 700; font-size: 36px;
   letter-spacing: 0.02em; white-space: nowrap; text-align: right;
 }
 
@@ -282,9 +287,9 @@ input.invalid:focus, textarea.invalid:focus{ box-shadow: 0 0 0 3px var(--bad-sof
   body.printing-manifest .manifest-detail-table th:nth-child(11),
   body.printing-manifest .manifest-detail-table td:nth-child(11){ width: 9%; }
 
-  body.printing-manifest .manifest-summary-table{ font-size: 10.5px; }
-  body.printing-manifest .manifest-title{ font-size: 20px; }
-  body.printing-manifest .manifest-meta-grid{ padding: 8px 12px; margin-bottom: 12px; }
+  body.printing-manifest .manifest-summary-table{ font-size: 10px; }
+  body.printing-manifest .manifest-title{ font-size: 36px; }
+  body.printing-manifest .manifest-meta-grid{ padding: 12px 16px; margin-bottom: 10px; }
 }
 
 /* Move to temporary bin — the Position Type select uses a disabled+hidden

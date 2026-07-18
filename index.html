@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="css/modal.css">
 <link rel="stylesheet" href="css/toast.css">
 <link rel="stylesheet" href="css/settings.css">
+<link rel="stylesheet" href="css/reports.css">
 <link rel="stylesheet" href="css/responsive.css">
 </head>
 <body>
@@ -58,25 +59,27 @@
 
       <section class="panel-view placeholder-panel" data-tab-panel="home" hidden>
         <h2>Welcome back</h2>
-        <p>Pick a module from the sidebar on the left to get started. Manage and Inventory Assets are fully wired up — Reports and Settings are placeholders for now.</p>
+        <p>Pick a module from the sidebar on the left to get started. Manage, Inventory Assets, Reports, and Settings are all fully wired up.</p>
       </section>
 
       <section class="panel-view" data-tab-panel="assets" hidden>
 
         <div class="filterbar">
           <div class="filterbar-row">
-            <input id="filterKeyword" type="text" placeholder="Keyword (user, tag, remarks…)">
+            <div class="filterbar-col">
+              <input id="filterKeyword" type="text" placeholder="Keyword (user, tag, remarks…)">
+              <input id="filterSerial" type="text" placeholder="Serial number">
+              <input id="filterMac" type="text" placeholder="MAC address">
+            </div>
             <select id="filterCategory"><option value="all">All categories</option></select>
             <button class="btn btn-accent btn-sm" id="searchBtn">Search</button>
             <button class="btn btn-outline btn-sm" id="resetBtn">Reset</button>
-            <button type="button" class="filterbar-toggle" id="filterAdvancedToggle" aria-expanded="false" aria-controls="filterAdvancedRow">
+            <!-- <button type="button" class="filterbar-toggle" id="filterAdvancedToggle" aria-expanded="false" aria-controls="filterAdvancedRow">
               Show <span class="chev">▾</span>
-            </button>
+            </button> -->
           </div>
-          <div class="filterbar-row filterbar-advanced" id="filterAdvancedRow" hidden>
-            <input id="filterSerial" type="text" placeholder="Serial number">
-            <input id="filterMac" type="text" placeholder="MAC address">
-          </div>
+          <!-- <div class="filterbar-row filterbar-advanced" id="filterAdvancedRow" hidden>
+          </div> -->
         </div>
 
         <div class="actionbar">
@@ -108,61 +111,61 @@
           </div>
 
           <div class="panel grid-panel">
-          <div class="grid-scroll">
-            <table>
-              <thead id="tableHead">
-                <tr>
-                  <th class="sn-col"><div></div></th>
-                  <th class="checkbox-col"><div><input type="checkbox" id="selectAllCheckbox" aria-label="Select all on this page" style="height: 15px; width: 15px;"></div></th>
-                  <th data-sort="user"><div>User <span class="arrow">↕</span></div></th>
-                  <th data-sort="role"><div>Role <span class="arrow">↕</span></div></th>
-                  <th data-sort="category"><div>Category <span class="arrow">↕</span></div></th>
-                  <th><div>Serial Number</div></th>
-                  <th><div>Warehouse Asset Tag</div></th>
-                  <th><div>Asset Tag (Default)</div></th>
-                  <th><div>Mac Address</div></th>
-                  <th><div>Password</div></th>
-                  <th data-sort="merchant"><div>Merchant <span class="arrow">↕</span></div></th>
-                  <th><div>Remarks</div></th>
-                  <th><div>Description</div></th>
-                  <th data-sort="positionType"><div>Position Type <span class="arrow">↕</span></div></th>
-                  <th data-sort="warehouse"><div>Warehouse <span class="arrow">↕</span></div></th>
-                  <th data-sort="owner"><div>Owner <span class="arrow">↕</span></div></th>
-                  <th data-sort="createdAt"><div>Created <span class="arrow">↕</span></div></th>
-                  <th data-sort="updatedAt"><div>Updated <span class="arrow">↕</span></div></th>
-                  <th style="text-align:right;"><div>Actions</div></th>
-                </tr>
-              </thead>
-              <tbody id="tableBody"></tbody>
-            </table>
-          </div>
-
-          <div class="empty-state" id="emptyState" style="display:none;">
-            <div class="glyph"></div>
-            <h4>No assets match here</h4>
-            <p>Try a different search or filter, or add a new asset to the shelf.</p>
-            <button class="btn btn-outline" id="emptyAddBtn">Add an asset</button>
-          </div>
-
-          <div class="grid-footer">
-            <div class="grid-footer-left">
-              <span id="selectedCount">Checked 0</span>
-              <span id="resultCount">0 assets</span>
+            <div class="grid-scroll">
+              <table>
+                <thead id="tableHead">
+                  <tr>
+                    <th class="sn-col"><div></div></th>
+                    <th class="checkbox-col"><div><input type="checkbox" id="selectAllCheckbox" aria-label="Select all on this page" style="height: 15px; width: 15px;"></div></th>
+                    <th data-sort="user"><div>User <span class="arrow">↕</span></div></th>
+                    <th data-sort="role"><div>Role <span class="arrow">↕</span></div></th>
+                    <th data-sort="category"><div>Category <span class="arrow">↕</span></div></th>
+                    <th><div>Serial Number</div></th>
+                    <th><div>Warehouse Asset Tag</div></th>
+                    <th><div>Asset Tag (Default)</div></th>
+                    <th><div>Mac Address</div></th>
+                    <th><div>Password</div></th>
+                    <th data-sort="merchant"><div>Merchant <span class="arrow">↕</span></div></th>
+                    <th><div>Remarks</div></th>
+                    <th><div>Description</div></th>
+                    <th data-sort="positionType"><div>Position Type <span class="arrow">↕</span></div></th>
+                    <th data-sort="warehouse"><div>Warehouse <span class="arrow">↕</span></div></th>
+                    <th data-sort="owner"><div>Owner <span class="arrow">↕</span></div></th>
+                    <th data-sort="createdAt"><div>Created <span class="arrow">↕</span></div></th>
+                    <th data-sort="updatedAt"><div>Updated <span class="arrow">↕</span></div></th>
+                    <th style="text-align:right;"><div>Actions</div></th>
+                  </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+              </table>
             </div>
-            <div class="grid-footer-right">
-              <select id="pageSizeSelect">
-                <option value="20">20/page</option>
-                <option value="50" selected>50/page</option>
-                <option value="100">100/page</option>
-              </select>
-              <button type="button" class="page-nav" id="prevPageBtn" aria-label="Previous page">‹</button>
-              <div class="page-numbers" id="pageNumbers"></div>
-              <button type="button" class="page-nav" id="nextPageBtn" aria-label="Next page">›</button>
-              <span class="goto-label">Go to</span>
-              <input type="number" id="gotoPageInput" min="1" value="1">
-              <button type="button" class="btn btn-outline btn-sm" id="gotoPageBtn">Go</button>
+
+            <div class="empty-state" id="emptyState" style="display:none;">
+              <div class="glyph"></div>
+              <h4>No assets match here</h4>
+              <p>Try a different search or filter, or add a new asset to the shelf.</p>
+              <button class="btn btn-outline" id="emptyAddBtn">Add an asset</button>
             </div>
-          </div>
+
+            <div class="grid-footer">
+              <div class="grid-footer-left">
+                <span id="selectedCount">Checked 0</span>
+                <span id="resultCount">0 assets</span>
+              </div>
+              <div class="grid-footer-right">
+                <select id="pageSizeSelect">
+                  <option value="20">20/page</option>
+                  <option value="50" selected>50/page</option>
+                  <option value="100">100/page</option>
+                </select>
+                <button type="button" class="page-nav" id="prevPageBtn" aria-label="Previous page">‹</button>
+                <div class="page-numbers" id="pageNumbers"></div>
+                <button type="button" class="page-nav" id="nextPageBtn" aria-label="Next page">›</button>
+                <span class="goto-label">Go to</span>
+                <input type="number" id="gotoPageInput" min="1" value="1">
+                <button type="button" class="btn btn-outline btn-sm" id="gotoPageBtn">Go</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -172,11 +175,18 @@
 
         <div class="filterbar">
           <div class="filterbar-row">
-            <input id="iaFilterKeyword" type="text" placeholder="Keyword (category, serial, tag, MAC…)">
+            <div class="filterbar-col">
+              <input id="iaFilterKeyword" type="text" placeholder="Keyword (category, serial, tag, MAC…)">
+            </div>
             <select id="iaFilterCategory"><option value="all">All categories</option></select>
             <button class="btn btn-accent btn-sm" id="iaSearchBtn">Search</button>
             <button class="btn btn-outline btn-sm" id="iaResetBtn">Reset</button>
+            <!-- <button type="button" class="filterbar-toggle" id="filterAdvancedToggle" aria-expanded="false" aria-controls="filterAdvancedRow">
+              Show <span class="chev">▾</span>
+            </button> -->
           </div>
+          <!-- <div class="filterbar-row filterbar-advanced" id="filterAdvancedRow" hidden>
+          </div> -->
         </div>
 
         <div class="actionbar">
@@ -198,59 +208,104 @@
           </div>
         </div>
 
-        <div class="panel grid-panel">
-          <div class="grid-scroll">
-            <table>
-              <thead id="iaTableHead">
-                <tr>
-                  <th class="sn-col"><div></div></th>
-                  <th class="checkbox-col"><div><input type="checkbox" id="iaSelectAllCheckbox" aria-label="Select all on this page" style="height: 15px; width: 15px;"></div></th>
-                  <th data-sort="category"><div>Category <span class="arrow">↕</span></div></th>
-                  <th data-sort="serialNumber"><div>Serial Number <span class="arrow">↕</span></div></th>
-                  <th><div>Asset Tag</div></th>
-                  <th><div>Mac Address</div></th>
-                  <th><div>IMEI</div></th>
-                  <th data-sort="createdAt"><div>Created <span class="arrow">↕</span></div></th>
-                  <th style="text-align:right;"><div>Actions</div></th>
-                </tr>
-              </thead>
-              <tbody id="iaTableBody"></tbody>
-            </table>
+        <div class="assets-body">
+          <div class="warehouse-tab">
+            <button type="button" class="warehouse-filter-btn" id="inventoryWarehouseFilterBtn" hidden>Warehouse</button>
           </div>
 
-          <div class="empty-state" id="iaEmptyState" style="display:none;">
-            <div class="glyph"></div>
-            <h4>No inventory assets match here</h4>
-            <p>Try a different search or filter, or add a new asset to the shelf.</p>
-            <button class="btn btn-outline" id="iaEmptyAddBtn">Add an asset</button>
-          </div>
-
-          <div class="grid-footer">
-            <div class="grid-footer-left">
-              <span id="iaSelectedCount">Checked 0</span>
-              <span id="iaResultCount">0 assets</span>
+          <div class="panel grid-panel">
+            <div class="grid-scroll">
+              <table>
+                <thead id="iaTableHead">
+                  <tr>
+                    <th class="sn-col"><div></div></th>
+                    <th class="checkbox-col"><div><input type="checkbox" id="iaSelectAllCheckbox" aria-label="Select all on this page" style="height: 15px; width: 15px;"></div></th>
+                    <th data-sort="category"><div>Category <span class="arrow">↕</span></div></th>
+                    <th data-sort="serialNumber"><div>Serial Number <span class="arrow">↕</span></div></th>
+                    <th><div>Asset Tag</div></th>
+                    <th><div>Mac Address</div></th>
+                    <th><div>IMEI</div></th>
+                    <th data-sort="createdAt"><div>Created <span class="arrow">↕</span></div></th>
+                    <th style="text-align:right;"><div>Actions</div></th>
+                  </tr>
+                </thead>
+                <tbody id="iaTableBody"></tbody>
+              </table>
             </div>
-            <div class="grid-footer-right">
-              <select id="iaPageSizeSelect">
-                <option value="20">20/page</option>
-                <option value="50" selected>50/page</option>
-                <option value="100">100/page</option>
-              </select>
-              <button type="button" class="page-nav" id="iaPrevPageBtn" aria-label="Previous page">‹</button>
-              <div class="page-numbers" id="iaPageNumbers"></div>
-              <button type="button" class="page-nav" id="iaNextPageBtn" aria-label="Next page">›</button>
-              <span class="goto-label">Go to</span>
-              <input type="number" id="iaGotoPageInput" min="1" value="1">
-              <button type="button" class="btn btn-outline btn-sm" id="iaGotoPageBtn">Go</button>
+
+            <div class="empty-state" id="iaEmptyState" style="display:none;">
+              <div class="glyph"></div>
+              <h4>No inventory assets match here</h4>
+              <p>Try a different search or filter, or add a new asset to the shelf.</p>
+              <button class="btn btn-outline" id="iaEmptyAddBtn">Add an asset</button>
+            </div>
+
+            <div class="grid-footer">
+              <div class="grid-footer-left">
+                <span id="iaSelectedCount">Checked 0</span>
+                <span id="iaResultCount">0 assets</span>
+              </div>
+              <div class="grid-footer-right">
+                <select id="iaPageSizeSelect">
+                  <option value="20">20/page</option>
+                  <option value="50" selected>50/page</option>
+                  <option value="100">100/page</option>
+                </select>
+                <button type="button" class="page-nav" id="iaPrevPageBtn" aria-label="Previous page">‹</button>
+                <div class="page-numbers" id="iaPageNumbers"></div>
+                <button type="button" class="page-nav" id="iaNextPageBtn" aria-label="Next page">›</button>
+                <span class="goto-label">Go to</span>
+                <input type="number" id="iaGotoPageInput" min="1" value="1">
+                <button type="button" class="btn btn-outline btn-sm" id="iaGotoPageBtn">Go</button>
+              </div>
             </div>
           </div>
         </div>
-
       </section>
 
-      <section class="panel-view placeholder-panel" data-tab-panel="reports" hidden>
-        <h2>Reports</h2>
-        <p>Placeholder module. Same deal as Inventory Assets used to be — the tab and rail wiring is real, the content is not yet.</p>
+      <section class="panel-view reports-panel" data-tab-panel="reports" hidden>
+        <div class="assets-body">
+          <div class="warehouse-tab">
+            <button type="button" class="warehouse-filter-btn" id="reportsWarehouseFilterBtn" hidden>Warehouse</button>
+          </div>
+
+          <div class="reports-scroll">
+
+            <div class="reports-toolbar">
+              <button type="button" class="btn btn-outline btn-sm" id="reportsExportBtn">Export summary</button>
+            </div>
+
+            <div class="report-stats" id="reportStats"></div>
+
+            <div class="report-columns">
+              <div class="report-card">
+                <h3>Gadgets by Category</h3>
+                <div class="report-bars" id="reportByCategory"></div>           
+              </div>
+              <div class="report-card">
+                <h3>Gadgets by Warehouse</h3>
+                <div class="report-bars" id="reportByWarehouse"></div>
+              </div>
+              <div class="report-card">
+                <h3>Gadgets by Position Type</h3>
+                <div class="report-bars" id="reportByPosition"></div>
+              </div>
+              <div class="report-card">
+                <h3>Inventory Assets by Category</h3>
+                <div class="report-bars" id="reportByAssetCategory"></div>
+              </div>
+              <div class="report-card">
+                <h3>Warehouse Locations by Type</h3>
+                <div class="report-bars" id="reportByLocationType"></div>
+              </div>
+            </div>
+
+            <div class="report-card report-activity">
+              <h3>Recent Activity</h3>
+              <div class="log-list-wrap" id="reportActivityFeed"></div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="panel-view settings-panel" data-tab-panel="settings" hidden>
@@ -266,7 +321,15 @@
                 <button type="button" class="settings-nav-subitem" data-settings-section="warehouse-info">Warehouse Information</button>
               </div>
             </div>
-            <button type="button" class="settings-nav-item settings-nav-item--stub" disabled title="Not available in this build">User management</button>
+            <div class="settings-nav-group">
+              <button type="button" class="settings-nav-group-toggle" data-settings-toggle="user-mgmt">
+                <span>User management</span><span class="chev">▾</span>
+              </button>
+              <div class="settings-nav-sub" id="settingsUserMgmtSub" hidden>
+                <button type="button" class="settings-nav-subitem" data-settings-section="user-groups">User group</button>
+                <button type="button" class="settings-nav-subitem" data-settings-section="user-accounts">User</button>
+              </div>
+            </div>
             <button type="button" class="settings-nav-item settings-nav-item--stub" disabled title="Not available in this build">IP whitelist</button>
           </nav>
 
@@ -290,7 +353,6 @@
             </section>
 
             <section class="settings-section" data-settings-content="warehouse-info" hidden>
-              <h2>Warehouse Information</h2>
               <div class="warehouse-info-shell">
 
                 <div class="warehouse-tree-panel">
@@ -306,6 +368,149 @@
                   <div class="warehouse-detail-empty">Select a warehouse on the left, or add a new one.</div>
                 </div>
 
+              </div>
+            </section>
+
+            <section class="settings-section" data-settings-content="user-groups" hidden>
+
+              <div class="filterbar">
+                <div class="filterbar-row">
+                  <div class="filterbar-col">
+                    <input id="ugFilterGroupNumber" type="text" placeholder="User group number">
+                    <input id="ugFilterName" type="text" placeholder="User group name">
+                  </div>
+                  <div id="ugEnabledFilterMount"></div>
+                  <button class="btn btn-accent btn-sm" id="ugSearchBtn">Search</button>
+                  <button class="btn btn-outline btn-sm" id="ugResetBtn">Reset</button>
+                </div>
+              </div>
+
+              <div class="actionbar">
+                <div class="actionbar-left">
+                  <button type="button" class="link-btn" id="ugAddGroupBtn">+ Add a new user group</button>
+                  <span class="link-sep">|</span>
+                  <button type="button" class="link-btn" id="ugViewLogBtn">view log</button>
+                </div>
+              </div>
+
+              <div class="panel grid-panel">
+                <div class="grid-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th class="sn-col"><div></div></th>
+                        <th><div>User group number</div></th>
+                        <th><div>User group name</div></th>
+                        <th><div>Enable</div></th>
+                        <th><div>Bound user</div></th>
+                        <th data-sort="createdAt"><div>Created</div></th>
+                        <th data-sort="updatedAt"><div>Updated</div></th>
+                        <th style="text-align:right;"><div>Actions</div></th>
+                      </tr>
+                    </thead>
+                    <tbody id="ugTableBody"></tbody>
+                  </table>
+                </div>
+
+                <div class="empty-state" id="ugEmptyState" style="display:none;">
+                  <div class="glyph"></div>
+                  <h4>No user groups match here</h4>
+                  <p>Try a different search or filter, or add a new user group.</p>
+                  <button class="btn btn-outline" id="ugEmptyAddBtn">Add a new user group</button>
+                </div>
+
+                <div class="grid-footer">
+                  <div class="grid-footer-left">
+                    <span id="ugResultCount">0 user groups</span>
+                  </div>
+                  <div class="grid-footer-right">
+                    <select id="ugPageSizeSelect">
+                      <option value="20" selected>20/page</option>
+                      <option value="50">50/page</option>
+                      <option value="100">100/page</option>
+                    </select>
+                    <button type="button" class="page-nav" id="ugPrevPageBtn" aria-label="Previous page">‹</button>
+                    <div class="page-numbers" id="ugPageNumbers"></div>
+                    <button type="button" class="page-nav" id="ugNextPageBtn" aria-label="Next page">›</button>
+                    <span class="goto-label">Go to</span>
+                    <input type="number" id="ugGotoPageInput" min="1" value="1">
+                    <button type="button" class="btn btn-outline btn-sm" id="ugGotoPageBtn">Go</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="settings-section" data-settings-content="user-accounts" hidden>
+
+              <div class="filterbar">
+                <div class="filterbar-row">
+                  <div class="filterbar-col">
+                    <input id="uaFilterUserNumber" type="text" placeholder="User number">
+                    <input id="uaFilterUsername" type="text" placeholder="Username">
+                    <input id="uaFilterLoginAccount" type="text" placeholder="Login account">
+                  </div>
+                  <div id="uaEnabledFilterMount"></div>
+                  <button class="btn btn-accent btn-sm" id="uaSearchBtn">Search</button>
+                  <button class="btn btn-outline btn-sm" id="uaResetBtn">Reset</button>
+                </div>
+              </div>
+
+              <div class="actionbar">
+                <div class="actionbar-left">
+                  <button type="button" class="link-btn" id="uaAddUserBtn">+ Add user</button>
+                  <span class="link-sep">|</span>
+                  <button type="button" class="link-btn" id="uaViewLogBtn">view log</button>
+                </div>
+              </div>
+
+              <div class="panel grid-panel">
+                <div class="grid-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th class="sn-col"><div></div></th>
+                        <th><div>User number</div></th>
+                        <th><div>Username</div></th>
+                        <th><div>Login account</div></th>
+                        <th><div>User group</div></th>
+                        <th><div>Mail</div></th>
+                        <th><div>Phone number</div></th>
+                        <th><div>Enable</div></th>
+                        <th data-sort="createdAt"><div>Created</div></th>
+                        <th data-sort="updatedAt"><div>Updated</div></th>
+                        <th><div>Last login time</div></th>
+                        <th style="text-align:right;"><div>Actions</div></th>
+                      </tr>
+                    </thead>
+                    <tbody id="uaTableBody"></tbody>
+                  </table>
+                </div>
+
+                <div class="empty-state" id="uaEmptyState" style="display:none;">
+                  <div class="glyph"></div>
+                  <h4>No users match here</h4>
+                  <p>Try a different search or filter, or add a new user account.</p>
+                  <button class="btn btn-outline" id="uaEmptyAddBtn">Add user</button>
+                </div>
+
+                <div class="grid-footer">
+                  <div class="grid-footer-left">
+                    <span id="uaResultCount">0 users</span>
+                  </div>
+                  <div class="grid-footer-right">
+                    <select id="uaPageSizeSelect">
+                      <option value="20" selected>20/page</option>
+                      <option value="50">50/page</option>
+                      <option value="100">100/page</option>
+                    </select>
+                    <button type="button" class="page-nav" id="uaPrevPageBtn" aria-label="Previous page">‹</button>
+                    <div class="page-numbers" id="uaPageNumbers"></div>
+                    <button type="button" class="page-nav" id="uaNextPageBtn" aria-label="Next page">›</button>
+                    <span class="goto-label">Go to</span>
+                    <input type="number" id="uaGotoPageInput" min="1" value="1">
+                    <button type="button" class="btn btn-outline btn-sm" id="uaGotoPageBtn">Go</button>
+                  </div>
+                </div>
               </div>
             </section>
 
