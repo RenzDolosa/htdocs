@@ -17,10 +17,49 @@
 <link rel="stylesheet" href="css/settings.css">
 <link rel="stylesheet" href="css/reports.css">
 <link rel="stylesheet" href="css/responsive.css">
+<link rel="stylesheet" href="css/auth.css">
 </head>
 <body>
 
-<div class="shell">
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-brand">Gadget Tracker</div>
+    <p class="auth-sub">Sign in to manage your warehouse's assets.</p>
+
+    <div class="auth-tabs" id="authTabs">
+      <button type="button" class="auth-tab is-active" id="authAdminTab">Login as Administrator</button>
+      <button type="button" class="auth-tab" id="authEmployeeTab">Login as Employee</button>
+      <button type="button" class="auth-tab" id="authSignUpTab" hidden>Create account</button>
+    </div>
+
+    <div class="auth-error" id="authError" hidden></div>
+
+    <form id="authForm" class="gadget-form" novalidate>
+      <div class="field" id="authUsernameField" hidden>
+        <label for="authUsername">Username</label>
+        <input type="text" id="authUsername" name="username" autocomplete="username" placeholder="username">
+      </div>
+      <div class="field">
+        <label for="authIdentifier" id="authIdentifierLabel">Email</label>
+        <input type="email" id="authIdentifier" name="identifier" autocomplete="email" placeholder="you@company.com">
+      </div>
+      <div class="field">
+        <label for="authPassword">Password</label>
+        <div class="password-field">
+          <input type="password" id="authPassword" name="password" autocomplete="current-password" placeholder="••••••••">
+          <button type="button" class="password-toggle" id="authPasswordToggle" aria-label="Show password">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-accent" id="authSubmitBtn" style="width:100%; margin-top:4px;">Sign in</button>
+    </form>
+
+    <p class="auth-switch-hint" id="authSwitchHint" hidden>Already have an account?</p>
+  </div>
+</div>
+
+<div class="shell" id="appShell" hidden>
 
   <nav class="rail">
     <div class="rail-mark" title="Gagdet Tracker" aria-hidden="true"></div>
@@ -51,7 +90,8 @@
       <div class="tabstrip" id="tabstrip"><!-- rendered by TabManager --></div>
       <div class="profile-chip">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3v5Z"/><path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3v5Z"/></svg>
-        <span>Admin</span>
+        <span id="profileUsername">Signed in</span>
+        <button type="button" class="profile-signout" id="signOutBtn" title="Sign out">Sign out</button>
       </div>
     </div>
 
@@ -314,10 +354,10 @@
           <nav class="settings-nav" id="settingsNav">
             <button type="button" class="settings-nav-item active" data-settings-section="general">General</button>
             <div class="settings-nav-group">
-              <button type="button" class="settings-nav-group-toggle open" data-settings-toggle="basic-config">
+              <button type="button" class="settings-nav-group-toggle" data-settings-toggle="basic-config">
                 <span>Basic Configuration</span><span class="chev">▾</span>
               </button>
-              <div class="settings-nav-sub" id="settingsBasicConfigSub">
+              <div class="settings-nav-sub" id="settingsBasicConfigSub" hidden>
                 <button type="button" class="settings-nav-subitem" data-settings-section="warehouse-info">Warehouse Information</button>
               </div>
             </div>
@@ -336,20 +376,47 @@
           <div class="settings-content">
 
             <section class="settings-section" data-settings-content="general">
-              <h2>General</h2>
-              <p class="hint" style="margin-bottom:16px;">
-                This app doesn't have logins — so history entries and manifests need some other way to
-                know who did what. Set your name below and it'll be stamped on new activity you record
-                (asset changes, reassignments, transfers) and pre-filled as "Prepared by" on manifests.
-                It's saved only in this browser.
-              </p>
-              <form id="operatorForm" class="gadget-form" style="max-width:360px;" novalidate>
-                <div class="field">
-                  <label for="operatorNameInput">Your name</label>
-                  <input type="text" id="operatorNameInput" name="operatorName" placeholder="e.g. Maria Santos">
-                </div>
-                <button type="submit" class="btn btn-accent" style="margin-top:8px;">Save</button>
-              </form>
+              <div style="padding: 20px 24px;">
+                <h2>General</h2>
+  
+                <form id="operatorForm" class="gadget-form" style="max-width:360px;" novalidate>
+                  <div class="field">
+                    <label for="operatorNameInput">Your name</label>
+                    <input type="text" id="operatorNameInput" name="operatorName" placeholder="e.g. Maria Santos">
+                  </div>
+                  <button type="submit" class="btn btn-accent" style="margin-top:8px;">Save</button>
+                </form>
+  
+                <h2 style="margin-top:32px;">Change password</h2>
+                <p class="hint" style="margin-bottom:16px;">
+                  Updates the password for your sign-in account (<span id="changePasswordAccountEmail"></span>).
+                  You'll stay signed in on this device; other signed-in devices/tabs will need the new password
+                  next time they sign in.
+                </p>
+                <form id="changePasswordForm" class="gadget-form" style="max-width:360px;" novalidate>
+                  <div class="field">
+                    <label for="newPasswordInput">New password</label>
+                    <div class="password-field">
+                      <input type="password" id="newPasswordInput" name="newPassword" autocomplete="new-password" placeholder="••••••••">
+                      <button type="button" class="password-toggle" data-action="toggle-new-password" aria-label="Show password">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+                      </button>
+                    </div>
+                    <div class="field-error" data-error-for="newPassword"></div>
+                  </div>
+                  <div class="field">
+                    <label for="confirmPasswordInput">Confirm new password</label>
+                    <div class="password-field">
+                      <input type="password" id="confirmPasswordInput" name="confirmPassword" autocomplete="new-password" placeholder="••••••••">
+                      <button type="button" class="password-toggle" data-action="toggle-confirm-password" aria-label="Show password">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+                      </button>
+                    </div>
+                    <div class="field-error" data-error-for="confirmPassword"></div>
+                  </div>
+                  <button type="submit" class="btn btn-accent" id="changePasswordSubmitBtn" style="margin-top:8px;">Update password</button>
+                </form>
+              </div>
             </section>
 
             <section class="settings-section" data-settings-content="warehouse-info" hidden>

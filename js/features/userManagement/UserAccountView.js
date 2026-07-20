@@ -27,7 +27,7 @@ export class UserAccountView {
       row.innerHTML = `
         <td data-label="SN" class="sn-col"><div style="display: flex; justify-content: center; padding: 0;">${i + 1}</div></td>
         <td data-label="User Number"><div>${esc(u.userNumber)}</div></td>
-        <td data-label="Username"><div class="um-username-cell">${esc(u.username)}</div></td>
+        <td data-label="Username"><div class="um-username-cell">${esc(u.username)}${u.authUserId ? ' <span class="pill pill-linked" title="Real Supabase Auth account — can sign in">Linked</span>' : ''}</div></td>
         <td data-label="Login Account"><div>${esc(u.loginAccount)}</div></td>
         <td data-label="User Group"><div>${esc(u.userGroup) || '<span class="muted">—</span>'}</div></td>
         <td data-label="Mail"><div>${esc(u.mail) || '<span class="muted">—</span>'}</div></td>

@@ -22,6 +22,11 @@ export class UserAccount {
     this.createdAt = data.createdAt || Date.now();
     this.updatedAt = data.updatedAt || Date.now();
     this.lastLoginAt = data.lastLoginAt || null;
+    // Set only by the auth.users → user_accounts trigger (see
+    // supabase/schema.sql), never by the client — a non-null value means
+    // this row is a real Supabase Auth account someone can sign in as;
+    // null means it's a directory-only entry added by hand via "+ Add user".
+    this.authUserId = data.authUserId || null;
     this.history = data.history || [];
   }
 

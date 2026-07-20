@@ -16,13 +16,15 @@ import { buildFilterDropdown } from '../../components/FilterDropdown.js';
  */
 export function buildUserAccountForm(user = null, { userGroups = [] } = {}) {
   const isLinked = !!user?.authUserId;
-  // Add mode: every new user is now a real Supabase Auth account, so a
-  // password is required (see UserAccountController._openUserModal's
-  // adminCreateAccount call). Editing an existing but not-yet-linked
-  // (directory-only) row offers the same fields as an optional way to
-  // "claim" it into a real account without recreating the row. An
-  // already-linked account gets neither — there's no client-safe way to
-  // set someone else's existing password directly (see Auth.js
+  // Add mode: a password here becomes this employee's SQL-stored sign-in
+  // credential (see UserAccountController._openUserModal's
+  // setEmployeePassword call — supabase/schema.sql's employee_credentials
+  // table, not Supabase Auth) — optional, since a directory-only row is
+  // still useful without one. On Edit, the same fields let an existing
+  // employee row get (or change) a password. "isLinked" now means a real
+  // Supabase Auth administrator (see AUTH_GUIDE.md) — those never get a
+  // raw password field here; there's no client-safe way to set someone
+  // else's existing Supabase Auth password directly (see Auth.js
   // sendPasswordReset, wired up as a footer button instead).
   const showPasswordFields = !user || !isLinked;
 
@@ -50,7 +52,7 @@ export function buildUserAccountForm(user = null, { userGroups = [] } = {}) {
       ${showPasswordFields ? `
       <div class="field-row">
         <div class="field">
-          <label for="uaPassword">${user ? 'Set password' : 'Password'} ${user ? '' : '<span class="required-mark">*</span>'}</label>
+          <label for="uaPassword">Password</label>
           <div class="password-field">
             <input type="password" id="uaPassword" name="password" autocomplete="new-password" placeholder="••••••••">
             <button type="button" class="password-toggle" data-action="toggle-ua-password" aria-label="Show password">
@@ -60,7 +62,7 @@ export function buildUserAccountForm(user = null, { userGroups = [] } = {}) {
           <div class="field-error" data-error-for="password"></div>
         </div>
         <div class="field">
-          <label for="uaConfirmPassword">Confirm password ${user ? '' : '<span class="required-mark">*</span>'}</label>
+          <label for="uaConfirmPassword">Confirm password</label>
           <div class="password-field">
             <input type="password" id="uaConfirmPassword" name="confirmPassword" autocomplete="new-password" placeholder="••••••••">
             <button type="button" class="password-toggle" data-action="toggle-ua-confirm-password" aria-label="Show password">
@@ -70,7 +72,9 @@ export function buildUserAccountForm(user = null, { userGroups = [] } = {}) {
           <div class="field-error" data-error-for="confirmPassword"></div>
         </div>
       </div>
-      ${user ? '<p class="hint" style="margin: -8px 0 14px;">Optional — set a password to turn this into a real sign-in account. Leave both blank to just update the directory details below.</p>' : ''}
+      <p class="hint" style="margin: -8px 0 14px;">${user
+        ? 'Optional — set a password to let this employee sign in via "Login as Employee". Leave both blank to just update the directory details below.'
+        : 'Optional — set a password now to let this employee sign in right away via "Login as Employee", or leave both blank and set one later.'}</p>
       ` : ''}
 
       <div class="field-row">

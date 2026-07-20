@@ -27,6 +27,7 @@ export class SettingsController {
     this.refs = refs;
     this.selectedWarehouseId = null;
     this.collapsedWarehouses = new Set();
+    this._defaultCollapseApplied = false;
   }
 
   init() {
@@ -171,6 +172,24 @@ export class SettingsController {
     warehouseTree.innerHTML = '';
 
     const warehouses = this.warehouseStore.list();
+
+    // Open only the first site (oldest — warehouseStore is fetched
+    // oldest-to-newest, see app.js) by default, instead of the tree
+    // starting with every site's zones expanded at once — and show its
+    // details right away instead of the panel starting on "Select a
+    // warehouse on the left". Applied once, the first time there's data
+    // to look at — a store 'change' after that (adding/editing/deleting a
+    // site) re-renders without touching whatever the person's since
+    // expanded/collapsed or selected by hand.
+    if (!this._defaultCollapseApplied && warehouses.length > 0) {
+      warehouses.slice(1).forEach((w) => this.collapsedWarehouses.add(w.id));
+      this._defaultCollapseApplied = true;
+      if (!this.selectedWarehouseId) {
+        this.selectedWarehouseId = warehouses[0].id;
+        this.renderDetail(warehouses[0]);
+      }
+    }
+
     if (warehouses.length === 0) {
       warehouseTree.appendChild(el(`<div class="wh-tree-empty">No warehouses yet — use "+ Add" above.</div>`));
       return;

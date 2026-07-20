@@ -192,10 +192,15 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
   const tbody = body.querySelector('[data-role="manifest-body"]');
   const summaryBody = body.querySelector('[data-role="manifest-summary-body"]');
 
-  body.querySelector('[data-meta="preparedBy"]').value = defaultPreparedBy;
+  // "Prepared by" defaults to whoever's executing this manifest (the
+  // operator name set in Settings → General, itself defaulted from the
+  // signed-in username — see AuthController) unless a caller passed an
+  // explicit override. "Received by" names the actual recipient of the
+  // hand-over, which nothing in the app knows in advance, so it's left
+  // blank for manual entry rather than reusing the preparer's name.
+  body.querySelector('[data-meta="preparedBy"]').value = defaultPreparedBy || getOperatorName();
   body.querySelector('[data-meta="department"]').value = defaultDepartment;
   body.querySelector('[data-meta="date"]').value = fmtManifestDate();
-  body.querySelector('[data-meta="receivedBy"]').value = getOperatorName();
 
   // "Transfer to" doubles as the merchant/location key (Task 1): suggest
   // the location names actually created under Warehouse Information, and

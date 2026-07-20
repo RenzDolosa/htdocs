@@ -6,9 +6,7 @@ import { buildFilterDropdown } from '../../components/FilterDropdown.js';
 import { UserAccount } from '../../models/UserAccount.js';
 import { buildUserAccountForm } from './UserAccountForm.js';
 import { getOperatorName } from '../../core/Operator.js';
-import { adminCreateAccount, sendPasswordReset } from '../../core/Auth.js';
-import { supabase } from '../../core/supabaseClient.js';
-import { generateId } from '../../utils/id.js';
+import { setEmployeePassword, sendPasswordReset } from '../../core/Auth.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -162,6 +160,14 @@ export class UserAccountController {
     // directory-only row that hasn't been claimed by a real account yet
     // (see UserAccountForm.js). An already-linked account never gets a
     // raw password field — that's handled by the reset-email button below.
+    //
+    // "Linked" (authUserId set) only ever happens for a real Supabase Auth
+    // administrator now — see supabase/schema.sql's employee-portal
+    // section — so this branch is now rare in practice: it only fires for
+    // a directory row someone's own admin self-signup happened to match by
+    // email, or a pre-existing account from before this feature shipped.
+    // Every account created here from now on is an employee: its password
+    // (if any) goes straight to employee_credentials, never Supabase Auth.
     const showsPasswordFields = !isEdit || !isLinked;
     const form = buildUserAccountForm(user, { userGroups: this.userGroupStore?.list() || [] });
 
@@ -174,24 +180,26 @@ export class UserAccountController {
           const data = form.getData();
           const { valid, errors } = UserAccount.validate(data, { existing: this.store.list(), editingId: user?.id || null });
 
-          // Password validation: required on Add, optional-but-must-be-valid
-          // on Edit (an unlinked row can be saved with no password — it just
-          // stays a directory entry — but if either field has anything in
-          // it, both need to be there, long enough, and matching).
+          // Password validation: optional in both Add and Edit (a
+          // directory-only row with no SQL credential yet is a normal,
+          // supported state — see UserAccountForm.js's hint) — but if
+          // either field has anything in it, both need to be there, long
+          // enough, and matching.
           let password = '';
           if (showsPasswordFields) {
-            const touchedPassword = !isEdit || data.password || data.confirmPassword;
+            const touchedPassword = !!(data.password || data.confirmPassword);
             if (touchedPassword) {
               if (!data.password || data.password.length < 6) errors.password = 'Password must be at least 6 characters.';
               if (data.confirmPassword !== data.password) errors.confirmPassword = 'Passwords do not match.';
               password = data.password;
             }
           }
-          // loginAccount becomes a real Supabase Auth email the moment a
-          // password is involved — the app-wide "any non-empty string"
-          // rule (UserAccount.validate) isn't strict enough for that.
+          // loginAccount is what verify_employee_login() looks up by — it
+          // doesn't strictly need to be a deliverable email the way a
+          // Supabase Auth address does, but keeping the same shape avoids
+          // a confusing UI difference between the two account tiers.
           if (password && !EMAIL_PATTERN.test(data.loginAccount)) {
-            errors.loginAccount = 'Enter a valid email — this becomes their sign-in address.';
+            errors.loginAccount = 'Enter a valid email — this becomes their login account.';
           }
 
           if (!valid || Object.keys(errors).length) { form.showErrors(errors); Toast.error('Please fix the highlighted fields.'); return; }
@@ -211,44 +219,36 @@ export class UserAccountController {
             this.store.update(user.id, { history: user.history });
 
             if (password) {
-              const { needsEmailConfirmation, error } = await adminCreateAccount({ email: data.loginAccount, password, username: data.username });
+              const { error } = await setEmployeePassword(data.loginAccount, password);
               if (error) {
-                Toast.error(`Directory details saved, but creating sign-in credentials failed: ${error.message}`);
+                Toast.error(`Directory details saved, but setting the sign-in password failed: ${error.message}`);
                 m.close();
                 return;
               }
-              Toast.success(needsEmailConfirmation
-                ? 'Saved. Sign-in created — they need to confirm their email before they can log in.'
-                : 'Saved — this account can now sign in.');
+              Toast.success('Saved — this employee can now sign in via "Login as Employee".');
             } else {
               Toast.success('User saved.');
             }
             m.close();
           } else {
-            const { userId, needsEmailConfirmation, error } = await adminCreateAccount({ email: data.loginAccount, password, username: data.username });
-            if (error) {
-              if (/already|registered/i.test(error.message || '')) form.showErrors({ loginAccount: 'This email is already registered.' });
-              Toast.error(error.message || 'Could not create the account.');
-              return;
+            // A plain table insert — no Supabase Auth call, so this never
+            // touches (and can't hit) the email rate limit, no matter how
+            // many employees get added in one sitting.
+            const created = this.store.create(directoryPatch);
+            created.addLogEntry('Account created.', 'create', null, getOperatorName());
+            this.store.update(created.id, { history: created.history });
+
+            if (password) {
+              const { error } = await setEmployeePassword(data.loginAccount, password);
+              if (error) {
+                Toast.error(`User added, but setting the sign-in password failed: ${error.message}`);
+                m.close();
+                return;
+              }
+              Toast.success('User added and can sign in now via "Login as Employee".');
+            } else {
+              Toast.success('User added to the directory. Set a password later to let them sign in.');
             }
-            // The auth.users → user_accounts trigger (supabase/schema.sql)
-            // already created the linked row with username/email — this
-            // fills in the extra directory fields it has no way to know
-            // about (group, phone, contact mail, enabled state).
-            if (userId) {
-              const entry = { id: generateId('log'), type: 'create', message: 'Account created.', timestamp: Date.now(), performedBy: getOperatorName() };
-              const { error: patchError } = await supabase.from('user_accounts').update({
-                userGroup: data.userGroup,
-                phoneNumber: data.phoneNumber,
-                mail: data.mail || data.loginAccount,
-                enabled: data.enabled,
-                history: [entry]
-              }).eq('authUserId', userId);
-              if (patchError) console.error('UserAccountController: post-signup directory update failed', patchError);
-            }
-            Toast.success(needsEmailConfirmation
-              ? 'Account created — they need to confirm their email before they can sign in.'
-              : 'User added and can sign in now.');
             m.close();
           }
         }

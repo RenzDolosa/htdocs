@@ -1,4 +1,4 @@
-import { Store } from './core/Store.js';
+import { SupabaseStore } from './core/SupabaseStore.js';
 import { TabManager } from './core/TabManager.js';
 import { Gadget } from './models/Gadget.js';
 import { ManageView } from './features/manage/ManageView.js';
@@ -15,115 +15,20 @@ import { ReportsController } from './features/reports/ReportsController.js';
 import { ReportsView } from './features/reports/ReportsView.js';
 import { UserAccount } from './models/UserAccount.js';
 import { UserAccountView } from './features/userManagement/UserAccountView.js';
-import { UserAccountController } from './features/userManagement/UserAccountController.js';
+import { UserAccountController } from './features/auth/UserAccountController.js';
 import { UserGroup } from './models/UserGroup.js';
 import { UserGroupView } from './features/userManagement/UserGroupView.js';
 import { UserGroupController } from './features/userManagement/UserGroupController.js';
 import { supabase } from './core/supabaseClient.js';
+import { AuthView } from './features/auth/AuthView.js';
+import { AuthController } from './features/auth/AuthController.js';
+import { updatePassword } from './core/Auth.js';
 
-/**
- * Merchant is the key for Position Type / Warehouse / Owner (see
- * utils/merchantPlacement.js): a gadget whose merchant matches a created
- * warehouse location's name gets those three columns *derived* from where
- * that location lives, rather than typed by hand. Maria and Jun below are
- * seeded with merchant 'Samples', which seedWarehouseLocations() creates
- * under Warehouse 1 · Main Warehouse as a Good Position — so their
- * positionType/warehouse/owner here are pre-computed to match exactly
- * what _saveGadget() would derive on save, demonstrating the feature
- * working end to end from first load. Liza's merchant 'Test Location'
- * resolves the same way against Warehouse 1 · Damage Warehouse (Inventory
- * Position). The remaining rows use merchant names with no matching
- * location — a normal, supported state — so their placement stays
- * whatever was set by hand (or blank), same as before this feature.
- */
-function seedGadgets() {
-  const day = 24 * 60 * 60 * 1000;
-  const now = Date.now();
-  return [
-    { user: 'Maria Santos', role: 'Warehouse Associate', category: 'Laptop', serialNumber: 'SN-88213X', warehouseAssetTag: 'WH-0091', assetTagDefault: 'DELL-77213', macAddress: '3C:22:FB:AA:11:02', password: 'Wh0091!secure', merchant: 'Samples', remarks: 'Assigned on onboarding', description: 'Dell Latitude 5420, 16GB RAM, good condition', positionType: 'Good Position', warehouse: 'Main Warehouse', owner: 'Warehouse 1', createdAt: now - 30 * day, updatedAt: now },
-    { user: 'Jun Dela Cruz', role: 'Forklift Operator', category: 'Handheld Scanner', serialNumber: 'SN-44120Q', warehouseAssetTag: 'WH-0114', assetTagDefault: 'ZEBRA-9931', macAddress: '', password: '', merchant: 'Samples', remarks: '', description: 'Zebra TC21 barcode scanner', positionType: 'Good Position', warehouse: 'Main Warehouse', owner: 'Warehouse 1', createdAt: now - 30 * day, updatedAt: now },
-    { user: '', role: '', category: 'Router', serialNumber: 'SN-77002A', warehouseAssetTag: 'WH-0203', assetTagDefault: 'TPLINK-4410', macAddress: 'A0:B1:C2:D3:E4:F5', password: 'RtrAdm!n88', merchant: 'Kleenfant', remarks: 'Spare, not yet assigned', description: 'TP-Link AX3000, factory reset', positionType: 'Temporary Damage', warehouse: 'Damage Warehouse', owner: 'Warehouse 2', createdAt: now - 30 * day, updatedAt: now },
-    { user: 'Liza Bautista', role: 'Inventory Clerk', category: 'Tablet', serialNumber: 'SN-19087K', warehouseAssetTag: 'WH-0132', assetTagDefault: 'IPAD-2201', macAddress: '', password: '4821', merchant: 'Test Location', remarks: '', description: 'iPad 9th gen with rugged case', positionType: 'Inventory Position', warehouse: 'Damage Warehouse', owner: 'Warehouse 3', createdAt: now - 30 * day, updatedAt: now },
-    { user: 'Rico Fernandez', role: 'Site Supervisor', category: 'Laptop', serialNumber: 'SN-33501P', warehouseAssetTag: 'WH-0077', assetTagDefault: 'HP-5591', macAddress: '5C:F9:38:AA:2B:10', password: 'SiteS3cure!', merchant: 'Shigetsu', remarks: 'Requested faster charger', description: 'HP EliteBook 840, 32GB RAM', positionType: 'Temporary Returned', warehouse: 'Main Warehouse', owner: '', createdAt: now - 30 * day, updatedAt: now },
-    { user: '', role: '', category: 'Handheld Scanner', serialNumber: 'SN-90211M', warehouseAssetTag: '', assetTagDefault: 'ZEBRA-9902', macAddress: '', password: '', merchant: '', remarks: 'Awaiting warehouse assignment', description: 'Zebra TC21, brand new, unboxed', positionType: '', warehouse: '', owner: '', createdAt: now - 30 * day, updatedAt: now }
-  ];
-}
-
-/**
- * Seed data for the Inventory Assets module — the master list of raw
- * stock (no user/warehouse assignment yet), distinct from the seeded
- * Gadgets above which represent already-assigned equipment.
- */
-function seedInventoryAssets() {
-  const day = 24 * 60 * 60 * 1000;
-  const now = Date.now();
-  return [
-    { category: 'Laptop', serialNumber: 'SN-71120A', assetTag: 'WH-0201', macAddress: '9C:35:5B:11:2A:04', imei1: '8546734562', imei2: '864325623', createdAt: now - 30 * day },
-    { category: 'Handheld Scanner', serialNumber: 'SN-90211M', assetTag: 'ZEBRA-9902', macAddress: '', imei1: '85683453423', imei2: '', createdAt: now - 22 * day },
-    { category: 'Router', serialNumber: 'SN-77002A', assetTag: 'TPLINK-4410', macAddress: 'A0:B1:C2:D3:E4:F5', imei1: '', imei2: '8658456343', createdAt: now - 14 * day },
-    { category: 'Tablet', serialNumber: 'SN-19087K', assetTag: 'IPAD-2201', macAddress: '', imei1: '', imei2: '', createdAt: now - 5 * day }
-  ];
-}
-
-/**
- * Seed data for Settings → User management → User — the login-account
- * list. `lastLoginAt` is left null for a couple of rows to exercise the
- * "—" placeholder (an account that's never signed in yet is normal, not
- * a data error).
- */
-function seedUserAccounts() {
-  const day = 24 * 60 * 60 * 1000;
-  const now = Date.now();
-  return [
-    { userNumber: '10023841', username: 'Maria Santos', loginAccount: 'maria.santos@inspi.com.ph', userGroup: 'Warehouse Associate', mail: 'maria.santos@inspi.com.ph', phoneNumber: '09171234567', enabled: true, createdAt: now - 400 * day, updatedAt: now - 12 * day, lastLoginAt: now - 1 * day },
-    { userNumber: '10045210', username: 'Jun Dela Cruz', loginAccount: 'jun.delacruz@inspi.com.ph', userGroup: 'Forklift Operator', mail: 'jun.delacruz@inspi.com.ph', phoneNumber: '09189876543', enabled: true, createdAt: now - 300 * day, updatedAt: now - 40 * day, lastLoginAt: now - 5 * day },
-    { userNumber: '10067732', username: 'Liza Bautista', loginAccount: 'liza.bautista@inspi.com.ph', userGroup: 'Inventory Clerk', mail: '', phoneNumber: '', enabled: false, createdAt: now - 200 * day, updatedAt: now - 200 * day, lastLoginAt: null },
-    { userNumber: '10088456', username: 'Rico Fernandez', loginAccount: 'rico.fernandez@inspi.com.ph', userGroup: 'Site Supervisor', mail: 'rico.fernandez@inspi.com.ph', phoneNumber: '09201112233', enabled: true, createdAt: now - 90 * day, updatedAt: now - 2 * day, lastLoginAt: now - 2 * day },
-    { userNumber: '10091023', username: 'Company Admin', loginAccount: 'admin@inspi.com.ph', userGroup: 'Admin', mail: 'admin@inspi.com.ph', phoneNumber: '09175132562', enabled: true, createdAt: now - 500 * day, updatedAt: now - 1 * day, lastLoginAt: now }
-  ];
-}
-
-/**
- * Seed data for Settings → Warehouse Information, so the tree isn't empty
- * on first load. `id` is fixed (rather than left to Warehouse's random
- * default) so seedWarehouseLocations() below can reference it directly —
- * the two seed functions run independently, so there's no other way to
- * wire a location to "whichever id this warehouse happened to get".
- */
-function seedWarehouses() {
-  const now = Date.now();
-  return [
-    {
-      id: 'wh-seed-1',
-      name: 'Warehouse 1', operationMode: 'self-operate',
-      shortName: 'main', currency: 'PHP', country: 'Philippines', region: 'Cagayan Valley',
-      city: 'Luna', fullAddress: 'Purok 3, Poblacion, Luna, Cagayan Valley',
-      contactPerson: 'Maria Santos', phoneNumber: '09171234567', email: '', zipCode: '3521',
-      createdAt: now, updatedAt: now
-    }
-  ];
-}
-
-/**
- * Seed data for the created warehouse locations that merchant matching
- * resolves against (see utils/merchantPlacement.js) — mirrors this
- * feature's own worked example: Warehouse 1 · Main Warehouse has a
- * "Samples" Good Position, and Warehouse 1 · Damage Warehouse has a
- * "Test Location" Inventory Position.
- */
-function seedWarehouseLocations() {
-  const now = Date.now();
-  return [
-    {
-      warehouseId: 'wh-seed-1', zone: 'main', area: 'Samples', locationCode: 'Samples',
-      positionNumber: '9111820000000', property: 'goods', enabled: true, createdAt: now
-    },
-    {
-      warehouseId: 'wh-seed-1', zone: 'damage', area: 'Test Location', locationCode: 'Test Location',
-      positionNumber: '9111690000000', property: 'inventory', enabled: true, createdAt: now
-    }
-  ];
-}
+// Demo/seed data (Maria Santos's laptop, the sample warehouse, etc.) used to
+// live here as seedGadgets()/seedInventoryAssets()/etc. and got handed to
+// each Store as a localStorage fallback. Now that records live in Supabase,
+// that seeding happens once, server-side — see supabase/seed.sql — instead
+// of being re-applied by the browser on every empty-storage first load.
 
 function collectRefs() {
   return {
@@ -347,47 +252,144 @@ function bindSettingsPanel() {
   });
 }
 
-function main() {
-  // Scaffold check only — nothing in the app reads from or writes to
-  // Supabase yet. Once js/core/supabaseConfig.js has real credentials,
-  // this confirms the client actually initialized before any feature
-  // starts depending on it.
-  console.log(supabase ? '[supabase] Client ready.' : '[supabase] Not configured — see js/core/supabaseConfig.js.');
+/** Wires Settings → General → Change password: two-field form (new +
+ * confirm) that calls Auth.js's updatePassword(), which trusts the current
+ * session as identity proof (no "current password" re-entry, same as most
+ * account-settings password changes). Field-error styling matches every
+ * other form's .field-error convention (WarehouseForm, UserAccountForm). */
+function bindChangePasswordPanel(session) {
+  const form = document.getElementById('changePasswordForm');
+  const newInput = document.getElementById('newPasswordInput');
+  const confirmInput = document.getElementById('confirmPasswordInput');
+  const submitBtn = document.getElementById('changePasswordSubmitBtn');
+  const emailLabel = document.getElementById('changePasswordAccountEmail');
+  if (!form || !newInput || !confirmInput) return;
 
-  const store = new Store({
-    key: 'stockroom_gadgets_v1',
-    seed: seedGadgets,
+  if (emailLabel) emailLabel.textContent = session?.user?.email || 'your account';
+
+  const clearErrors = () => {
+    form.querySelectorAll('.field-error').forEach((e) => { e.textContent = ''; });
+    [newInput, confirmInput].forEach((i) => i.classList.remove('invalid'));
+  };
+  const showFieldError = (input, name, message) => {
+    input.classList.add('invalid');
+    const errEl = form.querySelector(`[data-error-for="${name}"]`);
+    if (errEl) errEl.textContent = message;
+  };
+
+  // Same reveal-toggle pattern as the auth screen / ManageForm's password
+  // field (css/modal.css .password-field / .password-toggle), keyed off
+  // data-action since this form has two independent password fields.
+  form.querySelector('[data-action="toggle-new-password"]')?.addEventListener('click', (e) => {
+    const showing = newInput.type === 'text';
+    newInput.type = showing ? 'password' : 'text';
+    e.currentTarget.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+  });
+  form.querySelector('[data-action="toggle-confirm-password"]')?.addEventListener('click', (e) => {
+    const showing = confirmInput.type === 'text';
+    confirmInput.type = showing ? 'password' : 'text';
+    e.currentTarget.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearErrors();
+
+    const newPassword = newInput.value;
+    const confirmPassword = confirmInput.value;
+    let valid = true;
+    if (newPassword.length < 6) {
+      showFieldError(newInput, 'newPassword', 'Password must be at least 6 characters.');
+      valid = false;
+    }
+    if (confirmPassword !== newPassword) {
+      showFieldError(confirmInput, 'confirmPassword', 'Passwords do not match.');
+      valid = false;
+    }
+    if (!valid) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Updating…';
+    try {
+      const { error } = await updatePassword(newPassword);
+      if (error) {
+        Toast.error(error.message || 'Could not update password. Please try again.');
+        return;
+      }
+      form.reset();
+      Toast.success('Password updated.');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Update password';
+    }
+  });
+}
+
+async function startApp(session) {
+  if (!supabase) {
+    console.error('[supabase] Not configured — fill in js/core/supabaseConfig.js with your project URL and anon key.');
+    Toast.error('Supabase isn\'t configured yet — see js/core/supabaseConfig.js.');
+  }
+
+  const store = new SupabaseStore({
+    table: 'gadgets',
     factory: (raw) => new Gadget(raw)
   });
 
-  const inventoryAssetStore = new Store({
-    key: 'stockroom_inventory_assets_v1',
-    seed: seedInventoryAssets,
+  const inventoryAssetStore = new SupabaseStore({
+    table: 'inventory_assets',
     factory: (raw) => new InventoryAsset(raw)
   });
 
-  const warehouseStore = new Store({
-    key: 'stockroom_warehouses_v1',
-    seed: seedWarehouses,
-    factory: (raw) => new Warehouse(raw)
+  const warehouseStore = new SupabaseStore({
+    table: 'warehouses',
+    factory: (raw) => new Warehouse(raw),
+    // Warehouse Information's tree (SettingsController.renderTree) lists
+    // sites in whatever order list() returns them, oldest-first per the
+    // Settings screen's requirement — the default (newest-first) is right
+    // for Manage/Inventory Assets grids, but wrong here.
+    ascending: true
   });
 
-  const warehouseLocationStore = new Store({
-    key: 'stockroom_warehouse_locations_v1',
-    seed: seedWarehouseLocations,
+  const warehouseLocationStore = new SupabaseStore({
+    table: 'warehouse_locations',
     factory: (raw) => new WarehouseLocation(raw)
   });
 
-  const userAccountStore = new Store({
-    key: 'stockroom_user_accounts_v1',
-    seed: seedUserAccounts,
+  const userAccountStore = new SupabaseStore({
+    table: 'user_accounts',
     factory: (raw) => new UserAccount(raw)
   });
 
-  const userGroupStore = new Store({
-    key: 'stockroom_user_groups_v1',
+  const userGroupStore = new SupabaseStore({
+    table: 'user_groups',
     factory: (raw) => new UserGroup(raw)
   });
+
+  // Every optimistic write (create/update/delete) can now fail for reasons
+  // that never existed with localStorage — offline, RLS denial, a dropped
+  // connection. SupabaseStore already rolls the local cache back and
+  // re-renders; this just tells the person it happened.
+  [store, inventoryAssetStore, warehouseStore, warehouseLocationStore, userAccountStore, userGroupStore]
+    .forEach((s) => s.on('error', ({ type }) => {
+      if (type === 'init' || type === 'load') return; // already logged + toasted above
+      Toast.error('Could not save that change — please check your connection and try again.');
+    }));
+
+  // Kick off every initial fetch in parallel rather than one at a time —
+  // these tables don't depend on each other to load. Each store's own
+  // constructor already leaves `records` as [] until this resolves, and
+  // every controller below re-renders on the store's 'change' event, so
+  // this await just avoids an initial "empty" paint before the real data
+  // arrives a moment later.
+  await Promise.all([
+    store.init(),
+    inventoryAssetStore.init(),
+    warehouseStore.init(),
+    warehouseLocationStore.init(),
+    userAccountStore.init(),
+    userGroupStore.init()
+  ]);
 
   const refs = collectRefs();
   const view = new ManageView(refs);
@@ -445,6 +447,56 @@ function main() {
   initTabs();
   bindAdvancedFilterToggle();
   bindSettingsPanel();
+  bindChangePasswordPanel(session);
+
+  document.getElementById('appShell').hidden = false;
 }
 
-document.addEventListener('DOMContentLoaded', main);
+/** Refs for the login screen (see #authScreen in index.html) — three tabs
+ * (admin / employee / sign-up), one shared identifier+password form. */
+function collectAuthRefs() {
+  return {
+    screen: document.getElementById('authScreen'),
+    adminTab: document.getElementById('authAdminTab'),
+    employeeTab: document.getElementById('authEmployeeTab'),
+    signUpTab: document.getElementById('authSignUpTab'),
+    switchHint: document.getElementById('authSwitchHint'),
+    errorBox: document.getElementById('authError'),
+    form: document.getElementById('authForm'),
+    usernameField: document.getElementById('authUsernameField'),
+    usernameInput: document.getElementById('authUsername'),
+    identifierLabel: document.getElementById('authIdentifierLabel'),
+    identifierInput: document.getElementById('authIdentifier'),
+    passwordInput: document.getElementById('authPassword'),
+    passwordToggle: document.getElementById('authPasswordToggle'),
+    submitBtn: document.getElementById('authSubmitBtn'),
+    profileUsername: document.getElementById('profileUsername'),
+    signOutBtn: document.getElementById('signOutBtn')
+  };
+}
+
+/**
+ * Entry point. Auth gates everything else: startApp() (all the stores,
+ * controllers, tabs) only runs once AuthController confirms a real
+ * Supabase session exists, whether that's because one was already active
+ * on page load or because the person just signed in.
+ */
+function bootstrap() {
+  const authRefs = collectAuthRefs();
+  const authView = new AuthView(authRefs);
+  const authController = new AuthController({
+    view: authView,
+    refs: authRefs,
+    onSignedIn: (session) => startApp(session),
+    onSignedOut: () => {
+      // No teardown path exists for the stores/controllers startApp() built
+      // (realtime subscriptions, event listeners, etc.), so rather than
+      // partially un-wire all of that, a full reload gives every feature a
+      // clean slate the next time someone signs in on this tab.
+      location.reload();
+    }
+  });
+  authController.init();
+}
+
+document.addEventListener('DOMContentLoaded', bootstrap);

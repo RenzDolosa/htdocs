@@ -99,6 +99,10 @@ tbody tr.row-selected td.sn-col, tbody tr.row-selected td.checkbox-col{ backgrou
 .pill-cat{ background: var(--steel-soft); color: var(--steel); }
 .pill-warehouse{ background: var(--accent-soft); color: var(--accent-ink); }
 /* .pill-tempbin{ background: var(--warn-soft); color: var(--warn); } */
+/* Marks a User-management row as a real Supabase Auth account (see
+   UserAccountView.js / supabase/schema.sql's auth.users linkage) rather
+   than a directory-only entry added by hand via "+ Add user". */
+.pill-linked{ background: var(--good-soft); color: var(--good); }
 
 .code-tag{
   display: inline-flex; align-items: center; gap: 7px;

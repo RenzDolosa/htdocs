@@ -1,0 +1,120 @@
+/* Login / sign-up screen — full-viewport overlay shown in place of the app
+   shell until AuthController confirms a session. Uses the same tokens as
+   the rest of the app (css/root.css) so it doesn't look like a bolted-on
+   third-party widget. */
+
+.auth-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  font-family: var(--font-body);
+}
+
+.auth-card {
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 32px 28px 24px;
+}
+
+.auth-brand {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--ink);
+  text-align: center;
+}
+
+.auth-sub {
+  margin: 6px 0 20px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.auth-tabs {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 8px 0;
+  background: var(--surface-sunk);
+  border: none;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.auth-tab.is-active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.auth-error {
+  background: var(--bad-soft);
+  color: var(--bad);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.auth-error.auth-notice {
+  background: var(--steel-soft);
+  color: var(--steel);
+}
+
+.auth-switch-hint {
+  margin: 16px 0 0;
+  font-size: 12px;
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+.profile-signout {
+  border: none;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-family: var(--font-body);
+  cursor: pointer;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: var(--radius);
+}
+
+.profile-signout:hover {
+  background: var(--surface-sunk);
+  color: var(--ink);
+}
+
+/* .shell sets its own `display: flex`, which — being an author-stylesheet
+   rule — overrides the browser default `[hidden] { display: none }` no
+   matter the specificity math. Without this, <div class="shell" hidden>
+   still renders (flex) behind the login screen instead of disappearing. */
+.shell[hidden] {
+  display: none;
+}
+
+/* Same issue as .shell above, mirrored: .auth-screen also sets its own
+   `display: flex`, which overrides the browser default `[hidden] {
+   display: none }`. Without this, AuthView.hide() (which just sets
+   screen.hidden = true) has no visible effect — the login card stays on
+   screen even after a successful sign-in. */
+.auth-screen[hidden] {
+  display: none;
+}
