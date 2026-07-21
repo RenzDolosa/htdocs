@@ -80,7 +80,8 @@ textarea{
   font-size: 13.5px; color: var(--ink); background: var(--surface); font-family: inherit;
 }
 textarea{ resize: vertical; }
-input:focus, select:focus, textarea:focus{ outline: none; border-color: var(--steel); box-shadow: 0 0 0 3px var(--steel-soft); }
+input:focus, select:focus, textarea:focus,
+.filter-dropdown-trigger:focus{ outline: none; border-color: var(--steel); box-shadow: 0 0 0 3px var(--steel-soft); }
 input.invalid, textarea.invalid{ border-color: var(--bad); }
 input.invalid:focus, textarea.invalid:focus{ box-shadow: 0 0 0 3px var(--bad-soft); }
 

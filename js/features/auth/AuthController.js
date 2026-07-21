@@ -4,6 +4,7 @@ import {
 } from '../../core/Auth.js';
 import { getOperatorName, setOperatorName } from '../../core/Operator.js';
 import { setEmployeeProfile, getEmployeeProfile, clearEmployeeProfile } from '../../core/EmployeeSession.js';
+import { setIsAdministrator } from '../../core/CurrentUser.js';
 import { EMPLOYEE_PORTAL_EMAIL } from '../../core/supabaseConfig.js';
 
 /**
@@ -64,6 +65,11 @@ export class AuthController {
       // employee's user_accounts row, so isAccountEnabled() would be
       // checking the wrong thing entirely for it.
       const isEmployeePortalSession = (session.user?.email || '').toLowerCase() === EMPLOYEE_PORTAL_EMAIL.toLowerCase();
+      // The one place this gets decided — ManageController,
+      // InventoryAssetController, etc. read it back via
+      // core/CurrentUser.js to gate admin-only actions (delete, clear
+      // all data, editing certain catalog-sourced fields).
+      setIsAdministrator(!isEmployeePortalSession);
 
       if (!isEmployeePortalSession) {
         // Real administrator session — Settings → User management → User's

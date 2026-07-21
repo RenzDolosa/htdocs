@@ -14,6 +14,7 @@ import { el, esc } from '../../utils/dom.js';
 import { getOperatorName } from '../../core/Operator.js';
 import { fmtLocalDateTime, fmtLocalDateStamp } from '../../utils/format.js';
 import { resolveMerchantPlacement } from '../../utils/merchantPlacement.js';
+import { isAdministrator } from '../../core/CurrentUser.js';
 
 /** Column order/labels shared by the CSV export, the import template, and the importer. */
 const IMPORT_HEADERS = ['User', 'Role', 'Category', 'Serial Number', 'Warehouse Asset Tag', 'Asset Tag (Default)', 'MAC Address', 'Merchant', 'Owner', 'Remarks', 'Description'];
@@ -224,7 +225,7 @@ export class ManageController {
       onToggleSelect: (id, checked) => this._toggleSelect(id, checked),
       onToggleSelectAll: (checked) => this._toggleSelectAll(pageGadgets, checked),
       onRerender: () => this.render()
-    }, this._duplicateSerialSet(), this._catalogIssuesById());
+    }, this._duplicateSerialSet(), this._catalogIssuesById(), { isAdmin: isAdministrator() });
     this.view.renderSortHeaders(this.state.sortBy, this.state.sortDir);
     this.view.renderFooter(
       { totalItems, selectedCount: this.selected.size, page: this.state.page, pageSize: this.state.pageSize, totalPages },
@@ -294,6 +295,7 @@ export class ManageController {
   }
 
   async _deleteSelected() {
+    if (!isAdministrator()) return;
     const count = this.selected.size;
     if (count === 0) return;
     const ok = await confirmDialog({
@@ -357,6 +359,17 @@ export class ManageController {
     this.refs.transferItemBtn.addEventListener('click', () => this._openAdjustPositionMenu());
     this.refs.refreshBtn.addEventListener('click', () => this.render());
     this.refs.importFileInput.addEventListener('change', (e) => this._handleImportFile(e));
+
+    // Deleting (individually, in bulk, or wiping everything) is
+    // administrator-only — left visible rather than hidden so it's clear
+    // the option exists, just not to this account.
+    if (!isAdministrator()) {
+      [this.refs.clearAllBtn, this.refs.bulkDeleteBtn].forEach((btn) => {
+        if (!btn) return;
+        btn.disabled = true;
+        btn.title = 'Only administrators can do this.';
+      });
+    }
   }
 
   /** "+ Add asset" now branches into two paths: a manual entry (Add Manage,
@@ -458,12 +471,20 @@ export class ManageController {
 
   _openGadgetModal(gadget) {
     const inventoryAssets = this.inventoryAssetStore ? this.inventoryAssetStore.list() : [];
+    // These four fields have to agree with the Inventory Assets catalog
+    // (see _catalogIssues above) — only administrators can change them on
+    // an existing asset. Adding a brand-new asset is unrestricted either
+    // way; there's nothing yet for a wrong value to disagree with.
+    const lockedFields = gadget && !isAdministrator()
+      ? ['category', 'serialNumber', 'macAddress', 'assetTagDefault']
+      : [];
     const form = buildManageForm(gadget, {
       userOptions: this._knownUsers(),
       inventoryAssets,
       usedSerials: this._usedSerialSet(gadget ? gadget.id : null),
       locationCodes: this._locationCodes(),
-      resolvePlacement: (merchant) => this._resolvePlacement(merchant)
+      resolvePlacement: (merchant) => this._resolvePlacement(merchant),
+      lockedFields
     });
 
     const modal = new Modal({
@@ -847,6 +868,7 @@ export class ManageController {
   }
 
   async deleteGadget(id) {
+    if (!isAdministrator()) return;
     const gadget = this.store.get(id);
     if (!gadget) return;
     const ok = await confirmDialog({
@@ -862,6 +884,7 @@ export class ManageController {
   }
 
   async clearAll() {
+    if (!isAdministrator()) return;
     if (this.store.list().length === 0) {
       Toast.show('There is nothing to clear.');
       return;

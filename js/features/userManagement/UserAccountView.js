@@ -32,7 +32,7 @@ export class UserAccountView {
         <td data-label="User Group"><div>${esc(u.userGroup) || '<span class="muted">—</span>'}</div></td>
         <td data-label="Mail"><div>${esc(u.mail) || '<span class="muted">—</span>'}</div></td>
         <td data-label="Phone Number"><div>${esc(u.phoneNumber) || '<span class="muted">—</span>'}</div></td>
-        <td data-label="Enable"><div><input type="checkbox" class="um-enable-toggle" ${u.enabled ? 'checked' : ''}></div></td>
+        <td data-label="Enable"><div><input type="checkbox" tabindex="-1" class="um-enable-toggle" ${u.enabled ? 'checked' : ''}></div></td>
         <td data-label="Created"><div>${esc(fmtDate(u.createdAt))}</div></td>
         <td data-label="Updated"><div>${esc(fmtDate(u.updatedAt))}</div></td>
         <td data-label="Last Login"><div>${u.lastLoginAt ? esc(fmtDate(u.lastLoginAt)) : '<span class="muted">—</span>'}</div></td>

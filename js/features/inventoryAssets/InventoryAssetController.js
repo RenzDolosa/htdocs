@@ -9,6 +9,7 @@ import { processInChunks } from '../../utils/asyncBatch.js';
 import { buildImportProgress } from '../../components/ImportProgress.js';
 import { el } from '../../utils/dom.js';
 import { fmtLocalDateTime, fmtLocalDateStamp } from '../../utils/format.js';
+import { isAdministrator } from '../../core/CurrentUser.js';
 
 /** Column order/labels shared by the export template and the importer. */
 const IMPORT_HEADERS = ['Category', 'Serial Number', 'Asset Tag', 'MAC Address', 'IMEI 1', 'IMEI 2'];
@@ -102,7 +103,7 @@ export class InventoryAssetController {
       onDelete: (id) => this.deleteAsset(id),
       onToggleSelect: (id, checked) => this._toggleSelect(id, checked),
       onToggleSelectAll: (checked) => this._toggleSelectAll(pageAssets, checked)
-    }, this._duplicateSerialSet());
+    }, this._duplicateSerialSet(), { isAdmin: isAdministrator() });
     this.view.renderSortHeaders(this.state.sortBy, this.state.sortDir);
     this.view.renderFooter(
       { totalItems, selectedCount: this.selected.size, page: this.state.page, pageSize: this.state.pageSize, totalPages },
@@ -144,6 +145,7 @@ export class InventoryAssetController {
   }
 
   async _deleteSelected() {
+    if (!isAdministrator()) return;
     const count = this.selected.size;
     if (count === 0) return;
     const ok = await confirmDialog({
@@ -191,6 +193,18 @@ export class InventoryAssetController {
     this.refs.refreshBtn.addEventListener('click', () => this.render());
     this.refs.exportBtn.addEventListener('click', () => this.exportCsv());
     this.refs.importFileInput.addEventListener('change', (e) => this._handleImportFile(e));
+
+    // Inventory Assets is the catalog every Manage asset gets validated
+    // against (see ManageController._catalogIssues) — adding, importing,
+    // or deleting from it is administrator-only. addItemBtn alone covers
+    // both "Add Asset" and "Import" (see _openAddOptionsMenu's dropdown).
+    if (!isAdministrator()) {
+      [this.refs.addItemBtn, this.refs.emptyAddBtn, this.refs.bulkDeleteBtn, this.refs.clearAllBtn].forEach((btn) => {
+        if (!btn) return;
+        btn.disabled = true;
+        btn.title = 'Only administrators can do this.';
+      });
+    }
   }
 
   /** "+ Add asset" branches into two paths, same as the Manage panel:
@@ -233,6 +247,7 @@ export class InventoryAssetController {
   }
 
   _openAssetModal(asset) {
+    if (!isAdministrator()) return;
     const form = buildInventoryAssetForm(asset, this._knownCategories());
 
     const modal = new Modal({
@@ -283,6 +298,7 @@ export class InventoryAssetController {
   }
 
   async deleteAsset(id) {
+    if (!isAdministrator()) return;
     const asset = this.store.get(id);
     if (!asset) return;
     const ok = await confirmDialog({
@@ -298,6 +314,7 @@ export class InventoryAssetController {
   }
 
   async clearAll() {
+    if (!isAdministrator()) return;
     if (this.store.list().length === 0) {
       Toast.show('There is nothing to clear.');
       return;
@@ -376,6 +393,7 @@ export class InventoryAssetController {
   }
 
   _handleImportFile(event) {
+    if (!isAdministrator()) return;
     const file = event.target.files?.[0];
     // Clear the input immediately so choosing the same filename again
     // still fires a change event next time.

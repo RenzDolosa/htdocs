@@ -46,7 +46,7 @@ export class ManageView {
     selectEl.value = options.includes(currentValue) ? currentValue : 'all';
   }
 
-  renderTable(pageGadgets, selectedIds, handlers, duplicateSerials = new Set(), catalogIssuesById = new Map()) {
+  renderTable(pageGadgets, selectedIds, handlers, duplicateSerials = new Set(), catalogIssuesById = new Map(), { isAdmin = true } = {}) {
     if (pageGadgets.length === 0) {
       this.refs.tableBody.innerHTML = '';
       this.refs.emptyState.style.display = 'block';
@@ -55,13 +55,17 @@ export class ManageView {
     }
     this.refs.emptyState.style.display = 'none';
 
-    this.refs.tableBody.innerHTML = pageGadgets.map((g, index) => this._rowHTML(g, index, selectedIds.has(g.id), duplicateSerials, catalogIssuesById.get(g.id))).join('');
+    this.refs.tableBody.innerHTML = pageGadgets.map((g, index) => this._rowHTML(g, index, selectedIds.has(g.id), duplicateSerials, catalogIssuesById.get(g.id), isAdmin)).join('');
 
     qsa('tr[data-id]', this.refs.tableBody).forEach((row) => {
       const id = row.getAttribute('data-id');
       row.querySelector('[data-action="edit"]').addEventListener('click', () => handlers.onEdit(id));
       row.querySelector('[data-action="log"]').addEventListener('click', () => handlers.onViewLog(id));
-      row.querySelector('[data-action="delete"]').addEventListener('click', () => handlers.onDelete(id));
+      // Deleting is administrator-only — the button itself is rendered
+      // disabled below (see _rowHTML), but skip wiring the handler too
+      // rather than rely solely on browsers not firing click on a
+      // disabled button.
+      if (isAdmin) row.querySelector('[data-action="delete"]').addEventListener('click', () => handlers.onDelete(id));
       row.querySelector('[data-action="select-row"]').addEventListener('change', (e) => handlers.onToggleSelect(id, e.target.checked));
       const toggle = row.querySelector('[data-action="reveal-password"]');
       if (toggle) {
@@ -111,7 +115,7 @@ export class ManageView {
     renderPagination(this.refs, { page, pageSize, totalPages }, handlers);
   }
 
-  _rowHTML(g, index, selected, duplicateSerials = new Set(), catalogIssue = null) {
+  _rowHTML(g, index, selected, duplicateSerials = new Set(), catalogIssue = null, isAdmin = true) {
     const revealed = this._revealedPasswords.has(g.id);
     const passwordDisplay = g.password
       ? (revealed ? esc(g.password) : '••••••••')
@@ -167,7 +171,7 @@ export class ManageView {
             <button tabindex="-1" class="icon-btn" data-action="log" aria-label="View history log" title="View log">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
             </button>
-            <button tabindex="-1" class="icon-btn danger" data-action="delete" aria-label="Delete asset" title="Delete">
+            <button tabindex="-1" class="icon-btn danger" data-action="delete" aria-label="Delete asset" title="${isAdmin ? 'Delete' : 'Only administrators can delete assets.'}" ${isAdmin ? '' : 'disabled'}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
             </button>
           </div>

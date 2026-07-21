@@ -11,7 +11,7 @@ import { openDropdownMenu } from './DropdownMenu.js';
  */
 export function buildFilterDropdown({ placeholder, options, onSelect }) {
   const trigger = el(`
-    <button tabindex="-1" type="button" class="filter-dropdown-trigger is-placeholder">
+    <button type="button" class="filter-dropdown-trigger is-placeholder">
       <span class="filter-dropdown-label">${esc(placeholder)}</span>
       <span class="filter-dropdown-caret">▾</span>
     </button>

@@ -19,7 +19,7 @@ export class InventoryAssetView {
     select.value = categories.includes(currentValue) ? currentValue : 'all';
   }
 
-  renderTable(pageAssets, selectedIds, handlers, duplicateSerials = new Set()) {
+  renderTable(pageAssets, selectedIds, handlers, duplicateSerials = new Set(), { isAdmin = true } = {}) {
     if (pageAssets.length === 0) {
       this.refs.tableBody.innerHTML = '';
       this.refs.emptyState.style.display = 'block';
@@ -28,12 +28,19 @@ export class InventoryAssetView {
     }
     this.refs.emptyState.style.display = 'none';
 
-    this.refs.tableBody.innerHTML = pageAssets.map((a, index) => this._rowHTML(a, index, selectedIds.has(a.id), duplicateSerials)).join('');
+    this.refs.tableBody.innerHTML = pageAssets.map((a, index) => this._rowHTML(a, index, selectedIds.has(a.id), duplicateSerials, isAdmin)).join('');
 
     qsa('tr[data-id]', this.refs.tableBody).forEach((row) => {
       const id = row.getAttribute('data-id');
-      row.querySelector('[data-action="edit"]').addEventListener('click', () => handlers.onEdit(id));
-      row.querySelector('[data-action="delete"]').addEventListener('click', () => handlers.onDelete(id));
+      // Inventory Assets is the catalog Manage validates against — both
+      // editing and deleting are administrator-only here (unlike Manage,
+      // where editing stays open but four specific fields lock instead).
+      // Buttons render disabled below (see _rowHTML); skip wiring their
+      // handlers too rather than rely solely on that.
+      if (isAdmin) {
+        row.querySelector('[data-action="edit"]').addEventListener('click', () => handlers.onEdit(id));
+        row.querySelector('[data-action="delete"]').addEventListener('click', () => handlers.onDelete(id));
+      }
       row.querySelector('[data-action="select-row"]').addEventListener('change', (e) => handlers.onToggleSelect(id, e.target.checked));
     });
 
@@ -72,7 +79,7 @@ export class InventoryAssetView {
     renderPagination(this.refs, { page, pageSize, totalPages }, handlers);
   }
 
-  _rowHTML(a, index, selected, duplicateSerials) {
+  _rowHTML(a, index, selected, duplicateSerials, isAdmin = true) {
     const isDuplicateSerial = Boolean(a.serialNumber) && duplicateSerials.has(a.serialNumber.trim().toLowerCase());
     const serialCellClass = isDuplicateSerial ? ' class="cell-duplicate-serial"' : '';
     const serialCellTitle = isDuplicateSerial ? ' title="Duplicate serial number — also used by another asset"' : '';
@@ -89,10 +96,10 @@ export class InventoryAssetView {
         <td data-label="Created" class="created-col"><div><small>${fmtDate(a.createdAt)}</small></div></td>
         <td data-label="Actions">
           <div class="row-actions">
-            <button tabindex="-1" class="icon-btn" data-action="edit" aria-label="Edit asset" title="Edit">
+            <button tabindex="-1" class="icon-btn" data-action="edit" aria-label="Edit asset" title="${isAdmin ? 'Edit' : 'Only administrators can edit inventory assets.'}" ${isAdmin ? '' : 'disabled'}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             </button>
-            <button tabindex="-1" class="icon-btn danger" data-action="delete" aria-label="Delete asset" title="Delete">
+            <button tabindex="-1" class="icon-btn danger" data-action="delete" aria-label="Delete asset" title="${isAdmin ? 'Delete' : 'Only administrators can delete inventory assets.'}" ${isAdmin ? '' : 'disabled'}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
             </button>
           </div>
