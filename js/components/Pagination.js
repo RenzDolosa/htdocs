@@ -1,5 +1,6 @@
 import { qsa } from '../utils/dom.js';
 import { pageList } from '../utils/pagination.js';
+import { enhanceSelect } from './SelectField.js';
 
 /**
  * Renders the standard grid-footer-right pagination controls — page-size
@@ -12,6 +13,10 @@ import { pageList } from '../utils/pagination.js';
  * selection count, a plain result count, ...) is feature-specific and
  * stays in each view — this only owns the paging controls themselves.
  *
+ * pageSizeSelect is enhanced into the app's custom dropdown the first
+ * time this runs for a given element (enhanceSelect is idempotent), so
+ * every page-size control app-wide gets it from this one call site.
+ *
  * @param {object} refs - { pageSizeSelect, prevPageBtn, nextPageBtn, pageNumbers, gotoPageInput, gotoPageBtn }
  * @param {object} info - { page, pageSize, totalPages }
  * @param {object} handlers - { onPageSizeChange(size), onPrevPage(), onNextPage(), onPageClick(page), onGotoPage(page) }
@@ -19,7 +24,9 @@ import { pageList } from '../utils/pagination.js';
 export function renderPagination(refs, info, handlers) {
   const { page, pageSize, totalPages } = info;
 
+  enhanceSelect(refs.pageSizeSelect);
   refs.pageSizeSelect.value = String(pageSize);
+  refs.pageSizeSelect._selectField?.sync();
   refs.pageSizeSelect.onchange = (e) => handlers.onPageSizeChange(Number(e.target.value));
 
   refs.prevPageBtn.disabled = page <= 1;

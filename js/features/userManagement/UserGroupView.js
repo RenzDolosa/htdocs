@@ -30,7 +30,7 @@ export class UserGroupView {
         <td data-label="SN" class="sn-col"><div style="display: flex; justify-content: center; padding: 0;">${i + 1}</div></td>
         <td data-label="User Group Number"><div>${esc(g.groupNumber)}</div></td>
         <td data-label="User Group Name"><div class="um-username-cell">${esc(g.name)}</div></td>
-        <td data-label="Enable"><div><input type="checkbox" tabindex="-1" class="ug-enable-toggle" ${g.enabled ? 'checked' : ''}></div></td>
+        <td data-label="Enable"><div><input type="checkbox" class="ug-enable-toggle" ${g.enabled ? 'checked' : ''}></div></td>
         <td data-label="Bound User"><div>${boundLabel}</div></td>
         <td data-label="Created"><div>${esc(fmtDate(g.createdAt))}</div></td>
         <td data-label="Updated"><div>${esc(fmtDate(g.updatedAt))}</div></td>

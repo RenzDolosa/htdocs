@@ -2,6 +2,7 @@ import { esc, qsa } from '../../utils/dom.js';
 import { fmtInt, fmtDate } from '../../utils/format.js';
 import { temporaryPositionLabel } from '../../models/Gadget.js';
 import { renderPagination } from '../../components/Pagination.js';
+import { enhanceSelect } from '../../components/SelectField.js';
 
 /**
  * ManageView owns DOM rendering only. It receives plain data and a table
@@ -11,6 +12,10 @@ export class ManageView {
   constructor(refs) {
     this.refs = refs;
     this._revealedPasswords = new Set();
+    // Category has 20+ options, so it gets the search box; the underlying
+    // <select> stays fully functional (value/change/innerHTML) — see
+    // components/SelectField.js for why that matters here.
+    enhanceSelect(this.refs.filterCategory, { searchable: true });
   }
 
   /** Populates the Category <select> filter, preserving the current selection.
@@ -44,6 +49,7 @@ export class ManageView {
     selectEl.innerHTML = `<option value="all">${esc(allLabel)}</option>` +
       options.map((o) => `<option value="${esc(o)}">${esc(o)}</option>`).join('');
     selectEl.value = options.includes(currentValue) ? currentValue : 'all';
+    selectEl._selectField?.sync();
   }
 
   renderTable(pageGadgets, selectedIds, handlers, duplicateSerials = new Set(), catalogIssuesById = new Map(), { isAdmin = true } = {}) {

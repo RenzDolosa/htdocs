@@ -4,6 +4,7 @@ import { Toast } from '../../components/Toast.js';
 import { confirmDialog } from '../../components/ConfirmDialog.js';
 import { openDropdownMenu } from '../../components/DropdownMenu.js';
 import { buildFilterDropdown } from '../../components/FilterDropdown.js';
+import { enhanceSelect } from '../../components/SelectField.js';
 import { generateId } from '../../utils/id.js';
 import { toCsv, downloadCsv } from '../../utils/csv.js';
 import { fmtLocalDateStamp } from '../../utils/format.js';
@@ -419,6 +420,7 @@ export function openWarehouseLocationModal({ warehouse, zone, locationStore }) {
     page = 1;
     refresh();
   });
+  enhanceSelect(body.querySelector('.loc-page-size'));
   body.querySelector('.loc-prev-page').addEventListener('click', () => { page -= 1; refresh(); });
   body.querySelector('.loc-next-page').addEventListener('click', () => { page += 1; refresh(); });
   body.querySelector('.loc-goto-btn').addEventListener('click', () => {

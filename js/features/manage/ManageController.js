@@ -5,6 +5,7 @@ import { buildTransferForm } from '../../components/TransferForm.js';
 import { openLogModal } from '../../components/LogModal.js';
 import { openManifestModal as showManifestModal } from '../../components/ManifestModal.js';
 import { openDropdownMenu } from '../../components/DropdownMenu.js';
+import { enhanceSelect } from '../../components/SelectField.js';
 import { Gadget, TEMP_POSITION_TYPES, temporaryPositionLabel } from '../../models/Gadget.js';
 import { buildManageForm } from './ManageForm.js';
 import { toCsv, parseCsv, downloadCsv, readCsvFile } from '../../utils/csv.js';
@@ -732,6 +733,7 @@ export class ManageController {
       confirmBtn.title = ready ? '' : 'Choose a position type for every row first.';
     };
     tbody.querySelectorAll('select[data-field="positionType"]').forEach((s) => {
+      enhanceSelect(s);
       s.addEventListener('change', updateConfirmState);
     });
 

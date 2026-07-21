@@ -134,6 +134,11 @@ html, body{ height: 100%; }
 .filterbar input:focus, .filterbar select:focus{
   outline: none; border-color: var(--steel); box-shadow: 0 0 0 3px var(--steel-soft);
 }
+/* SelectField.js's trigger replaces the native <select> visually within
+   filter bars — same footprint as the inputs/select it sits next to. */
+.filterbar .filter-dropdown-trigger{
+  min-width: 150px; padding: 7px 10px; font-size: 12.5px;
+}
 .filterbar-toggle{
   display: inline-flex; align-items: center; gap: 4px;
   padding: 7px 10px; border-radius: 5px; border: 1px solid var(--border);
@@ -208,11 +213,16 @@ html, body{ height: 100%; }
   padding: 6px 8px; border-radius: 5px; border: 1px solid var(--border);
   font-size: 12.5px; color: var(--ink); background: var(--surface);
 }
+.grid-footer-right .filter-dropdown-trigger{
+  padding: 6px 8px; font-size: 12.5px; min-width: 90px;
+}
 .goto-label{ font-size: 12.5px; color: var(--ink-faint); margin-left: 4px; }
+
 #gotoPageInput,
 #iaGotoPageInput,
 #ugGotoPageInput,
-#uaGotoPageInput{
+#uaGotoPageInput,
+.loc-goto-input{
   width: 48px; padding: 6px 6px; border-radius: 5px; border: 1px solid var(--border);
   font-size: 12.5px; text-align: center;
 }

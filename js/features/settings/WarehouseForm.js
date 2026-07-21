@@ -1,4 +1,5 @@
 import { el } from '../../utils/dom.js';
+import { enhanceSelect } from '../../components/SelectField.js';
 
 const CURRENCIES = [
   { value: 'PHP', label: 'Philippine peso' },
@@ -116,6 +117,9 @@ export function buildWarehouseForm(warehouse) {
   node.querySelector('#whPhone').value = warehouse.phoneNumber;
   node.querySelector('#whMail').value = warehouse.email;
   node.querySelector('#whAreaPriority').value = warehouse.areaPriority;
+
+  enhanceSelect(node.querySelector('#whOperationMode'));
+  enhanceSelect(node.querySelector('#whCurrency'));
 
   function getData() {
     return {

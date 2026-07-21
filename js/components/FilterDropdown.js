@@ -9,7 +9,7 @@ import { openDropdownMenu } from './DropdownMenu.js';
  * selectable menu items, since it represents "no filter chosen" rather
  * than a real option.
  */
-export function buildFilterDropdown({ placeholder, options, onSelect }) {
+export function buildFilterDropdown({ placeholder, options, onSelect, searchable = false }) {
   const trigger = el(`
     <button type="button" class="filter-dropdown-trigger is-placeholder">
       <span class="filter-dropdown-label">${esc(placeholder)}</span>
@@ -17,8 +17,10 @@ export function buildFilterDropdown({ placeholder, options, onSelect }) {
     </button>
   `);
   const labelEl = trigger.querySelector('.filter-dropdown-label');
+  let currentValue;
 
   function setValue(value) {
+    currentValue = value;
     const match = options.find((o) => o.value === value);
     labelEl.textContent = match ? match.label : placeholder;
     trigger.classList.toggle('is-placeholder', !match);
@@ -27,8 +29,11 @@ export function buildFilterDropdown({ placeholder, options, onSelect }) {
   trigger.addEventListener('click', () => {
     openDropdownMenu({
       anchor: trigger,
+      searchable: searchable && options.length > 6,
+      selectedValue: currentValue,
       items: options.map((o) => ({
         label: o.label,
+        value: o.value,
         onClick: () => { setValue(o.value); onSelect(o.value); }
       }))
     });

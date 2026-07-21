@@ -1,6 +1,7 @@
 import { esc, qsa } from '../../utils/dom.js';
 import { fmtInt, fmtDate } from '../../utils/format.js';
 import { renderPagination } from '../../components/Pagination.js';
+import { enhanceSelect } from '../../components/SelectField.js';
 
 /**
  * InventoryAssetView owns DOM rendering only, mirroring ManageView's split
@@ -10,6 +11,7 @@ import { renderPagination } from '../../components/Pagination.js';
 export class InventoryAssetView {
   constructor(refs) {
     this.refs = refs;
+    enhanceSelect(this.refs.filterCategory, { searchable: true });
   }
 
   renderFilterOptions(categories, currentValue) {
@@ -17,6 +19,7 @@ export class InventoryAssetView {
     select.innerHTML = `<option value="all">All categories</option>` +
       categories.map((c) => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
     select.value = categories.includes(currentValue) ? currentValue : 'all';
+    select._selectField?.sync();
   }
 
   renderTable(pageAssets, selectedIds, handlers, duplicateSerials = new Set(), { isAdmin = true } = {}) {
