@@ -22,6 +22,29 @@ export async function getSession() {
 }
 
 /**
+ * Authoritative alternative to getSession() — always makes a live request
+ * to the Supabase Auth server rather than trusting the locally cached
+ * session. getSession() only re-contacts the server once the token has
+ * actually expired; it has no way to notice an account was deleted (or
+ * disabled at the Auth level) while its token was still technically
+ * valid, so a session that was already open keeps working until its next
+ * token refresh — which, for a default ~1hr token lifetime, can be a long
+ * time. Supabase's own docs are explicit about this distinction: "If you
+ * need verified, trustworthy user data, call auth.getUser() instead."
+ *
+ * Returns null on any failure, including a session whose user has since
+ * been deleted (Supabase's own error for that case is literally "User
+ * from sub claim in JWT does not exist").
+ * @returns {Promise<object|null>}
+ */
+export async function getVerifiedUser() {
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getUser();
+  if (error) return null;
+  return data.user;
+}
+
+/**
  * Fires immediately with the current session, then again on every
  * sign-in/sign-out/token-refresh. Returns an unsubscribe function.
  */
@@ -228,6 +251,7 @@ export async function signInToEmployeePortal() {
     return {
       session: null,
       error: {
+        code: 'portal_password_unset',
         message: 'EMPLOYEE_PORTAL_PASSWORD in js/core/supabaseConfig.js is still the placeholder value — see AUTH_GUIDE.md\'s "Employee login" section to finish setup.'
       }
     };

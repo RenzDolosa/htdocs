@@ -1,5 +1,5 @@
 import {
-  getSession, onAuthStateChange, signInWithPassword, signUp, signOut,
+  getSession, getVerifiedUser, onAuthStateChange, signInWithPassword, signUp, signOut,
   isAccountEnabled, verifyEmployeeLogin, signInToEmployeePortal, adminAccountExists
 } from '../../core/Auth.js';
 import { getOperatorName, setOperatorName } from '../../core/Operator.js';
@@ -33,6 +33,7 @@ export class AuthController {
     this.onSignedIn = onSignedIn;
     this.onSignedOut = onSignedOut;
     this._appStarted = false;
+    this._liveCheckIntervalId = null;
   }
 
   async init() {
@@ -53,8 +54,41 @@ export class AuthController {
 
     onAuthStateChange((session) => this._handleSessionChange(session));
 
+    // getSession() alone would trust whatever's cached locally — a
+    // session for an account deleted from the Supabase dashboard still
+    // passes that check until its token happens to refresh (could be up
+    // to ~1hr away). Verifying with getVerifiedUser() here means a stale
+    // session gets caught at the very first page load rather than
+    // silently granting access.
     const session = await getSession();
-    await this._handleSessionChange(session);
+    if (session) {
+      const verifiedUser = await getVerifiedUser();
+      await this._handleSessionChange(verifiedUser ? session : null);
+    } else {
+      await this._handleSessionChange(null);
+    }
+
+    // A session can also go stale *while a tab stays open* — deleted or
+    // disabled mid-session, well before its token's next scheduled
+    // refresh. Two catches for that: a periodic re-check for tabs left
+    // open a long time, and an immediate one when the tab regains focus
+    // (the common real case — someone switches away, an admin removes
+    // their access, they switch back).
+    this._liveCheckIntervalId = setInterval(() => this._verifySessionStillLive(), 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') this._verifySessionStillLive();
+    });
+  }
+
+  /** Re-confirms an already-open session is still valid server-side; forces sign-out if not. No-op while signed out. */
+  async _verifySessionStillLive() {
+    if (!this._appStarted) return;
+    const verifiedUser = await getVerifiedUser();
+    if (!verifiedUser) {
+      await signOut();
+      this.view.show();
+      this.view.showError('Your session is no longer valid. Please sign in again.');
+    }
   }
 
   async _handleSessionChange(session) {
@@ -186,13 +220,24 @@ export class AuthController {
           const { error: portalError } = await signInToEmployeePortal();
           if (portalError) {
             clearEmployeeProfile();
-            // Kept generic on-screen (an employee shouldn't see internal
-            // config details), but logged in full so whoever's actually
-            // debugging this — an admin at devtools, like right now — sees
-            // the real cause immediately instead of guessing at a vague
-            // "could not connect".
-            console.error('[auth] signInToEmployeePortal failed:', portalError.message);
-            this.view.showError('Sign-in succeeded but the app could not connect. Please try again or contact an administrator.');
+            console.error(`[auth] signInToEmployeePortal failed for ${EMPLOYEE_PORTAL_EMAIL}:`, portalError.message);
+            // signInToEmployeePortal() itself detects the one specific,
+            // known, benign cause (supabaseConfig.js's password still
+            // being the shipped placeholder — see its own comment) and
+            // returns a message naming exactly that; safe to show as-is,
+            // since it's a setup instruction, not anything sensitive.
+            // Any *other* failure stays generic on-screen (an employee
+            // shouldn't see internal config/network details) — check the
+            // console line just logged for the real cause. Common ones:
+            // the employee-portal account doesn't exist yet in Supabase,
+            // its actual password doesn't match EMPLOYEE_PORTAL_PASSWORD,
+            // or (if "Auto Confirm User" wasn't checked when creating it)
+            // it exists but was never confirmed.
+            this.view.showError(
+              portalError.code === 'portal_password_unset'
+                ? portalError.message
+                : 'Sign-in succeeded but the app could not connect. Please try again or contact an administrator.'
+            );
           }
           // Otherwise onAuthStateChange fires _handleSessionChange for us.
         }

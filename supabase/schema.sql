@@ -206,7 +206,7 @@ begin
   -- after verify_employee_login() checks their SQL-stored password. Skip
   -- creating a directory entry for it; the real employee row (keyed by
   -- their own id, not this account's) already exists from "+ Add user".
-  if new.email = 'employee-portal@internal.stockroom.local' then
+  if new.email = 'qrpass.3pl+portal@gmail.com' then
     return new;
   end if;
 
@@ -220,6 +220,14 @@ begin
   where lower("loginAccount") = lower(new.email) and "authUserId" is null;
 
   if not found then
+    -- The ON CONFLICT target below must repeat the partial index's WHERE
+    -- clause (line ~181) — Postgres won't match a plain "ON CONFLICT
+    -- (col)" against a *partial* unique index without it, and errors with
+    -- "no unique or exclusion constraint matching the ON CONFLICT
+    -- specification" instead. That error surfaced to users as Supabase's
+    -- generic "Database error creating new user" on every genuinely-new
+    -- sign-up (dashboard or app) — nothing to do with the data being
+    -- inserted, purely this clause not matching the index it targets.
     insert into public.user_accounts (
       id, "userNumber", username, "loginAccount", mail, enabled,
       "createdAt", "updatedAt", "authUserId"
@@ -235,7 +243,7 @@ begin
       v_now,
       new.id
     )
-    on conflict ("authUserId") do nothing;
+    on conflict ("authUserId") where "authUserId" is not null do nothing;
   end if;
 
   return new;
@@ -355,7 +363,7 @@ set search_path = public
 as $$
   select exists (
     select 1 from auth.users
-    where email <> 'employee-portal@internal.stockroom.local'
+    where email <> 'qrpass.3pl+portal@gmail.com'
   );
 $$;
 grant execute on function public.admin_account_exists() to anon;
