@@ -44,7 +44,7 @@ export function openLogModal({ title = 'History', entries = [] } = {}) {
   }
 
   function tabsHTML() {
-    return TABS.map((t) => `<button type="button" class="log-tab${t.key === activeTab ? ' active' : ''}" data-tab="${t.key}">${t.label}</button>`).join('');
+    return TABS.map((t) => `<button tabindex="-1" type="button" class="log-tab${t.key === activeTab ? ' active' : ''}" data-tab="${t.key}">${t.label}</button>`).join('');
   }
 
   const bodyNode = el(`

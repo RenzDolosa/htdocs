@@ -30,7 +30,7 @@ export function renderPagination(refs, info, handlers) {
   refs.pageNumbers.innerHTML = pageList(page, totalPages).map((entry) =>
     entry === '…'
       ? `<span class="page-ellipsis">…</span>`
-      : `<button type="button" class="page-btn${entry === page ? ' active' : ''}" data-page="${entry}">${entry}</button>`
+      : `<button tabindex="-1" type="button" class="page-btn${entry === page ? ' active' : ''}" data-page="${entry}">${entry}</button>`
   ).join('');
   qsa('.page-btn', refs.pageNumbers).forEach((btn) => {
     btn.addEventListener('click', () => handlers.onPageClick(Number(btn.getAttribute('data-page'))));

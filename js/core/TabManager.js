@@ -1,5 +1,6 @@
 import { esc, qsa } from '../utils/dom.js';
 import { openDropdownMenu } from '../components/DropdownMenu.js';
+import { Modal } from '../components/Modal.js';
 
 /**
  * TabManager owns the tabstrip UI and the visibility of pre-existing
@@ -69,6 +70,12 @@ export class TabManager {
   activate(id) {
     if (id && !this.openIds.includes(id)) this.openIds.push(id);
     this.activeId = id;
+    // A modal left open from whatever section was showing before has no
+    // business floating on top of a newly-selected one (see the video
+    // this was reported with — a Manifest modal stayed open over
+    // Settings after switching tabs). Every modal in the app goes
+    // through Modal, so this one call covers all of them.
+    Modal.closeAll();
     this._render();
     if (id) this._onActivateHandlers.forEach((fn) => fn(id));
   }
@@ -81,7 +88,7 @@ export class TabManager {
         <div class="tab${active ? ' active' : ''}${tab.pinned ? ' pinned' : ''}" data-tab-id="${id}" ${tab.closable ? 'draggable="true"' : ''}>
           ${tab.pinned ? '' : ''}
           <span class="tab-label">${esc(tab.title)}</span>
-          ${tab.closable && !tab.pinned ? `<button type="button" class="tab-close" data-close-tab aria-label="Close ${esc(tab.title)}">&times;</button>` : ''}
+          ${tab.closable && !tab.pinned ? `<button tabindex="-1" type="button" class="tab-close" data-close-tab aria-label="Close ${esc(tab.title)}">&times;</button>` : ''}
         </div>
       `;
     }).join('');

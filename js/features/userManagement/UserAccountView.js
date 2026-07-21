@@ -38,7 +38,7 @@ export class UserAccountView {
         <td data-label="Last Login"><div>${u.lastLoginAt ? esc(fmtDate(u.lastLoginAt)) : '<span class="muted">—</span>'}</div></td>
         <td data-label="Actions" class="um-operate-cell">
           <div class="row-actions">
-            <button type="button" class="icon-btn um-edit-btn" title="Edit" aria-label="Edit user">
+            <button tabindex="-1" type="button" class="icon-btn um-edit-btn" title="Edit" aria-label="Edit user">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             </button>
           </div>

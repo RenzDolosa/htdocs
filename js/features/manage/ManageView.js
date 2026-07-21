@@ -131,7 +131,7 @@ export class ManageView {
     return `
       <tr data-id="${g.id}" class="${selected ? 'row-selected' : ''}">
         <td data-label="SN" class="sn-col"><div style="display: flex; justify-content: end; padding: 0;">${index + 1}</div></td>
-        <td class="checkbox-col"><div><input type="checkbox" data-action="select-row" ${selected ? 'checked' : ''} aria-label="Select asset" style="height: 15px; width: 15px;"></div></td>
+        <td class="checkbox-col"><div><input type="checkbox" tabindex="-1" data-action="select-row" ${selected ? 'checked' : ''} aria-label="Select asset" style="height: 15px; width: 15px;"></div></td>
         <td data-label="User"><div class="item-name">${g.user ? esc(g.user) : '<span style="color:var(--ink-faint);">Unassigned</span>'}</div></td>
         <td data-label="Role"><div>${g.role ? esc(g.role) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
         <td data-label="Category"${catIssue ? ' class="cell-catalog-invalid"' : ''}><div><span class="pill pill-cat">${esc(g.category)}</span> ${badge(catIssue)}</div></td>
@@ -142,7 +142,7 @@ export class ManageView {
         <td data-label="Password">
           <div class="password-cell">
             <span class="password-value">${passwordDisplay}</span>
-            ${g.password ? `<button class="icon-btn password-reveal-btn" data-action="reveal-password" aria-label="${revealed ? 'Hide password' : 'Reveal password'}" title="${revealed ? 'Hide' : 'Reveal'}">
+            ${g.password ? `<button tabindex="-1" class="icon-btn password-reveal-btn" data-action="reveal-password" aria-label="${revealed ? 'Hide password' : 'Reveal password'}" title="${revealed ? 'Hide' : 'Reveal'}">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>` : ''}
           </div>
@@ -161,13 +161,13 @@ export class ManageView {
         <td data-label="Updated" class="updated-col"><div><small>${fmtDate(g.updatedAt)}</small></div></td>
         <td data-label="Actions">
           <div class="row-actions">
-            <button class="icon-btn" data-action="edit" aria-label="Edit asset" title="Edit">
+            <button tabindex="-1" class="icon-btn" data-action="edit" aria-label="Edit asset" title="Edit">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             </button>
-            <button class="icon-btn" data-action="log" aria-label="View history log" title="View log">
+            <button tabindex="-1" class="icon-btn" data-action="log" aria-label="View history log" title="View log">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
             </button>
-            <button class="icon-btn danger" data-action="delete" aria-label="Delete asset" title="Delete">
+            <button tabindex="-1" class="icon-btn danger" data-action="delete" aria-label="Delete asset" title="Delete">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
             </button>
           </div>

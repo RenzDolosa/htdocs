@@ -37,7 +37,7 @@ export class DropdownMenu {
   _build() {
     this.menuEl = el(`<div class="dropdown-menu" role="menu"></div>`);
     this.items.forEach((item) => {
-      const btn = el(`<button type="button" class="dropdown-menu-item" role="menuitem"></button>`);
+      const btn = el(`<button tabindex="-1" type="button" class="dropdown-menu-item" role="menuitem"></button>`);
       btn.textContent = item.label;
       btn.addEventListener('click', () => {
         this.close();

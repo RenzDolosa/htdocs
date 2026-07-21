@@ -24,7 +24,7 @@ export function buildWarehouseForm(warehouse) {
         </div>
         <div class="field">
           <label for="whOperationMode">Warehouse Type</label>
-          <select id="whOperationMode" name="operationMode">
+          <select class="field-option" id="whOperationMode" name="operationMode">
             <option value="self-operate">Self-operate warehouse</option>
             <option value="third-party">Third-party warehouse</option>
           </select>
@@ -38,7 +38,7 @@ export function buildWarehouseForm(warehouse) {
       <div class="field-row field-row--3">
         <div class="field">
           <label for="whCurrency">Warehouse currency</label>
-          <select id="whCurrency" name="currency"></select>
+          <select class="field-option" id="whCurrency" name="currency"></select>
         </div>
         <div class="field">
           <label for="whShortName">Warehouse short name</label>
@@ -76,7 +76,7 @@ export function buildWarehouseForm(warehouse) {
           <label for="whContact">Contact person <span class="required-mark">*</span></label>
           <input type="text" id="whContact" name="contactPerson" placeholder="e.g. Juan Dela Cruz">
           <div class="field-error" data-error-for="contactPerson"></div>
-          <label class="checkbox-inline"><input type="checkbox" id="whPublicHome" name="publicHomePage"> Public home page / shop name</label>
+          <label class="checkbox-inline"><input type="checkbox" tabindex="-1" id="whPublicHome" name="publicHomePage"> Public home page / shop name</label>
         </div>
         <div class="field">
           <label for="whPhone">Phone number <span class="required-mark">*</span></label>

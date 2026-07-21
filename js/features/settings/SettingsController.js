@@ -54,6 +54,7 @@ export class SettingsController {
 
     settingsNav.querySelectorAll('[data-settings-section]').forEach((btn) => {
       btn.addEventListener('click', () => {
+        Modal.closeAll();
         settingsNav.querySelectorAll('[data-settings-section]').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         const target = btn.getAttribute('data-settings-section');
@@ -200,7 +201,7 @@ export class SettingsController {
 
       const group = el(`<div class="wh-tree-name-group"></div>`);
       const header = el(`
-        <button type="button" class="wh-tree-name-header${warehouse.id === this.selectedWarehouseId ? ' active' : ''}">
+        <button tabindex="-1" type="button" class="wh-tree-name-header${warehouse.id === this.selectedWarehouseId ? ' active' : ''}">
           <span class="wh-tree-caret${isCollapsed ? ' collapsed' : ''}">▾</span>
           <span>${esc(warehouse.name)}</span>
         </button>
@@ -227,7 +228,7 @@ export class SettingsController {
         const item = el(`
           <div class="wh-zone-item">
             <span class="wh-zone-label">${esc(zone.label)}</span>
-            <button type="button" class="wh-tree-location-link">create warehouse location</button>
+            <button tabindex="-1" type="button" class="wh-tree-location-link">create warehouse location</button>
           </div>
         `);
         item.querySelector('.wh-tree-location-link').addEventListener('click', () => {
@@ -261,8 +262,8 @@ export class SettingsController {
 
     const actions = el(`
       <div class="warehouse-detail-actions">
-        <button type="button" class="btn btn-danger" data-action="delete">Delete</button>
-        <button type="button" class="btn btn-accent" data-action="save">Save</button>
+        <button tabindex="-1" type="button" class="btn btn-danger" data-action="delete">Delete</button>
+        <button tabindex="-1" type="button" class="btn btn-accent" data-action="save">Save</button>
       </div>
     `);
     wrap.appendChild(actions);

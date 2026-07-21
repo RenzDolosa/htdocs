@@ -55,7 +55,7 @@ export function buildUserAccountForm(user = null, { userGroups = [] } = {}) {
           <label for="uaPassword">Password</label>
           <div class="password-field">
             <input type="password" id="uaPassword" name="password" autocomplete="new-password" placeholder="••••••••">
-            <button type="button" class="password-toggle" data-action="toggle-ua-password" aria-label="Show password">
+            <button tabindex="-1" type="button" class="password-toggle" data-action="toggle-ua-password" aria-label="Show password">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
@@ -65,7 +65,7 @@ export function buildUserAccountForm(user = null, { userGroups = [] } = {}) {
           <label for="uaConfirmPassword">Confirm password</label>
           <div class="password-field">
             <input type="password" id="uaConfirmPassword" name="confirmPassword" autocomplete="new-password" placeholder="••••••••">
-            <button type="button" class="password-toggle" data-action="toggle-ua-confirm-password" aria-label="Show password">
+            <button tabindex="-1" type="button" class="password-toggle" data-action="toggle-ua-confirm-password" aria-label="Show password">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
@@ -95,7 +95,7 @@ export function buildUserAccountForm(user = null, { userGroups = [] } = {}) {
         </div>
         <div class="field">
           <label>&nbsp;</label>
-          <label class="checkbox-inline"><input type="checkbox" id="uaEnabled" name="enabled"> Enabled</label>
+          <label class="checkbox-inline"><input type="checkbox" tabindex="-1" id="uaEnabled" name="enabled"> Enabled</label>
         </div>
       </div>
     </form>

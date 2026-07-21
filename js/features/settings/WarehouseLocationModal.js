@@ -23,7 +23,7 @@ import { POSITION_TYPES, TYPE_LABEL } from '../../models/WarehouseLocation.js';
  */
 function buildFilterDropdown({ placeholder, options, onSelect }) {
   const trigger = el(`
-    <button type="button" class="filter-dropdown-trigger is-placeholder">
+    <button tabindex="-1" type="button" class="filter-dropdown-trigger is-placeholder">
       <span class="filter-dropdown-label">${esc(placeholder)}</span>
       <span class="filter-dropdown-caret">▾</span>
     </button>
@@ -63,7 +63,7 @@ function openGeneratePositionModal({ warehouse, zone, locationStore, defaultArea
         <div class="field">
           <label>Position Properties</label>
           <div class="genpos-radios">
-            ${POSITION_TYPES.map((t, i) => `<label><input type="radio" name="gpProperty" value="${t.value}" ${i === 0 ? 'checked' : ''}> ${esc(t.label)}</label>`).join('')}
+            ${POSITION_TYPES.map((t, i) => `<label><input type="radio" tabindex="-1" name="gpProperty" value="${t.value}" ${i === 0 ? 'checked' : ''}> ${esc(t.label)}</label>`).join('')}
           </div>
         </div>
       </form>
@@ -142,11 +142,11 @@ function pageList(current, total) {
 function renderAreaTree(treeEl, warehouse, zone, locationStore, activeArea, onSelect) {
   const areas = [...new Set(locationStore.list().filter((l) => l.warehouseId === warehouse.id && l.zone === zone.value).map((l) => l.area))].sort();
   treeEl.innerHTML = '';
-  const allBtn = el(`<button type="button" class="area-tree-item${!activeArea ? ' active' : ''}">All areas</button>`);
+  const allBtn = el(`<button tabindex="-1" type="button" class="area-tree-item${!activeArea ? ' active' : ''}">All areas</button>`);
   allBtn.addEventListener('click', () => onSelect(''));
   treeEl.appendChild(allBtn);
   areas.forEach((area) => {
-    const btn = el(`<button type="button" class="area-tree-item${area === activeArea ? ' active' : ''}">${esc(area)} Area</button>`);
+    const btn = el(`<button tabindex="-1" type="button" class="area-tree-item${area === activeArea ? ' active' : ''}">${esc(area)} Area</button>`);
     btn.addEventListener('click', () => onSelect(area));
     treeEl.appendChild(btn);
   });
@@ -179,23 +179,23 @@ export function openWarehouseLocationModal({ warehouse, zone, locationStore }) {
           <input type="text" class="loc-search" placeholder="Search position">
           <div class="loc-enabled-filter-mount"></div>
           <div class="loc-type-filter-mount"></div>
-          <button type="button" class="btn btn-outline btn-sm loc-search-btn">Search</button>
-          <button type="button" class="btn btn-outline btn-sm loc-reset-btn">Reset</button>
+          <button tabindex="-1" type="button" class="btn btn-outline btn-sm loc-search-btn">Search</button>
+          <button tabindex="-1" type="button" class="btn btn-outline btn-sm loc-reset-btn">Reset</button>
         </div>
         <div class="loc-modal-actions">
           <div class="actionbar-left">
-            <button type="button" class="link-btn loc-generate-btn">+ Generate a new position</button>
+            <button tabindex="-1" type="button" class="link-btn loc-generate-btn">+ Generate a new position</button>
             <span class="link-sep">|</span>
-            <button type="button" class="link-btn loc-delete-btn" style="display:none;">Delete</button>
+            <button tabindex="-1" type="button" class="link-btn loc-delete-btn" style="display:none;">Delete</button>
             <span class="link-sep loc-delete-sep" style="display:none;">|</span>
-            <button type="button" class="link-btn loc-enable-btn" style="display:none;">Enable</button>
+            <button tabindex="-1" type="button" class="link-btn loc-enable-btn" style="display:none;">Enable</button>
             <span class="link-sep loc-enable-sep" style="display:none;">|</span>
-            <button type="button" class="link-btn loc-deactivate-btn" style="display:none;">Deactivate</button>
+            <button tabindex="-1" type="button" class="link-btn loc-deactivate-btn" style="display:none;">Deactivate</button>
             <span class="link-sep loc-changetype-sep" style="display:none;">|</span>
-            <button type="button" class="link-btn loc-changetype-btn" style="display:none;">Change type ▾</button>
+            <button tabindex="-1" type="button" class="link-btn loc-changetype-btn" style="display:none;">Change type ▾</button>
           </div>
           <div class="actionbar-right">
-            <button type="button" class="btn btn-outline btn-sm loc-export-btn">Export</button>
+            <button tabindex="-1" type="button" class="btn btn-outline btn-sm loc-export-btn">Export</button>
           </div>
         </div>
         <div class="loc-table-wrap">
@@ -203,7 +203,7 @@ export function openWarehouseLocationModal({ warehouse, zone, locationStore }) {
             <thead>
               <tr>
                 <th data-label="SN" class="sn-col"><div style="display: flex; justify-content: end; padding: 0;"></div></th>
-                <th class="checkbox-col"><div><input type="checkbox" class="loc-select-all" aria-label="Select all on this page" style="height: 15px; width: 15px;"></div></th>
+                <th class="checkbox-col"><div><input type="checkbox" tabindex="-1" class="loc-select-all" aria-label="Select all on this page" style="height: 15px; width: 15px;"></div></th>
                 <th data-label="Location"><div>Location</div></th>
                 <th data-label="Enable" style="width:80px;"><div>Enable</div></th>
                 <th data-label="Types of"><div>Types of</div></th>
@@ -224,12 +224,12 @@ export function openWarehouseLocationModal({ warehouse, zone, locationStore }) {
               <option value="50" selected>50/page</option>
               <option value="100">100/page</option>
             </select>
-            <button type="button" class="page-nav loc-prev-page" aria-label="Previous page">‹</button>
+            <button tabindex="-1" type="button" class="page-nav loc-prev-page" aria-label="Previous page">‹</button>
             <div class="page-numbers loc-page-numbers"></div>
-            <button type="button" class="page-nav loc-next-page" aria-label="Next page">›</button>
+            <button tabindex="-1" type="button" class="page-nav loc-next-page" aria-label="Next page">›</button>
             <span class="goto-label">Go to</span>
             <input type="number" class="loc-goto-input" min="1" value="1">
-            <button type="button" class="btn btn-outline btn-sm loc-goto-btn">Go</button>
+            <button tabindex="-1" type="button" class="btn btn-outline btn-sm loc-goto-btn">Go</button>
           </div>
         </div>
       </div>
@@ -310,9 +310,9 @@ export function openWarehouseLocationModal({ warehouse, zone, locationStore }) {
         const row = el(`
           <tr class="${selected.has(loc.id) ? 'row-selected' : ''}">
             <td data-label="SN" class="sn-col"><div style="display: flex; justify-content: end; padding: 0;">${start + index + 1}</div></td>
-            <td class="checkbox-col"><div><input type="checkbox" class="loc-row-check" ${selected.has(loc.id) ? 'checked' : ''} aria-label="Select position" style="height: 15px; width: 15px;"></div></td>
+            <td class="checkbox-col"><div><input type="checkbox" tabindex="-1" class="loc-row-check" ${selected.has(loc.id) ? 'checked' : ''} aria-label="Select position" style="height: 15px; width: 15px;"></div></td>
             <td data-label="Location"><div><span class="code-tag"><span class="bars"></span>${esc(loc.locationCode)}</span></div></td>
-            <td data-label="Enable"><div><input type="checkbox" class="loc-enable-toggle" ${loc.enabled ? 'checked' : ''} aria-label="Enabled" style="height: 15px; width: 15px;"></div></td>
+            <td data-label="Enable"><div><input type="checkbox" tabindex="-1" class="loc-enable-toggle" ${loc.enabled ? 'checked' : ''} aria-label="Enabled" style="height: 15px; width: 15px;"></div></td>
             <td data-label="Types of"><div><span class="pill pill-cat">${esc(TYPE_LABEL[loc.property] || loc.property)}</span></div></td>
             <td data-label="Position Number"><div class="genpos-position-number">${esc(loc.positionNumber)}</div></td>
           </tr>
@@ -340,7 +340,7 @@ export function openWarehouseLocationModal({ warehouse, zone, locationStore }) {
     body.querySelector('.loc-page-numbers').innerHTML = pageList(page, totalPages).map((entry) =>
       entry === '…'
         ? `<span class="page-ellipsis">…</span>`
-        : `<button type="button" class="page-btn${entry === page ? ' active' : ''}" data-page="${entry}">${entry}</button>`
+        : `<button tabindex="-1" type="button" class="page-btn${entry === page ? ' active' : ''}" data-page="${entry}">${entry}</button>`
     ).join('');
     body.querySelectorAll('.loc-page-numbers .page-btn').forEach((btn) => {
       btn.addEventListener('click', () => { page = Number(btn.getAttribute('data-page')); refresh(); });

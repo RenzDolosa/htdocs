@@ -340,9 +340,9 @@ export class InventoryAssetController {
     const body = el(`
       <div class="import-modal-body">
         <p class="hint" style="margin-bottom:14px;">Import inventory assets from a CSV file. Download the template to see the exact column format expected, fill it in, then choose your file below.</p>
-        <button type="button" class="btn btn-outline" id="iaImportExportTemplateBtn" style="margin-bottom:14px;">Export template</button>
+        <button tabindex="-1" type="button" class="btn btn-outline" id="iaImportExportTemplateBtn" style="margin-bottom:14px;">Export template</button>
         <div class="import-dropzone">
-          <button type="button" class="btn btn-accent btn-sm" id="iaImportChooseFileBtn">Choose CSV file…</button>
+          <button tabindex="-1" type="button" class="btn btn-accent btn-sm" id="iaImportChooseFileBtn">Choose CSV file…</button>
           <span class="import-file-name">CSV files exported by this app's template are matched by column name.</span>
         </div>
       </div>

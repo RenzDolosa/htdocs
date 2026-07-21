@@ -99,7 +99,7 @@ function rowHTML(row) {
     <tr data-row-id="${esc(row.rowId)}">
       ${cells}
       <td class="manifest-row-remove no-print">
-        <button type="button" class="icon-btn danger" data-action="remove-manifest-row" title="Remove row" aria-label="Remove row">✕</button>
+        <button tabindex="-1" type="button" class="icon-btn danger" data-action="remove-manifest-row" title="Remove row" aria-label="Remove row">✕</button>
       </td>
     </tr>`;
 }
@@ -183,7 +183,7 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
         </div>
 
         <div class="manifest-below-table-row">
-          <button type="button" class="btn btn-outline btn-sm no-print" data-action="add-manifest-row">+ Add row</button>
+          <button tabindex="-1" type="button" class="btn btn-outline btn-sm no-print" data-action="add-manifest-row">+ Add row</button>
           <div class="placement-preview placement-preview-block no-print" data-role="manifest-placement-preview"></div>
         </div>
     </div>

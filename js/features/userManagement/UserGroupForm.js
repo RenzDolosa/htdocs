@@ -22,7 +22,7 @@ export function buildUserGroupForm(group = null) {
         </div>
         <div class="field">
           <label>&nbsp;</label>
-          <label class="checkbox-inline"><input type="checkbox" id="ugEnabled" name="enabled"> Enabled</label>
+          <label class="checkbox-inline"><input type="checkbox" tabindex="-1" id="ugEnabled" name="enabled"> Enabled</label>
         </div>
       </div>
 
@@ -30,10 +30,10 @@ export function buildUserGroupForm(group = null) {
         <label>Default menu permissions</label>
         <div class="perm-tree-toolbar">
           <input type="text" id="ugPermSearch" placeholder="Menu name">
-          <button type="button" class="btn btn-outline btn-sm" data-action="expand-all">Show</button>
-          <button type="button" class="btn btn-outline btn-sm" data-action="collapse-all">Fold</button>
+          <button tabindex="-1" type="button" class="btn btn-outline btn-sm" data-action="expand-all">Show</button>
+          <button tabindex="-1" type="button" class="btn btn-outline btn-sm" data-action="collapse-all">Fold</button>
         </div>
-        <div class="perm-tree" id="ugPermTree"></div>
+        <div tabindex="-1" class="perm-tree" id="ugPermTree"></div>
       </div>
     </form>
   `);
@@ -61,10 +61,10 @@ export function buildUserGroupForm(group = null) {
     const row = el(`
       <div class="perm-row" style="padding-left:${depth * 20 + 10}px">
         ${hasChildren
-          ? `<button type="button" class="perm-caret${isCollapsed ? ' collapsed' : ''}" data-toggle-key="${n.key}">▾</button>`
+          ? `<button tabindex="-1" type="button" class="perm-caret${isCollapsed ? ' collapsed' : ''}" data-toggle-key="${n.key}">▾</button>`
           : `<span class="perm-caret-spacer"></span>`}
         <span class="perm-label">${esc(n.label)}</span>
-        <button type="button" class="perm-toggle ${allowed ? 'allow' : 'deny'}" data-perm-key="${n.key}">
+        <button tabindex="-1" type="button" class="perm-toggle ${allowed ? 'allow' : 'deny'}" data-perm-key="${n.key}">
           <span class="perm-dot"></span><span class="perm-toggle-label">${allowed ? 'Allow' : 'Not allow'}</span>
         </button>
       </div>

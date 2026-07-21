@@ -18,6 +18,19 @@ import { el, qsa } from '../utils/dom.js';
  *   modal.open();
  */
 export class Modal {
+  // Every currently-open Modal, regardless of which feature created it.
+  // Nothing else in the app previously tracked "is a modal open" at all —
+  // switching tabs or Settings sections left whatever modal was open
+  // floating on top of the newly-selected screen instead of closing.
+  // See closeAll(), called from TabManager.activate() and
+  // SettingsController's section-nav click handler.
+  static _open = new Set();
+
+  /** Closes every currently-open modal — call whenever the visible section changes. */
+  static closeAll() {
+    [...Modal._open].forEach((modal) => modal.close());
+  }
+
   constructor({ title = '', body = '', footer = [], onClose = null, closeOnOverlayClick = true, size = '' } = {}) {
     this.onClose = onClose;
     this.closeOnOverlayClick = closeOnOverlayClick;
@@ -33,7 +46,7 @@ export class Modal {
     this.headEl = el(`
       <div class="modal-head">
         <h2></h2>
-        <button type="button" class="modal-close" aria-label="Close">✕</button>
+        <button tabindex="-1" type="button" class="modal-close" aria-label="Close">✕</button>
       </div>
     `);
     this.headEl.querySelector('h2').textContent = title;
@@ -67,7 +80,7 @@ export class Modal {
   setFooter(buttons) {
     this.footEl.innerHTML = '';
     buttons.forEach((btn) => {
-      const button = el(`<button type="button" class="btn ${btn.variant || 'btn-outline'}"></button>`);
+      const button = el(`<button tabindex="-1" type="button" class="btn ${btn.variant || 'btn-outline'}"></button>`);
       button.textContent = btn.label;
       button.addEventListener('click', () => btn.onClick?.(this));
       this.footEl.appendChild(button);
@@ -75,6 +88,7 @@ export class Modal {
   }
 
   open() {
+    Modal._open.add(this);
     document.body.appendChild(this.overlay);
     this._previousFocus = document.activeElement;
     document.addEventListener('keydown', this._handleKeydown);
@@ -86,6 +100,7 @@ export class Modal {
   }
 
   close() {
+    Modal._open.delete(this);
     this.overlay.classList.remove('open');
     document.removeEventListener('keydown', this._handleKeydown);
     setTimeout(() => {

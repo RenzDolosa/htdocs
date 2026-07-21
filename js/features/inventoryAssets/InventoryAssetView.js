@@ -80,7 +80,7 @@ export class InventoryAssetView {
     return `
       <tr data-id="${a.id}" class="${selected ? 'row-selected' : ''}">
         <td data-label="SN" class="sn-col"><div style="display: flex; justify-content: end; padding: 0;">${index + 1}</div></td>
-        <td class="checkbox-col"><div><input type="checkbox" data-action="select-row" ${selected ? 'checked' : ''} aria-label="Select asset" style="height: 15px; width: 15px;"></div></td>
+        <td class="checkbox-col"><div><input type="checkbox" tabindex="-1" data-action="select-row" ${selected ? 'checked' : ''} aria-label="Select asset" style="height: 15px; width: 15px;"></div></td>
         <td data-label="Category"><div><span class="pill pill-cat">${esc(a.category)}</span></div></td>
         <td data-label="Serial Number"${serialCellClass}${serialCellTitle}><div>${a.serialNumber ? `<span class="code-tag"><span class="bars"></span>${esc(a.serialNumber)}</span>` : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
         <td data-label="Asset Tag" style="font-family:var(--font-mono); font-size:12px;"><div>${a.assetTag ? esc(a.assetTag) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
@@ -89,10 +89,10 @@ export class InventoryAssetView {
         <td data-label="Created" class="created-col"><div><small>${fmtDate(a.createdAt)}</small></div></td>
         <td data-label="Actions">
           <div class="row-actions">
-            <button class="icon-btn" data-action="edit" aria-label="Edit asset" title="Edit">
+            <button tabindex="-1" class="icon-btn" data-action="edit" aria-label="Edit asset" title="Edit">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             </button>
-            <button class="icon-btn danger" data-action="delete" aria-label="Delete asset" title="Delete">
+            <button tabindex="-1" class="icon-btn danger" data-action="delete" aria-label="Delete asset" title="Delete">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
             </button>
           </div>

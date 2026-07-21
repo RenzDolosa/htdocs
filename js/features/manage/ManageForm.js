@@ -90,7 +90,7 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
         <label for="gPassword">Password</label>
         <div class="password-field">
           <input type="password" id="gPassword" name="password" placeholder="Device or login password">
-          <button type="button" class="password-toggle" data-action="toggle-password" aria-label="Show password">
+          <button tabindex="-1" type="button" class="password-toggle" data-action="toggle-password" aria-label="Show password">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
         </div>
