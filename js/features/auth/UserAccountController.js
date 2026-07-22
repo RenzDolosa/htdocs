@@ -5,8 +5,10 @@ import { openLogModal } from '../../components/LogModal.js';
 import { buildFilterDropdown } from '../../components/FilterDropdown.js';
 import { UserAccount } from '../../models/UserAccount.js';
 import { buildUserAccountForm } from './UserAccountForm.js';
-import { getOperatorName } from '../../core/Operator.js';
-import { setEmployeePassword, sendPasswordReset } from '../../core/Auth.js';
+import { getOperatorName, syncOperatorDisplay } from '../../core/Operator.js';
+import { setEmployeePassword, sendPasswordReset, getSession, updateOwnUsername, deleteAuthUser, adminCreateAccount } from '../../core/Auth.js';
+import { getEmployeeProfile } from '../../core/EmployeeSession.js';
+import { EMPLOYEE_PORTAL_EMAIL } from '../../core/supabaseConfig.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -217,6 +219,7 @@ export class UserAccountController {
             this.store.update(user.id, directoryPatch);
             user.addLogEntry('Updated account details.', 'update', null, getOperatorName());
             this.store.update(user.id, { history: user.history });
+            await this._syncSelfUsernameIfNeeded(user, directoryPatch.username);
 
             if (password) {
               const { error } = await setEmployeePassword(data.loginAccount, password);
@@ -265,6 +268,61 @@ export class UserAccountController {
         }
       });
     }
+    if (isEdit && !isLinked) {
+      footer.splice(1, 0, {
+        label: 'Link account',
+        variant: 'btn-outline',
+        onClick: async (m) => {
+          const data = form.getData();
+          if (!EMAIL_PATTERN.test(data.loginAccount)) {
+            Toast.error('Enter a valid email in Login account first — this becomes their real sign-in.');
+            return;
+          }
+          if (!data.password || data.password.length < 6) {
+            Toast.error('Enter a password (at least 6 characters) in the field below first — that becomes their sign-in password.');
+            return;
+          }
+          if (data.confirmPassword !== data.password) {
+            Toast.error('Password and confirm password don\'t match.');
+            return;
+          }
+
+          const ok = await confirmDialog({
+            title: 'Link this account?',
+            message: `This linked "${user.username}" (${data.loginAccount}) from this directory — they can sign in from now on. This can't be undone.`,
+            confirmLabel: 'Link account',
+            danger: false
+          });
+          if (!ok) return;
+
+          const { userId, needsEmailConfirmation, error } = await adminCreateAccount({
+            email: data.loginAccount,
+            password: data.password,
+            username: data.username
+          });
+          if (error) {
+            Toast.error(`Could not create their sign-in: ${error.message}`);
+            return;
+          }
+
+          // The auth.users → user_accounts trigger (supabase/schema.sql's
+          // handle_new_auth_user()) already links this row server-side by
+          // matching lower(loginAccount) = lower(email) — this just
+          // reflects that in the local cache immediately rather than
+          // waiting on a realtime round trip.
+          this.store.update(user.id, { authUserId: userId });
+          user.addLogEntry('Linked to a real sign-in account (promoted to Administrator).', 'update', null, getOperatorName());
+          this.store.update(user.id, { history: user.history });
+
+          Toast.success(
+            needsEmailConfirmation
+              ? `Account created and linked. They must confirm the email sent to ${data.loginAccount} before they can sign in.`
+              : 'Account created and linked — they can sign in now via "Login as Administrator".'
+          );
+          m.close();
+        }
+      });
+    }
     if (isEdit) {
       footer.splice(1, 0, {
         label: 'Delete',
@@ -273,12 +331,26 @@ export class UserAccountController {
           const ok = await confirmDialog({
             title: 'Delete user?',
             message: user.authUserId
-              ? `This removes "${user.username}" (${user.loginAccount}) from this directory and cannot be undone. It does not revoke their Supabase Auth sign-in — they'll still be able to log into the app, they just won't appear in this list anymore.`
+              ? `This removes "${user.username}" (${user.loginAccount}) from this directory and permanently deletes — they will no longer be able to log in at all. This cannot be undone.`
               : `This removes "${user.username}" (${user.loginAccount}) and cannot be undone.`,
             confirmLabel: 'Delete',
             danger: true
           });
           if (!ok) return;
+
+          if (user.authUserId) {
+            const session = await getSession();
+            if (session?.user?.id === user.authUserId) {
+              Toast.error("You can't delete your own account while signed in as it.");
+              return;
+            }
+            const { error } = await deleteAuthUser(user.authUserId);
+            if (error) {
+              Toast.error(`Could not delete their sign-in account: ${error.message}. Nothing was removed, so the directory entry is left in place rather than orphaned.`);
+              return;
+            }
+          }
+
           this.store.delete(user.id);
           Toast.success('User deleted.');
           m.close();
@@ -293,6 +365,29 @@ export class UserAccountController {
     });
     modal.open();
     requestAnimationFrame(() => form.focusFirst());
+  }
+
+  /**
+   * If the row just saved belongs to the *currently signed-in* person,
+   * keeps their local display (Settings → General's "Your name", the
+   * top-bar chip) and — for an administrator — their real Supabase Auth
+   * account in sync with whatever username was just typed here. Editing
+   * someone else's row never reaches this: updateOwnUsername() can only
+   * ever touch the caller's own account (no service-role key here to do
+   * otherwise — see its own doc comment), so there'd be nothing for it
+   * to do anyway.
+   */
+  async _syncSelfUsernameIfNeeded(user, newUsername) {
+    const session = await getSession();
+    const isEmployeePortalSession = (session?.user?.email || '').toLowerCase() === EMPLOYEE_PORTAL_EMAIL.toLowerCase();
+    const isSelf = isEmployeePortalSession
+      ? getEmployeeProfile()?.id === user.id
+      : !!session?.user?.id && user.authUserId === session.user.id;
+    if (!isSelf) return;
+
+    const { error } = await updateOwnUsername(newUsername, session);
+    if (error) console.error('[user management] Could not sync own username:', error.message);
+    syncOperatorDisplay(newUsername);
   }
 
   // ---------- Activity log ----------

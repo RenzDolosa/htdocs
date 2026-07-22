@@ -6,7 +6,7 @@ import { ManageController } from './features/manage/ManageController.js';
 import { InventoryAsset } from './models/InventoryAsset.js';
 import { InventoryAssetView } from './features/inventoryAssets/InventoryAssetView.js';
 import { InventoryAssetController } from './features/inventoryAssets/InventoryAssetController.js';
-import { getOperatorName, setOperatorName } from './core/Operator.js';
+import { getOperatorName, setOperatorName, syncOperatorDisplay } from './core/Operator.js';
 import { Toast } from './components/Toast.js';
 import { Warehouse } from './models/Warehouse.js';
 import { WarehouseLocation } from './models/WarehouseLocation.js';
@@ -22,7 +22,10 @@ import { UserGroupController } from './features/userManagement/UserGroupControll
 import { supabase } from './core/supabaseClient.js';
 import { AuthView } from './features/auth/AuthView.js';
 import { AuthController } from './features/auth/AuthController.js';
-import { updatePassword } from './core/Auth.js';
+import { updatePassword, updateOwnUsername } from './core/Auth.js';
+import { setPermissions, can } from './core/Permissions.js';
+import { getEmployeeProfile } from './core/EmployeeSession.js';
+import { EMPLOYEE_PORTAL_EMAIL } from './core/supabaseConfig.js';
 
 // Demo/seed data (Maria Santos's laptop, the sample warehouse, etc.) used to
 // live here as seedGadgets()/seedInventoryAssets()/etc. and got handed to
@@ -215,39 +218,136 @@ function bindAdvancedFilterToggle() {
   });
 }
 
+/** Maps each openable tab's id to its PERMISSION_TREE key (models/UserGroup.js)
+ * — not 1:1 by name (the Manage tab's id is 'assets', historically, while
+ * its permission key is 'manage'). */
+const TAB_PERMISSION_KEYS = {
+  home: 'home',
+  assets: 'manage',
+  'inventory-assets': 'inventory-assets',
+  reports: 'reports',
+  settings: 'settings'
+};
+
 function initTabs() {
+  const allTabs = [
+    { id: 'home', title: 'Home Page', pinned: true, closable: false },
+    { id: 'assets', title: 'Manage', closable: true },
+    { id: 'inventory-assets', title: 'Inventory Assets', closable: true },
+    { id: 'reports', title: 'Reports', closable: true },
+    { id: 'settings', title: 'Settings', closable: true }
+  ];
+  const allowedTabs = allTabs.filter((t) => can(TAB_PERMISSION_KEYS[t.id]));
+
   const tabs = new TabManager({
     tabstripEl: document.getElementById('tabstrip'),
     panelsEl: document.getElementById('panels'),
-    tabs: [
-      { id: 'home', title: 'Home Page', pinned: true, closable: false },
-      { id: 'assets', title: 'Manage', closable: true },
-      { id: 'inventory-assets', title: 'Inventory Assets', closable: true },
-      { id: 'reports', title: 'Reports', closable: true },
-      { id: 'settings', title: 'Settings', closable: true }
-    ]
+    tabs: allowedTabs
   });
 
   document.querySelectorAll('.rail-icon[data-open-tab]').forEach((btn) => {
-    btn.addEventListener('click', () => tabs.open(btn.getAttribute('data-open-tab')));
+    const tabId = btn.getAttribute('data-open-tab');
+    if (!can(TAB_PERMISSION_KEYS[tabId])) {
+      // Hidden, not just left unclickable — same reasoning as the
+      // Settings nav below: someone whose group denies a whole area
+      // shouldn't see it listed as an option at all. TabManager itself
+      // never even learns this tab exists (see allowedTabs above), so
+      // there's nothing to open even if this were somehow clicked.
+      btn.hidden = true;
+      return;
+    }
+    btn.addEventListener('click', () => tabs.open(tabId));
   });
 
-  tabs.open('home');
+  if (allowedTabs.length > 0) {
+    tabs.open(allowedTabs[0].id);
+  } else {
+    // A group with literally every permission denied is a config
+    // mistake, not a state the app should just render blank for.
+    Toast.error('Your account isn\'t permitted to access any section yet — contact an administrator.');
+  }
+}
+
+/** Maps each Settings nav section's data-settings-section value to its
+ * full, nested PERMISSION_TREE key. */
+const SETTINGS_SECTION_PERMISSION_KEYS = {
+  general: 'settings.general',
+  'warehouse-info': 'settings.warehouse-info',
+  'user-groups': 'settings.user-mgmt.user-groups',
+  'user-accounts': 'settings.user-mgmt.user-accounts'
+};
+
+/**
+ * Hides whichever Settings nav items/subitems the current user's group
+ * denies — including collapsing an entire group header (e.g. "User
+ * management") when every one of its subitems is denied, the same way
+ * "IP whitelist" already hides itself for being an unbuilt stub. Purely
+ * a nav-visibility pass; SettingsController's own click-to-show logic is
+ * untouched; a hidden button just never gets a chance to be clicked.
+ */
+function applySettingsNavPermissions() {
+  const nav = document.getElementById('settingsNav');
+  if (!nav) return;
+
+  let activeSectionHidden = false;
+
+  nav.querySelectorAll('[data-settings-section]').forEach((btn) => {
+    const key = SETTINGS_SECTION_PERMISSION_KEYS[btn.getAttribute('data-settings-section')];
+    if (key && !can(key)) {
+      if (btn.classList.contains('active')) activeSectionHidden = true;
+      btn.hidden = true;
+    }
+  });
+
+  nav.querySelectorAll('.settings-nav-group').forEach((group) => {
+    const subitems = [...group.querySelectorAll('[data-settings-section]')];
+    if (subitems.length > 0 && subitems.every((el) => el.hidden)) {
+      group.hidden = true;
+    }
+  });
+
+  // The section that was showing by default (General, normally) just got
+  // hidden out from under the person looking at it — show the first
+  // section their group actually allows instead of leaving the content
+  // pane on a section its own nav button no longer exists for.
+  if (activeSectionHidden) {
+    const firstVisible = nav.querySelector('[data-settings-section]:not([hidden])');
+    firstVisible?.click();
+  }
 }
 
 /** Wires the Settings tab's one field: the operator name used to stamp
  * new history entries and pre-fill manifests (see core/Operator.js). */
-function bindSettingsPanel() {
+function bindSettingsPanel(session) {
   const form = document.getElementById('operatorForm');
   const input = document.getElementById('operatorNameInput');
   if (!form || !input) return;
 
-  input.value = getOperatorName();
+  // The signed-in account's real username is the source of truth for
+  // "who is this" — use it here rather than trusting whatever's cached
+  // in Operator's localStorage, which can otherwise show a stale name
+  // left over from an unsaved edit or a different account that signed
+  // in on this same browser before.
+  const currentUsername = session?.user?.user_metadata?.username;
+  input.value = currentUsername || getOperatorName();
+  if (currentUsername) setOperatorName(currentUsername);
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    setOperatorName(input.value);
+    const name = input.value.trim();
+    setOperatorName(name);
     input.value = getOperatorName();
+
+    // "Your name" and the account's actual username (User management,
+    // the top-bar chip, and — for administrators — Supabase Auth's own
+    // user_metadata.username) are the same underlying identity; keep
+    // them in sync rather than letting the two silently drift apart.
+    if (name) {
+      const { error } = await updateOwnUsername(name, session);
+      if (error) console.error('[settings] Could not sync username:', error.message);
+      syncOperatorDisplay(name);
+    }
+
     Toast.success('Saved. New activity will be recorded under this name.');
   });
 }
@@ -259,17 +359,23 @@ function bindSettingsPanel() {
  * other form's .field-error convention (WarehouseForm, UserAccountForm). */
 function bindChangePasswordPanel(session) {
   const form = document.getElementById('changePasswordForm');
+  const currentInput = document.getElementById('currentPasswordInput');
   const newInput = document.getElementById('newPasswordInput');
   const confirmInput = document.getElementById('confirmPasswordInput');
   const submitBtn = document.getElementById('changePasswordSubmitBtn');
   const emailLabel = document.getElementById('changePasswordAccountEmail');
-  if (!form || !newInput || !confirmInput) return;
+  if (!form || !currentInput || !newInput || !confirmInput) return;
 
-  if (emailLabel) emailLabel.textContent = session?.user?.email || 'your account';
+  // Shows the account's username rather than its email — the same
+  // identity people already see in the top-bar profile chip (see
+  // core/Operator.js's syncOperatorDisplay), so this reads as "your
+  // account" rather than surfacing a second, less-recognizable label
+  // for the same thing.
+  if (emailLabel) emailLabel.textContent = session?.user?.user_metadata?.username || session?.user?.email || 'your account';
 
   const clearErrors = () => {
     form.querySelectorAll('.field-error').forEach((e) => { e.textContent = ''; });
-    [newInput, confirmInput].forEach((i) => i.classList.remove('invalid'));
+    [currentInput, newInput, confirmInput].forEach((i) => i.classList.remove('invalid'));
   };
   const showFieldError = (input, name, message) => {
     input.classList.add('invalid');
@@ -279,7 +385,12 @@ function bindChangePasswordPanel(session) {
 
   // Same reveal-toggle pattern as the auth screen / ManageForm's password
   // field (css/modal.css .password-field / .password-toggle), keyed off
-  // data-action since this form has two independent password fields.
+  // data-action since this form has three independent password fields.
+  form.querySelector('[data-action="toggle-current-password"]')?.addEventListener('click', (e) => {
+    const showing = currentInput.type === 'text';
+    currentInput.type = showing ? 'password' : 'text';
+    e.currentTarget.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+  });
   form.querySelector('[data-action="toggle-new-password"]')?.addEventListener('click', (e) => {
     const showing = newInput.type === 'text';
     newInput.type = showing ? 'password' : 'text';
@@ -295,9 +406,14 @@ function bindChangePasswordPanel(session) {
     e.preventDefault();
     clearErrors();
 
+    const currentPassword = currentInput.value;
     const newPassword = newInput.value;
     const confirmPassword = confirmInput.value;
     let valid = true;
+    if (!currentPassword) {
+      showFieldError(currentInput, 'currentPassword', 'Enter your current password.');
+      valid = false;
+    }
     if (newPassword.length < 6) {
       showFieldError(newInput, 'newPassword', 'Password must be at least 6 characters.');
       valid = false;
@@ -311,9 +427,13 @@ function bindChangePasswordPanel(session) {
     submitBtn.disabled = true;
     submitBtn.textContent = 'Updating…';
     try {
-      const { error } = await updatePassword(newPassword);
+      const { error } = await updatePassword(currentPassword, newPassword);
       if (error) {
-        Toast.error(error.message || 'Could not update password. Please try again.');
+        if (/current password/i.test(error.message || '')) {
+          showFieldError(currentInput, 'currentPassword', error.message);
+        } else {
+          Toast.error(error.message || 'Could not update password. Please try again.');
+        }
         return;
       }
       form.reset();
@@ -323,6 +443,33 @@ function bindChangePasswordPanel(session) {
       submitBtn.textContent = 'Update password';
     }
   });
+}
+
+/**
+ * Resolves the signed-in account's assigned User Group (Settings → User
+ * management → User group) and applies its permissions via
+ * core/Permissions.js — the one access-control layer left now that
+ * admin/employee no longer gates anything by itself (see
+ * AuthController.js's own header comment). Employee sessions read their
+ * group straight off EmployeeSession's stashed profile (verify_employee_login
+ * already returns it — see supabase/schema.sql); administrator sessions
+ * look their own user_accounts row up by authUserId. No group assigned,
+ * or the assigned group no longer exists or was disabled, resolves to
+ * null permissions — core/Permissions.js's can() treats that as
+ * unrestricted, so nobody who predates this feature is suddenly locked
+ * out of everything.
+ */
+function applyCurrentUserPermissions(session, userAccountStore, userGroupStore) {
+  const isEmployeePortalSession = (session.user?.email || '').toLowerCase() === EMPLOYEE_PORTAL_EMAIL.toLowerCase();
+  const groupName = isEmployeePortalSession
+    ? getEmployeeProfile()?.userGroup
+    : userAccountStore.list().find((u) => u.authUserId === session.user.id)?.userGroup;
+
+  const group = groupName
+    ? userGroupStore.list().find((g) => g.enabled && g.name.trim().toLowerCase() === groupName.trim().toLowerCase())
+    : null;
+
+  setPermissions(group ? group.permissions : null);
 }
 
 async function startApp(session) {
@@ -391,6 +538,8 @@ async function startApp(session) {
     userGroupStore.init()
   ]);
 
+  applyCurrentUserPermissions(session, userAccountStore, userGroupStore);
+
   const refs = collectRefs();
   const view = new ManageView(refs);
   const controller = new ManageController({ store, view, refs, inventoryAssetStore, warehouseStore, locationStore: warehouseLocationStore });
@@ -411,6 +560,7 @@ async function startApp(session) {
     refs: collectSettingsRefs()
   });
   settingsController.init();
+  applySettingsNavPermissions();
 
   const userGroupRefs = collectUserGroupRefs();
   const userGroupView = new UserGroupView(userGroupRefs);
@@ -446,7 +596,7 @@ async function startApp(session) {
 
   initTabs();
   bindAdvancedFilterToggle();
-  bindSettingsPanel();
+  bindSettingsPanel(session);
   bindChangePasswordPanel(session);
 
   document.getElementById('appShell').hidden = false;

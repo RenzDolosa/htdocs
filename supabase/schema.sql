@@ -491,3 +491,29 @@ begin
     end;
   end loop;
 end $$;
+-- ============================================================================
+-- Deleting a linked user's Supabase Auth account — replaces the earlier
+-- Edge Function approach (supabase/functions/delete-auth-user), which
+-- required a one-time `supabase functions deploy` via the CLI that never
+-- got run. auth.users is a real Postgres table, and Supabase's own docs
+-- confirm deleting a row from it directly is supported and cascades to
+-- auth.identities/sessions/refresh_tokens as needed — so a SECURITY
+-- DEFINER function here does the same job with just this SQL paste,
+-- no CLI required. See core/Auth.js's deleteAuthUser(), now calling
+-- this via supabase.rpc(...) instead of supabase.functions.invoke(...).
+-- ============================================================================
+create or replace function public.admin_delete_auth_user(target_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if target_user_id = auth.uid() then
+    raise exception 'You can''t delete your own account while signed in as it.';
+  end if;
+  delete from auth.users where id = target_user_id;
+end;
+$$;
+
+grant execute on function public.admin_delete_auth_user(uuid) to authenticated;

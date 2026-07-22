@@ -210,7 +210,36 @@ row-level RLS policies keyed off something other than "signed in at
 all," rather than a shared account. Worth flagging to whoever owns
 that decision before this goes further than an internal warehouse tool.
 
+## Deleting a user's Supabase Auth account
 
+Settings → User management → User's Delete action used to only remove
+the `user_accounts` directory row — the person's actual Supabase Auth
+sign-in (Authentication → Users in the dashboard) stayed behind, so
+they could still log in, just without appearing in this list. Deleting
+that normally requires the service-role key, which can't live in
+browser code — but `auth.users` is a real Postgres table, and deleting
+a row from it directly is a documented, supported approach (it cascades
+to `auth.identities`/`sessions`/`refresh_tokens` as needed). So this
+goes through a `SECURITY DEFINER` Postgres function instead of an Edge
+Function: `supabase/schema.sql`'s `admin_delete_auth_user()`, near the
+bottom of the file. Run the SQL Editor paste like everything else in
+this project's setup — no Supabase CLI, no separate deploy step.
+
+The function itself refuses to delete the caller's own account (checked
+against `auth.uid()`), so nobody can accidentally lock themselves out
+through this path — `UserAccountController.js` also checks this
+client-side first, for a faster error without a round trip, but the
+database is what actually enforces it.
+
+If deletion ever fails, `core/Auth.js`'s `deleteAuthUser()` surfaces
+whatever the RPC call fails with, and the directory row is deliberately
+left in place rather than being removed anyway, so nothing ends up
+orphaned (a person who can still sign in but has vanished from the list).
+
+Employees never reach this path — they have no Supabase Auth account of
+their own to delete (see the "Employee login" section above); deleting
+their `user_accounts` row is already the complete removal for them,
+`employee_credentials` cascades with it.
 
 One thing intentionally left alone rather than assumed:
 

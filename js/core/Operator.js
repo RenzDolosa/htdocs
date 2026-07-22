@@ -29,3 +29,20 @@ export function setOperatorName(name) {
     // losing the operator name isn't worth surfacing an error for.
   }
 }
+
+/**
+ * Updates the stored operator name and the top-bar profile chip together,
+ * so the two surfaces never drift apart. Used from two places a person's
+ * own username can change: Settings → General's "Your name" field
+ * itself, and self-editing your own row in User management → User (see
+ * app.js's bindSettingsPanel and UserAccountController.js respectively) —
+ * both should immediately show the new name everywhere, not just in
+ * whichever form it was typed into.
+ */
+export function syncOperatorDisplay(name) {
+  const trimmed = (name || '').trim();
+  if (!trimmed) return;
+  setOperatorName(trimmed);
+  const chip = document.getElementById('profileUsername');
+  if (chip) chip.textContent = trimmed;
+}

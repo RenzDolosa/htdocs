@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { supabase } from './supabaseClient.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, EMPLOYEE_PORTAL_EMAIL, EMPLOYEE_PORTAL_PASSWORD } from './supabaseConfig.js';
+import { getEmployeeProfile, setEmployeeProfile } from './EmployeeSession.js';
 
 /**
  * Thin wrapper around supabase.auth. Kept separate from supabaseClient.js
@@ -91,17 +92,23 @@ export async function signOut() {
 }
 
 /**
- * Changes the signed-in user's password. Supabase's `updateUser` trusts the
- * current session as proof of identity (no "current password" re-entry
- * needed) — same as most account-settings password changes. It updates the
- * password for this session immediately; it doesn't sign out other
- * sessions/tabs, which will just need the new password next time they sign
- * in.
+ * Changes the signed-in user's password. Your Supabase project has
+ * Authentication → Policies → "Enforce that users supply their current
+ * password when trying to change the password" turned on — GoTrue then
+ * requires a `current_password` field in the *same* updateUser() call
+ * and validates it server-side before applying the new one (available in
+ * supabase-js v2.102.0+; see supabase.com/docs/guides/auth/password-security).
+ * This does not use a separate reauthenticate()/sign-in step — that's a
+ * different, nonce-based setting ("Secure password change") that this
+ * project doesn't have enabled; sending current_password is the whole fix.
  * @returns {Promise<{ error: object|null }>}
  */
-export async function updatePassword(newPassword) {
+export async function updatePassword(currentPassword, newPassword) {
   if (!supabase) return { error: { message: 'Supabase is not configured.' } };
-  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  const { error } = await supabase.auth.updateUser({
+    password: newPassword,
+    current_password: currentPassword
+  });
   return { error };
 }
 
@@ -276,4 +283,77 @@ export async function setEmployeePassword(loginAccount, newPassword) {
     p_new_password: newPassword
   });
   return { error };
+}
+
+/**
+ * Keeps the CURRENT session's own username in sync everywhere it's
+ * stored, no matter which surface it was edited from (Settings →
+ * General's "Your name" field, or self-editing your own row in User
+ * management — see app.js and UserAccountController.js respectively):
+ *   - Administrator (real Supabase Auth session): updates
+ *     `user_metadata.username` via `auth.updateUser()` — this only ever
+ *     touches the *caller's own* account, so it works from the client
+ *     with no elevated privileges — plus the linked user_accounts row
+ *     (matched by authUserId), so User management's table reflects it
+ *     immediately rather than waiting for the next sign-in's admin_sync.
+ *   - Employee (shared portal session): there's no per-employee Supabase
+ *     Auth account to update — updates the user_accounts row directly
+ *     (matched by the real employee's id, from EmployeeSession — see
+ *     that module's own doc comment for why session.user.id is useless
+ *     here) and refreshes the cached profile so the rest of the app
+ *     (which reads EmployeeSession, not Supabase's session, for employee
+ *     display names) picks it up without needing to sign in again.
+ *
+ * Can only ever update the *signed-in* person's own username this way —
+ * there's no service-role key here, so this deliberately can't (and
+ * doesn't try to) push a change onto anyone else's Supabase Auth account.
+ * @returns {Promise<{ error: object|null }>}
+ */
+export async function updateOwnUsername(username, session) {
+  if (!supabase) return { error: { message: 'Supabase is not configured.' } };
+  const trimmed = (username || '').trim();
+  if (!trimmed) return { error: null };
+
+  const isEmployeePortalSession = (session?.user?.email || '').toLowerCase() === EMPLOYEE_PORTAL_EMAIL.toLowerCase();
+
+  if (isEmployeePortalSession) {
+    const profile = getEmployeeProfile();
+    if (!profile?.id) return { error: { message: 'No signed-in employee profile to update.' } };
+    const { error } = await supabase.from('user_accounts').update({ username: trimmed }).eq('id', profile.id);
+    if (!error) setEmployeeProfile({ ...profile, username: trimmed });
+    return { error };
+  }
+
+  if (!session?.user?.id) return { error: { message: 'Not signed in.' } };
+  const { error: authError } = await supabase.auth.updateUser({ data: { username: trimmed } });
+  if (authError) return { error: authError };
+  const { error: dirError } = await supabase.from('user_accounts').update({ username: trimmed }).eq('authUserId', session.user.id);
+  return { error: dirError || null };
+}
+
+/**
+ * Permanently deletes a Supabase Auth account — used by Settings → User
+ * management → User's Delete action for administrator rows (ones with
+ * authUserId set; employees never have a Supabase Auth account of their
+ * own to delete, see supabaseConfig.js's employee-portal note). Deleting
+ * a user from Authentication → Users normally requires the service-role
+ * key, which must never live in browser code — but `auth.users` is a
+ * real Postgres table, and Supabase's own docs confirm deleting a row
+ * from it directly is supported (it cascades to auth.identities/
+ * sessions/refresh_tokens as needed), so a SECURITY DEFINER Postgres
+ * function can do this job just as well without that key ever leaving
+ * the database. See supabase/schema.sql's admin_delete_auth_user() for
+ * that function, and its own guard against deleting your own account.
+ *
+ * (This replaced an earlier version that called a Supabase Edge
+ * Function — that approach also works, but needs a one-time `supabase
+ * functions deploy` via the CLI first; this RPC needs only the same SQL
+ * Editor paste every other schema change in this project already uses.)
+ * @returns {Promise<{ error: object|null }>}
+ */
+export async function deleteAuthUser(authUserId) {
+  if (!supabase) return { error: { message: 'Supabase is not configured.' } };
+  const { error } = await supabase.rpc('admin_delete_auth_user', { target_user_id: authUserId });
+  if (error) return { error: { message: error.message } };
+  return { error: null };
 }

@@ -30,12 +30,12 @@ export function buildUserAccountForm(user = null, { userGroups = [] } = {}) {
 
   const node = el(`
     <form class="gadget-form" novalidate>
-      ${isLinked ? `
+      <!-- ${isLinked ? `
       <p class="hint" style="margin: -4px 0 14px;">
         This is a real Supabase Auth account (linked automatically when it signed up) — editing
         the fields below only updates this directory entry, not their actual sign-in email or
         password. Use "Send password reset email" below to let them set a new one.
-      </p>` : ''}
+      </p>` : ''} -->
       <div class="field-row">
         <div class="field">
           <label for="uaUsername">Username <span class="required-mark">*</span></label>
