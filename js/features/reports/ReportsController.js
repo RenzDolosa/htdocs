@@ -5,6 +5,7 @@ import { toCsv, downloadCsv } from '../../utils/csv.js';
 import { fmtLocalDateStamp } from '../../utils/format.js';
 import { TYPE_LABEL } from '../settings/WarehouseLocationModal.js';
 import { esc, el } from '../../utils/dom.js';
+import { isWarehouseAllowed, isWarehouseScoped } from '../../core/WarehouseScope.js';
 
 /**
  * ReportsController drives the read-only Reports tab: summary stat cards,
@@ -43,7 +44,7 @@ export class ReportsController {
   render() {
     const gadgets = this._filteredGadgets();
 
-    this.view.renderWarehouseFilterButton?.(this._knownOwners().length > 0, this.state.filters.owner);
+    this.view.renderWarehouseFilterButton?.(this._knownOwners().length > 0, this._effectiveOwnerFilter());
     this.view.renderStats(this._stats(gadgets), {
       duplicateSerials: () => this._openDuplicateSerialsModal(gadgets)
     });
@@ -66,24 +67,44 @@ export class ReportsController {
    * respects — unlike Inventory Assets above. This is a real relationship,
    * not an approximation: a location's warehouseId always ties it to one
    * specific site (see WarehouseLocation.warehouseId), so "all locations
-   * under Warehouse 1" is a precise, direct lookup. */
+   * under Warehouse 1" is a precise, direct lookup. When warehouse-scoped
+   * (see core/WarehouseScope.js), locations belonging to a warehouse
+   * outside that scope are excluded even under "All". */
   _locations() {
     const all = this.locationStore ? this.locationStore.list() : [];
-    const owner = this.state.filters.owner;
-    if (owner === 'all' || !this.warehouseStore) return all;
+    if (!this.warehouseStore) return all;
+
+    const scopedSiteIds = new Set(
+      this.warehouseStore.list().filter((w) => isWarehouseAllowed(w.id)).map((w) => w.id)
+    );
+    let filtered = isWarehouseScoped() ? all.filter((loc) => scopedSiteIds.has(loc.warehouseId)) : all;
+
+    const owner = this._effectiveOwnerFilter();
+    if (owner === 'all') return filtered;
 
     const matchingSiteIds = new Set(
       this.warehouseStore.list().filter((w) => w.name === owner).map((w) => w.id)
     );
-    return all.filter((loc) => matchingSiteIds.has(loc.warehouseId));
+    return filtered.filter((loc) => matchingSiteIds.has(loc.warehouseId));
   }
 
-  /** Every gadget, or just the ones owned by the selected warehouse when a filter is active. */
+  /** Every gadget, or just the ones owned by the selected warehouse when a
+   * filter is active — plus, when warehouse-scoped, always restricted to
+   * the session's bound warehouses regardless of the "All"/single-owner
+   * selection (see ManageController._filteredSortedGadgets for the same
+   * pattern, including why an unassigned gadget is never excluded by
+   * scope even though 'Unassigned' isn't itself a bound warehouse). */
   _filteredGadgets() {
     const all = this.store.list();
-    const owner = this.state.filters.owner;
-    if (owner === 'all') return all;
-    return all.filter((g) => g.owner === owner);
+    const owner = this._effectiveOwnerFilter();
+    const allowedOwners = isWarehouseScoped() ? new Set(this._knownOwners()) : null;
+
+    return all.filter((g) => {
+      const ownerKey = g.owner || 'Unassigned';
+      if (allowedOwners && ownerKey !== 'Unassigned' && !allowedOwners.has(ownerKey)) return false;
+      if (owner !== 'all' && ownerKey !== owner) return false;
+      return true;
+    });
   }
 
   /**
@@ -91,19 +112,33 @@ export class ReportsController {
    * configured in Warehouse Information (Settings), same source Manage's
    * equivalent button uses, so a warehouse is filterable here the moment
    * it exists in Settings, even before any asset has been assigned to it.
+   * Also where warehouse scoping is enforced for this dashboard — see
+   * ManageController._knownOwners for the identical pattern.
    */
   _knownOwners() {
-    return this.warehouseStore ? this.warehouseStore.list().map((w) => w.name).filter(Boolean).sort() : [];
+    if (!this.warehouseStore) return [];
+    return this.warehouseStore.list()
+      .filter((w) => isWarehouseAllowed(w.id))
+      .map((w) => w.name).filter(Boolean).sort();
+  }
+
+  /** Same "lock to the one bound warehouse, no meaningless All" rule as
+   * ManageController._effectiveOwnerFilter(). */
+  _effectiveOwnerFilter() {
+    const owners = this._knownOwners();
+    if (isWarehouseScoped() && owners.length === 1) return owners[0];
+    return this.state.filters.owner;
   }
 
   /** Opens the "Warehouse" button's flyout — same DropdownMenu pattern as Manage's equivalent. */
   _openWarehouseFilterMenu() {
     const owners = this._knownOwners();
-    const active = this.state.filters.owner;
+    const active = this._effectiveOwnerFilter();
+    const showAllOption = !isWarehouseScoped() || owners.length > 1;
     openDropdownMenu({
       anchor: this.refs.warehouseFilterBtn,
       items: [
-        { label: active === 'all' ? '✓ All' : 'All', onClick: () => this._selectOwnerFilter('all') },
+        ...(showAllOption ? [{ label: active === 'all' ? '✓ All' : 'All', onClick: () => this._selectOwnerFilter('all') }] : []),
         ...owners.map((o) => ({ label: o === active ? `✓ ${o}` : o, onClick: () => this._selectOwnerFilter(o) }))
       ]
     });
@@ -125,7 +160,7 @@ export class ReportsController {
     return [
       { label: 'Total Gadgets', value: gadgets.length },
       { label: 'Inventory Assets', value: this.inventoryAssetStore ? this.inventoryAssetStore.list().length : 0 },
-      { label: 'Warehouses', value: this.warehouseStore ? this.warehouseStore.list().length : 0 },
+      { label: 'Warehouses', value: this._knownOwners().length },
       { label: 'Warehouse Locations', value: this._locations().length },
       { label: 'Unassigned Gadgets', value: unassigned, tone: unassigned ? 'warn' : null },
       { label: 'Duplicate Serials', value: duplicateSerials, tone: duplicateSerials ? 'bad' : null, key: 'duplicateSerials' }

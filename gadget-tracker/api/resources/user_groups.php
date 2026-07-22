@@ -8,6 +8,7 @@ handle_crud($pdo, 'user_groups', [
   'name' => 'string',
   'enabled' => 'bool',
   'permissions' => 'json',
+  'boundWarehouseIds' => 'json',
   'createdAt' => 'int',
   'updatedAt' => 'int',
   'history' => 'json',

@@ -18,11 +18,18 @@ import { getOperatorName } from '../../core/Operator.js';
  * there) — a user "belongs" to a group purely by that string matching a
  * UserGroup's name. _boundUsernames() is what resolves that match for the
  * grid's "Bound user" column; nothing here writes back to userAccountStore.
+ *
+ * `warehouseStore` is read-only here too, same as ManageController's
+ * reference to it — it's the option list for the add/edit modal's Bind
+ * warehouse tab (see UserGroupForm.js) and the source for resolving a
+ * group's boundWarehouseIds back into names for the grid's "Bound
+ * warehouse" column.
  */
 export class UserGroupController {
-  constructor({ store, userAccountStore, view, refs }) {
+  constructor({ store, userAccountStore, warehouseStore, view, refs }) {
     this.store = store;
     this.userAccountStore = userAccountStore;
+    this.warehouseStore = warehouseStore;
     this.view = view;
     this.refs = refs;
 
@@ -41,6 +48,7 @@ export class UserGroupController {
 
     this.store.on('change', () => this.render());
     this.userAccountStore.on('change', () => this.render()); // a username edit/rename should refresh "Bound user"
+    this.warehouseStore?.on('change', () => this.render()); // a warehouse rename/delete should refresh "Bound warehouse"
     this._bindFilterBar();
     this._bindActionBar();
   }
@@ -68,6 +76,15 @@ export class UserGroupController {
       .map((u) => u.username);
   }
 
+  /** Resolves a group's boundWarehouseIds into current warehouse names, for
+   * the grid's "Bound warehouse" column — dropping any id whose warehouse
+   * has since been deleted, same tolerant-lookup approach as _boundUsernames. */
+  _boundWarehouseNames(group) {
+    if (!this.warehouseStore || !group.boundWarehouseIds?.length) return [];
+    const byId = new Map(this.warehouseStore.list().map((w) => [w.id, w.name]));
+    return group.boundWarehouseIds.map((id) => byId.get(id)).filter(Boolean);
+  }
+
   // ---------- Rendering ----------
   render() {
     const filtered = this._filtered();
@@ -78,7 +95,7 @@ export class UserGroupController {
 
     const start = (this.state.page - 1) * this.state.pageSize;
     const pageGroups = filtered.slice(start, start + this.state.pageSize)
-      .map((g) => ({ ...g, boundUsernames: this._boundUsernames(g) }));
+      .map((g) => ({ ...g, boundUsernames: this._boundUsernames(g), boundWarehouseNames: this._boundWarehouseNames(g) }));
 
     this.view.renderTable(pageGroups, {
       onEdit: (id) => this.openEditModal(id),
@@ -157,7 +174,8 @@ export class UserGroupController {
 
   _openGroupModal(group) {
     const isEdit = !!group;
-    const form = buildUserGroupForm(group);
+    const warehouses = this.warehouseStore ? this.warehouseStore.list().map((w) => ({ id: w.id, name: w.name })) : [];
+    const form = buildUserGroupForm(group, warehouses);
 
     const footer = [
       { label: 'Cancel', variant: 'btn-outline', onClick: (m) => m.close() },

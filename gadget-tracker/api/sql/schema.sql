@@ -153,6 +153,7 @@ CREATE TABLE IF NOT EXISTS user_groups (
   name           VARCHAR(190) NOT NULL,
   enabled        TINYINT(1) DEFAULT 1,
   permissions    JSON,
+  boundWarehouseIds JSON,
   createdAt      BIGINT NOT NULL,
   updatedAt      BIGINT NOT NULL,
   history        JSON,

@@ -14,6 +14,7 @@ import { buildImportProgress } from '../../components/ImportProgress.js';
 import { el, esc } from '../../utils/dom.js';
 import { getOperatorName } from '../../core/Operator.js';
 import { can } from '../../core/Permissions.js';
+import { isWarehouseAllowed, isWarehouseScoped } from '../../core/WarehouseScope.js';
 import { fmtLocalDateTime, fmtLocalDateStamp } from '../../utils/format.js';
 import { resolveMerchantPlacement } from '../../utils/merchantPlacement.js';
 
@@ -98,9 +99,31 @@ export class ManageController {
    * has actually been assigned to it. Filtering itself still matches
    * against each record's `owner` field (see _filteredSortedGadgets);
    * this only changes where the *option list* comes from.
+   *
+   * When the signed-in session is warehouse-scoped (its User Group has a
+   * non-empty "Bind warehouse" list — see core/WarehouseScope.js), this
+   * is also where that restriction is enforced: only bound warehouses
+   * ever appear as an option here, full stop.
    */
   _knownOwners() {
-    return this.warehouseStore ? this.warehouseStore.list().map((w) => w.name).filter(Boolean).sort() : [];
+    if (!this.warehouseStore) return [];
+    return this.warehouseStore.list()
+      .filter((w) => isWarehouseAllowed(w.id))
+      .map((w) => w.name).filter(Boolean).sort();
+  }
+
+  /**
+   * The owner filter actually in effect: the person's own selection,
+   * except when they're scoped to exactly one warehouse — in that case
+   * there's nothing to choose between, so that single warehouse is
+   * applied automatically rather than making "All" a meaningless extra
+   * click. See _openWarehouseFilterMenu() for the matching "All" option
+   * being hidden in that same case.
+   */
+  _effectiveOwnerFilter() {
+    const owners = this._knownOwners();
+    if (isWarehouseScoped() && owners.length === 1) return owners[0];
+    return this.state.filters.owner;
   }
 
   /** Created warehouse location names (e.g. "Samples", "Test Location") —
@@ -169,11 +192,22 @@ export class ManageController {
     const kw = f.keyword.trim().toLowerCase();
     const serial = f.serialNumber.trim().toLowerCase();
     const mac = f.macAddress.trim().toLowerCase();
+    const ownerFilter = this._effectiveOwnerFilter();
+    // When scoped, "All" still only ever means "all of MY warehouses" —
+    // this is what actually enforces that, on top of whatever single
+    // warehouse (or "all") the person picked from the flyout. An
+    // unassigned asset (ownerKey === 'Unassigned') isn't excluded by
+    // this, even though 'Unassigned' is never itself in _knownOwners():
+    // it doesn't belong to any *other* warehouse either, so hiding it
+    // from every scoped group would make it invisible to everyone —
+    // nobody could ever claim it into their own warehouse.
+    const allowedOwners = isWarehouseScoped() ? new Set(this._knownOwners()) : null;
 
     let gadgets = this.store.list().filter((g) => {
       if (f.category !== 'all' && g.category !== f.category) return false;
       const ownerKey = g.owner || 'Unassigned';
-      if (f.owner !== 'all' && ownerKey !== f.owner) return false;
+      if (allowedOwners && ownerKey !== 'Unassigned' && !allowedOwners.has(ownerKey)) return false;
+      if (ownerFilter !== 'all' && ownerKey !== ownerFilter) return false;
       if (serial && !g.serialNumber.toLowerCase().includes(serial)) return false;
       if (mac && !g.macAddress.toLowerCase().includes(mac)) return false;
       if (kw) {
@@ -217,7 +251,7 @@ export class ManageController {
     const pageGadgets = filtered.slice(start, start + this.state.pageSize);
 
     this.view.renderFilterOptions(this._knownCategories(), this.state.filters);
-    this.view.renderWarehouseFilterButton(this._knownOwners().length > 0, this.state.filters.owner);
+    this.view.renderWarehouseFilterButton(this._knownOwners().length > 0, this._effectiveOwnerFilter());
     this.view.renderTable(pageGadgets, this.selected, {
       onEdit: (id) => this.openEditModal(id),
       onTransfer: (id) => this.openTransferModal(id),
@@ -256,14 +290,21 @@ export class ManageController {
    * configured in Warehouse Information. Picking one filters the table to
    * records whose `owner` matches that warehouse's name — see
    * _knownOwners() for why the option list is sourced from Settings
-   * rather than from whatever's already on Manage's own records. */
+   * rather than from whatever's already on Manage's own records.
+   *
+   * The "All" entry itself is only offered when it means something: when
+   * the session isn't warehouse-scoped at all, or it's bound to more
+   * than one warehouse. Scoped to exactly one, there's nothing to pick
+   * between — see _effectiveOwnerFilter(), which applies that single
+   * warehouse automatically instead. */
   _openWarehouseFilterMenu() {
     const owners = this._knownOwners();
-    const active = this.state.filters.owner;
+    const active = this._effectiveOwnerFilter();
+    const showAllOption = !isWarehouseScoped() || owners.length > 1;
     openDropdownMenu({
       anchor: this.refs.warehouseFilterBtn,
       items: [
-        { label: active === 'all' ? '✓ All' : 'All', onClick: () => this._selectOwnerFilter('all') },
+        ...(showAllOption ? [{ label: active === 'all' ? '✓ All' : 'All', onClick: () => this._selectOwnerFilter('all') }] : []),
         ...owners.map((o) => ({ label: o === active ? `✓ ${o}` : o, onClick: () => this._selectOwnerFilter(o) }))
       ]
     });

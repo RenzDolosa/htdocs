@@ -24,6 +24,7 @@ import { AuthView } from './features/auth/AuthView.js';
 import { AuthController } from './features/auth/AuthController.js';
 import { updatePassword, updateOwnUsername } from './core/Auth.js';
 import { setPermissions, can } from './core/Permissions.js';
+import { setBoundWarehouseIds } from './core/WarehouseScope.js';
 import { getEmployeeProfile } from './core/EmployeeSession.js';
 import { EMPLOYEE_PORTAL_EMAIL } from './core/supabaseConfig.js';
 
@@ -458,6 +459,10 @@ function bindChangePasswordPanel(session) {
  * null permissions — core/Permissions.js's can() treats that as
  * unrestricted, so nobody who predates this feature is suddenly locked
  * out of everything.
+ *
+ * The same resolved group's boundWarehouseIds is applied here too, via
+ * core/WarehouseScope.js — one lookup, two singletons updated, since
+ * both read off the exact same group record.
  */
 function applyCurrentUserPermissions(session, userAccountStore, userGroupStore) {
   const isEmployeePortalSession = (session.user?.email || '').toLowerCase() === EMPLOYEE_PORTAL_EMAIL.toLowerCase();
@@ -470,6 +475,7 @@ function applyCurrentUserPermissions(session, userAccountStore, userGroupStore) 
     : null;
 
   setPermissions(group ? group.permissions : null);
+  setBoundWarehouseIds(group ? group.boundWarehouseIds : null);
 }
 
 async function startApp(session) {
@@ -567,6 +573,7 @@ async function startApp(session) {
   const userGroupController = new UserGroupController({
     store: userGroupStore,
     userAccountStore,
+    warehouseStore,
     view: userGroupView,
     refs: userGroupRefs
   });

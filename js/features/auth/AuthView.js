@@ -66,11 +66,11 @@ export class AuthView {
 
     if (this.refs.sub) {
       this.refs.sub.textContent = isSignUp
-        ? 'Create the administrator account — one-time setup.'
+        ? 'Create the  account'
         : "Sign in to manage your warehouse's assets.";
     }
     if (this.refs.signUpToggle) {
-      this.refs.signUpToggle.textContent = isSignUp ? 'Back to sign in' : 'Set up the administrator account';
+      this.refs.signUpToggle.textContent = isSignUp ? 'Back to sign in' : 'Set up the account';
     }
   }
 

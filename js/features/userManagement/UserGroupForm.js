@@ -10,8 +10,19 @@ import { PERMISSION_TREE, defaultPermissions } from '../../models/UserGroup.js';
  * `permissions` map (seeded from the group being edited, or all-denied for
  * a new one) and re-renders itself on every toggle/search/expand click.
  * getData() reads that map at submit time — nothing here touches a Store.
+ *
+ * "Default menu permissions" and "Bind warehouse" live behind a small tab
+ * rail (see .ug-tab-rail below) so both fit in one modal without the
+ * permission tree and the warehouse checklist competing for vertical
+ * space — same idea as the reference app's Edit User Group side rail,
+ * scoped down to the two sections that actually apply here (this app has
+ * no store/distributor/supplier/brand concepts to bind).
+ *
+ * @param {object|null} group - the UserGroup being edited, or null for Add.
+ * @param {Array<{id:string,name:string}>} warehouses - every site from
+ *   Warehouse Information (Settings), for the Bind warehouse checklist.
  */
-export function buildUserGroupForm(group = null) {
+export function buildUserGroupForm(group = null, warehouses = []) {
   const node = el(`
     <form class="gadget-form" novalidate>
       <div class="field-row">
@@ -26,20 +37,47 @@ export function buildUserGroupForm(group = null) {
         </div>
       </div>
 
-      <div class="field">
-        <label>Default menu permissions</label>
-        <div class="perm-tree-toolbar">
-          <input type="text" id="ugPermSearch" placeholder="Menu name">
-          <button tabindex="-1" type="button" class="btn btn-outline btn-sm" data-action="expand-all">Show</button>
-          <button tabindex="-1" type="button" class="btn btn-outline btn-sm" data-action="collapse-all">Fold</button>
+      <div class="ug-tab-rail" role="tablist">
+        <button tabindex="-1" type="button" class="ug-tab-item active" data-ug-tab="permissions">Default menu permissions</button>
+        <button tabindex="-1" type="button" class="ug-tab-item" data-ug-tab="warehouses">Bind warehouse</button>
+      </div>
+
+      <div class="ug-tab-panel" data-ug-panel="permissions">
+        <div class="field">
+          <div class="perm-tree-toolbar">
+            <input type="text" id="ugPermSearch" placeholder="Menu name">
+            <button tabindex="-1" type="button" class="btn btn-outline btn-sm" data-action="expand-all">Show</button>
+            <button tabindex="-1" type="button" class="btn btn-outline btn-sm" data-action="collapse-all">Fold</button>
+          </div>
+          <div tabindex="-1" class="perm-tree" id="ugPermTree"></div>
         </div>
-        <div tabindex="-1" class="perm-tree" id="ugPermTree"></div>
+      </div>
+
+      <div class="ug-tab-panel" data-ug-panel="warehouses" hidden>
+        <div class="field">
+          <div class="perm-tree-toolbar">
+            <input type="text" id="ugWarehouseSearch" placeholder="warehouse name">
+            <label class="checkbox-inline" style="margin:0;"><input type="checkbox" tabindex="-1" id="ugWarehouseSelectAll"> select all</label>
+          </div>
+          <div tabindex="-1" class="perm-tree" id="ugWarehouseTree"></div>
+        </div>
       </div>
     </form>
   `);
 
   node.querySelector('#ugName').value = group?.name || '';
   node.querySelector('#ugEnabled').checked = group ? group.enabled : true;
+
+  // ---------- Tab rail ----------
+  const tabButtons = [...node.querySelectorAll('[data-ug-tab]')];
+  const tabPanels = [...node.querySelectorAll('[data-ug-panel]')];
+  tabButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const target = btn.getAttribute('data-ug-tab');
+      tabButtons.forEach((b) => b.classList.toggle('active', b === btn));
+      tabPanels.forEach((p) => { p.hidden = p.getAttribute('data-ug-panel') !== target; });
+    });
+  });
 
   // Local, mutable working copy — only written back into the record on Save/Add.
   const permissions = { ...defaultPermissions(), ...(group?.permissions || {}) };
@@ -114,11 +152,66 @@ export function buildUserGroupForm(group = null) {
 
   renderTree();
 
+  // ---------- Bind warehouse ----------
+  // Local, mutable working copy of checked warehouse ids — same
+  // seed-then-mutate-locally pattern as `permissions` above. Empty set
+  // means "every warehouse" (unrestricted), same as an empty
+  // UserGroup.boundWarehouseIds.
+  const boundWarehouseIds = new Set(group?.boundWarehouseIds || []);
+  const warehouseTreeEl = node.querySelector('#ugWarehouseTree');
+  const selectAllEl = node.querySelector('#ugWarehouseSelectAll');
+
+  function renderWarehouseTree() {
+    const query = node.querySelector('#ugWarehouseSearch').value.trim().toLowerCase();
+    const visible = warehouses.filter((w) => !query || (w.name || '').toLowerCase().includes(query));
+
+    warehouseTreeEl.innerHTML = '';
+    if (warehouses.length === 0) {
+      warehouseTreeEl.appendChild(el(`<div class="perm-row" style="color:var(--ink-faint);">No warehouses configured yet — add one under Settings → Warehouse Information.</div>`));
+    } else if (visible.length === 0) {
+      warehouseTreeEl.appendChild(el(`<div class="perm-row" style="color:var(--ink-faint);">No warehouse matches "${esc(query)}".</div>`));
+    } else {
+      visible.forEach((w) => {
+        const checked = boundWarehouseIds.has(w.id);
+        const row = el(`
+          <div class="perm-row">
+            <label class="checkbox-inline" style="margin:0; flex:1;">
+              <input type="checkbox" data-warehouse-id="${esc(w.id)}" ${checked ? 'checked' : ''}>
+              ${esc(w.name || 'Untitled warehouse')}
+            </label>
+          </div>
+        `);
+        row.querySelector('[data-warehouse-id]').addEventListener('change', (e) => {
+          const id = e.currentTarget.getAttribute('data-warehouse-id');
+          if (e.currentTarget.checked) boundWarehouseIds.add(id); else boundWarehouseIds.delete(id);
+          syncSelectAll();
+        });
+        warehouseTreeEl.appendChild(row);
+      });
+    }
+    syncSelectAll();
+  }
+
+  function syncSelectAll() {
+    selectAllEl.disabled = warehouses.length === 0;
+    selectAllEl.checked = warehouses.length > 0 && warehouses.every((w) => boundWarehouseIds.has(w.id));
+  }
+
+  node.querySelector('#ugWarehouseSearch').addEventListener('input', renderWarehouseTree);
+  selectAllEl.addEventListener('change', () => {
+    if (selectAllEl.checked) warehouses.forEach((w) => boundWarehouseIds.add(w.id));
+    else boundWarehouseIds.clear();
+    renderWarehouseTree();
+  });
+
+  renderWarehouseTree();
+
   function getData() {
     return {
       name: node.querySelector('#ugName').value.trim(),
       enabled: node.querySelector('#ugEnabled').checked,
-      permissions: { ...permissions }
+      permissions: { ...permissions },
+      boundWarehouseIds: [...boundWarehouseIds]
     };
   }
 

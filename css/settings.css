@@ -175,6 +175,19 @@
 .perm-toggle.deny{ color: var(--bad); background: var(--bad-soft); }
 .perm-toggle.deny .perm-dot{ background: var(--bad); }
 
+/* User group modal tab rail (Default menu permissions / Bind warehouse) —
+   see UserGroupForm.js. Reuses the same visual language as the settings
+   left rail (.settings-nav-item) so it doesn't feel like a new pattern. */
+.ug-tab-rail{ display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 4px 0 14px; }
+.ug-tab-item{
+  border: none; background: none; cursor: pointer;
+  padding: 8px 14px; font-size: 13px; font-weight: 600; color: var(--ink-soft);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.ug-tab-item:hover{ color: var(--ink); }
+.ug-tab-item.active{ color: var(--accent-ink); border-bottom-color: var(--accent); }
+.ug-tab-panel[hidden]{ display: none; }
+
 @media (max-width: 860px){
   .settings-shell{ flex-direction: column; }
   .settings-nav{ width: 100%; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border); }

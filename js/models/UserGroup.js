@@ -88,6 +88,13 @@ export function defaultPermissions() {
  * can be placed into (via its existing free-text `userGroup` field; see
  * UserGroupController._boundUsernames for how the two connect without
  * requiring a schema change to UserAccount).
+ *
+ * `boundWarehouseIds` is the group's "Bind warehouse" list (Warehouse.id
+ * values, from Settings → Warehouse Information) — which warehouses'
+ * data members of this group are allowed to see in Manage/Reports.
+ * Empty means unrestricted (every warehouse), same opt-in philosophy as
+ * `permissions` — see core/WarehouseScope.js for how this gets applied
+ * to the signed-in session.
  */
 export class UserGroup {
   constructor(data = {}) {
@@ -99,6 +106,8 @@ export class UserGroup {
     // { [permissionKey]: boolean } — every PERMISSION_TREE key gets an explicit
     // entry so the form never has to guess a missing key's state.
     this.permissions = { ...defaultPermissions(), ...(data.permissions || {}) };
+    // Warehouse.id[] this group is bound to. [] = every warehouse (unrestricted).
+    this.boundWarehouseIds = Array.isArray(data.boundWarehouseIds) ? [...data.boundWarehouseIds] : [];
     this.createdAt = data.createdAt || Date.now();
     this.updatedAt = data.updatedAt || Date.now();
     this.history = data.history || [];

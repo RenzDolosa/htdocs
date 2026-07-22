@@ -430,12 +430,17 @@ create table if not exists public.user_groups (
   name            text not null,
   enabled         boolean default true,
   permissions     jsonb default '{}'::jsonb,
+  "boundWarehouseIds" jsonb default '[]'::jsonb,
   "createdAt"     bigint not null,
   "updatedAt"     bigint not null,
   history         jsonb default '[]'::jsonb
 );
 
 create unique index if not exists user_groups_name_idx on public.user_groups (lower(name));
+
+-- Existing deployments that already ran this file before "Bind warehouse"
+-- existed won't have this column from `create table if not exists` alone.
+alter table public.user_groups add column if not exists "boundWarehouseIds" jsonb default '[]'::jsonb;
 
 -- ============================================================================
 -- Row Level Security
