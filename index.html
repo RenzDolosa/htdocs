@@ -24,13 +24,7 @@
 <div class="auth-screen" id="authScreen">
   <div class="auth-card">
     <div class="auth-brand">Gadget Tracker</div>
-    <p class="auth-sub">Sign in to manage your warehouse's assets.</p>
-
-    <div class="auth-tabs" id="authTabs">
-      <button tabindex="-1" type="button" class="auth-tab is-active" id="authAdminTab">Login as Administrator</button>
-      <button tabindex="-1" type="button" class="auth-tab" id="authEmployeeTab">Login as Employee</button>
-      <button tabindex="-1" type="button" class="auth-tab" id="authSignUpTab" hidden>Create account</button>
-    </div>
+    <p class="auth-sub" id="authSub">Sign in to manage your warehouse's assets.</p>
 
     <div class="auth-error" id="authError" hidden></div>
 
@@ -40,8 +34,8 @@
         <input type="text" id="authUsername" name="username" autocomplete="username" placeholder="username">
       </div>
       <div class="field">
-        <label for="authIdentifier" id="authIdentifierLabel">Email</label>
-        <input type="email" id="authIdentifier" name="identifier" autocomplete="email" placeholder="you@company.com">
+        <label for="authIdentifier">Email or login account</label>
+        <input type="text" id="authIdentifier" name="identifier" autocomplete="username" placeholder="you@company.com">
       </div>
       <div class="field">
         <label for="authPassword">Password</label>
@@ -55,7 +49,7 @@
       <button tabindex="-1" type="submit" class="btn btn-accent" id="authSubmitBtn" style="width:100%; margin-top:4px;">Sign in</button>
     </form>
 
-    <p class="auth-switch-hint" id="authSwitchHint" hidden>Already have an account?</p>
+    <button type="button" class="auth-switch-link" id="authSignUpToggle" hidden>Set up the administrator account</button>
   </div>
 </div>
 

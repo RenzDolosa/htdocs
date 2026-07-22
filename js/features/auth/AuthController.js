@@ -4,23 +4,28 @@ import {
 } from '../../core/Auth.js';
 import { getOperatorName, setOperatorName } from '../../core/Operator.js';
 import { setEmployeeProfile, getEmployeeProfile, clearEmployeeProfile } from '../../core/EmployeeSession.js';
-import { setIsAdministrator } from '../../core/CurrentUser.js';
 import { EMPLOYEE_PORTAL_EMAIL } from '../../core/supabaseConfig.js';
 
 /**
- * AuthController is the gatekeeper in front of the rest of the app, for
- * all three of AuthView's modes:
- *   - 'admin'    — a real Supabase Auth session (auth.users).
- *   - 'employee' — verifyEmployeeLogin() checks a SQL-stored password
- *     (never touches Supabase Auth, so it never counts against the email
- *     rate limit), then signInToEmployeePortal() signs the browser into
- *     one shared Supabase Auth account just to satisfy RLS. Which
- *     employee is actually signed in is tracked separately via
- *     EmployeeSession — see core/EmployeeSession.js's own doc comment.
- *   - 'sign-up'  — creates the one bootstrap administrator. Hidden
- *     entirely (not just disabled) once adminAccountExists() is true —
- *     see AuthView.setSignUpAvailable and schema.sql's
- *     admin_account_exists().
+ * AuthController is the gatekeeper in front of the rest of the app.
+ * Every signed-in account — administrator or employee — has equal
+ * access once it's in; there's no more admin-only gating anywhere in
+ * the app (see the old core/CurrentUser.js, removed). The distinction
+ * that's left is purely a sign-in *mechanism* detail, invisible to the
+ * person signing in:
+ *   - Employee accounts (Settings → User management → User) check a
+ *     SQL-stored password (verifyEmployeeLogin — never touches Supabase
+ *     Auth, so it never counts against the email rate limit), then sign
+ *     the browser into one shared Supabase Auth account just so RLS
+ *     sees a valid `authenticated` session. Which employee is actually
+ *     signed in is tracked separately via EmployeeSession — see
+ *     core/EmployeeSession.js's own doc comment.
+ *   - The administrator account is a real Supabase Auth session
+ *     (auth.users), created once via the sign-up flow below.
+ * _handleSubmit tries the employee check first (cheap, no rate-limit
+ * cost) and only falls back to a real Supabase Auth sign-in if that
+ * doesn't match — so the person just enters their email/login account
+ * and password once, with nothing to pick between.
  *
  * `onSignedIn(session)` is supplied by app.js and does the actual app
  * bootstrap (constructing stores, controllers, etc.) — AuthController
@@ -48,7 +53,7 @@ export class AuthController {
 
     // Resolved before the login screen can possibly be shown (both branches
     // of _handleSessionChange below run after this), so there's no flash
-    // of a sign-up tab that then disappears.
+    // of the sign-up link that then disappears.
     const anAdminAlreadyExists = await adminAccountExists();
     this.view.setSignUpAvailable(!anAdminAlreadyExists);
 
@@ -97,13 +102,11 @@ export class AuthController {
       // Auth account (see supabaseConfig.js's EMPLOYEE_PORTAL_EMAIL) — its
       // session.user.id is that shared account's id, not any individual
       // employee's user_accounts row, so isAccountEnabled() would be
-      // checking the wrong thing entirely for it.
+      // checking the wrong thing entirely for it. This distinction is
+      // used purely for the enabled-check and display-name logic below —
+      // it no longer affects what the account can access; see this
+      // file's own header comment.
       const isEmployeePortalSession = (session.user?.email || '').toLowerCase() === EMPLOYEE_PORTAL_EMAIL.toLowerCase();
-      // The one place this gets decided — ManageController,
-      // InventoryAssetController, etc. read it back via
-      // core/CurrentUser.js to gate admin-only actions (delete, clear
-      // all data, editing certain catalog-sourced fields).
-      setIsAdministrator(!isEmployeePortalSession);
 
       if (!isEmployeePortalSession) {
         // Real administrator session — Settings → User management → User's
@@ -178,9 +181,8 @@ export class AuthController {
     const { username, identifier, password } = this.view.getFormData();
     const mode = this.view.mode;
 
-    const identifierLabel = mode === 'employee' ? 'Login account' : 'Email';
     if (!identifier || !password) {
-      this.view.showError(`${identifierLabel} and password are both required.`);
+      this.view.showError('Email/login account and password are both required.');
       return;
     }
     if (mode === 'sign-up') {
@@ -198,60 +200,60 @@ export class AuthController {
 
     this.view.setLoading(true);
     try {
-      if (mode === 'admin') {
-        const { error } = await signInWithPassword(identifier, password);
-        if (error) this.view.showError(this._friendlyError(error));
-        // On success, onAuthStateChange fires _handleSessionChange for us.
-      } else if (mode === 'employee') {
-        const { profile, error } = await verifyEmployeeLogin(identifier, password);
-        if (error) {
-          this.view.showError(this._friendlyError(error));
-        } else if (!profile) {
-          // Deliberately generic — same reasoning as Supabase Auth's own
-          // "Invalid login credentials" (see verify_employee_login()'s own
-          // comment): distinguishing "wrong password" from "unknown login"
-          // from "disabled account" makes it easier to enumerate valid logins.
-          this.view.showError('Incorrect login account or password.');
-        } else {
-          // Stashed *before* signing into the shared portal account, so
-          // whichever tick _handleSessionChange's listener actually fires
-          // on, the real employee's profile is already there waiting.
-          setEmployeeProfile(profile);
-          const { error: portalError } = await signInToEmployeePortal();
-          if (portalError) {
-            clearEmployeeProfile();
-            console.error(`[auth] signInToEmployeePortal failed for ${EMPLOYEE_PORTAL_EMAIL}:`, portalError.message);
-            // signInToEmployeePortal() itself detects the one specific,
-            // known, benign cause (supabaseConfig.js's password still
-            // being the shipped placeholder — see its own comment) and
-            // returns a message naming exactly that; safe to show as-is,
-            // since it's a setup instruction, not anything sensitive.
-            // Any *other* failure stays generic on-screen (an employee
-            // shouldn't see internal config/network details) — check the
-            // console line just logged for the real cause. Common ones:
-            // the employee-portal account doesn't exist yet in Supabase,
-            // its actual password doesn't match EMPLOYEE_PORTAL_PASSWORD,
-            // or (if "Auto Confirm User" wasn't checked when creating it)
-            // it exists but was never confirmed.
-            this.view.showError(
-              portalError.code === 'portal_password_unset'
-                ? portalError.message
-                : 'Sign-in succeeded but the app could not connect. Please try again or contact an administrator.'
-            );
-          }
-          // Otherwise onAuthStateChange fires _handleSessionChange for us.
-        }
-      } else {
+      if (mode === 'sign-up') {
         const { needsEmailConfirmation, error } = await signUp(identifier, password, username);
         if (error) {
           this.view.showError(this._friendlyError(error));
         } else if (needsEmailConfirmation) {
           this.view.showNotice('Account created — check your email to confirm it, then sign in.');
-          this.view.setMode('admin');
+          this.view.setMode('sign-in');
         }
         // Otherwise (no email confirmation required by the project's
         // settings) onAuthStateChange fires _handleSessionChange for us.
+        return;
       }
+
+      // Unified sign-in: try the employee check first — SQL-only, no
+      // Supabase Auth call, so it never costs anything even if this
+      // isn't actually an employee login. Only if that doesn't match
+      // does this fall back to a real Supabase Auth sign-in. Whichever
+      // one matches, matches — nothing for the person to pick.
+      const { profile } = await verifyEmployeeLogin(identifier, password);
+      if (profile) {
+        // Stashed *before* signing into the shared portal account, so
+        // whichever tick _handleSessionChange's listener actually fires
+        // on, the real employee's profile is already there waiting.
+        setEmployeeProfile(profile);
+        const { error: portalError } = await signInToEmployeePortal();
+        if (portalError) {
+          clearEmployeeProfile();
+          console.error(`[auth] signInToEmployeePortal failed for ${EMPLOYEE_PORTAL_EMAIL}:`, portalError.message);
+          // signInToEmployeePortal() itself detects the one specific,
+          // known, benign cause (supabaseConfig.js's password still
+          // being the shipped placeholder — see its own comment) and
+          // returns a message naming exactly that; safe to show as-is,
+          // since it's a setup instruction, not anything sensitive.
+          // Any *other* failure stays generic on-screen (an employee
+          // shouldn't see internal config/network details) — check the
+          // console line just logged for the real cause.
+          this.view.showError(
+            portalError.code === 'portal_password_unset'
+              ? portalError.message
+              : 'Sign-in succeeded but the app could not connect. Please try again or contact an administrator.'
+          );
+        }
+        // Otherwise onAuthStateChange fires _handleSessionChange for us.
+        return;
+      }
+
+      const { error: adminError } = await signInWithPassword(identifier, password);
+      if (adminError) {
+        // Deliberately generic — same reasoning as before: distinguishing
+        // "wrong password" from "unknown login" from "not an employee,
+        // try the other path" makes it easier to enumerate valid logins.
+        this.view.showError('Incorrect email/login account or password.');
+      }
+      // Otherwise onAuthStateChange fires _handleSessionChange for us.
     } finally {
       this.view.setLoading(false);
     }

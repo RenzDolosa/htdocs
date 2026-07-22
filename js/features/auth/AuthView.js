@@ -1,39 +1,31 @@
-import { el } from '../../utils/dom.js';
-
 /**
- * AuthView owns the full-page login screen markup (already present in
- * index.html as #authScreen — this class just wires it up, the same
- * division of labor as ManageView/InventoryAssetView for their panels).
+ * AuthView owns the full-page login screen markup (#authScreen in
+ * index.html). One unified sign-in form now, not the old three-tab
+ * admin/employee/sign-up split — every account has equal access once
+ * signed in (see js/core/CurrentUser.js's removal / AuthController's own
+ * note), so there's nothing left for the person to have to pick between.
+ * AuthController tries both underlying sign-in mechanisms for them (see
+ * its _handleSubmit) — whichever one matches their credentials, matches.
  *
- * Three modes, matching the (up to) three tabs:
- *   - 'admin'    — supabase.auth.signInWithPassword. Default tab.
- *   - 'employee' — SQL-only login (see js/core/Auth.js verifyEmployeeLogin
- *     + signInToEmployeePortal) — no Supabase Auth call, no email, no
- *     rate limit, however many employee accounts exist.
- *   - 'sign-up'  — creates the first (and only ever, by design — see
- *     AuthController) real administrator. Its tab is hidden entirely
- *     once one already exists (AuthController.setSignUpAvailable), not
- *     just disabled — there is deliberately no way back to it from the
- *     UI after that point.
- *
- * 'admin' and 'employee' are similar enough (one identifier + one
- * password) to share the same two input fields rather than duplicating
- * them per mode — only the identifier field's label/type and the
- * username field's visibility change between modes.
+ * There's still a second, secondary mode: 'sign-up', which creates the
+ * one bootstrap administrator account (see AuthController). It's reached
+ * via a small toggle link, not a tab, and that link is hidden outright
+ * (AuthController.setSignUpAvailable) once an administrator already
+ * exists — same reasoning as before, just no longer framed as one of a
+ * set of equally-weighted tabs.
  */
 export class AuthView {
   constructor(refs) {
     this.refs = refs;
-    this.mode = 'admin';
+    this.mode = 'sign-in';
     this._applyMode();
 
-    this.refs.adminTab.addEventListener('click', () => this.setMode('admin'));
-    this.refs.employeeTab.addEventListener('click', () => this.setMode('employee'));
-    this.refs.signUpTab.addEventListener('click', () => this.setMode('sign-up'));
+    this.refs.signUpToggle?.addEventListener('click', () => {
+      this.setMode(this.mode === 'sign-up' ? 'sign-in' : 'sign-up');
+    });
 
     // Same reveal-toggle pattern as ManageForm's #gPassword field (see
-    // css/modal.css .password-field / .password-toggle) — one input/button
-    // pair shared by every mode, since it's the same field.
+    // css/modal.css .password-field / .password-toggle).
     this.refs.passwordToggle?.addEventListener('click', (e) => {
       const input = this.refs.passwordInput;
       const showing = input.type === 'text';
@@ -50,40 +42,36 @@ export class AuthView {
 
   /**
    * Called once at startup (AuthController.init, before the screen is
-   * ever shown) once adminAccountExists() resolves. Hiding the tab
+   * ever shown) once adminAccountExists() resolves. Hiding the link
    * outright — not just disabling it — is deliberate: there's no
    * legitimate reason to keep it discoverable once the one bootstrap
-   * administrator exists, per this feature's whole premise (see
-   * supabase/schema.sql's admin_account_exists() comment).
+   * administrator exists (see supabase/schema.sql's
+   * admin_account_exists() comment).
    */
   setSignUpAvailable(available) {
-    this.refs.signUpTab.hidden = !available;
-    if (!available && this.mode === 'sign-up') this.setMode('admin');
+    this.refs.signUpToggle.hidden = !available;
+    if (!available && this.mode === 'sign-up') this.setMode('sign-in');
   }
 
   _applyMode() {
     const isSignUp = this.mode === 'sign-up';
-    const isEmployee = this.mode === 'employee';
-
-    this.refs.adminTab.classList.toggle('is-active', this.mode === 'admin');
-    this.refs.employeeTab.classList.toggle('is-active', isEmployee);
-    this.refs.signUpTab.classList.toggle('is-active', isSignUp);
 
     // Username only makes sense while creating a brand new administrator
-    // (it becomes the display name) — neither sign-in mode needs it, so
-    // hide the whole field rather than just leaving it optional.
+    // (it becomes the display name) — sign-in never needs it.
     if (this.refs.usernameField) this.refs.usernameField.hidden = !isSignUp;
     if (this.refs.usernameInput) this.refs.usernameInput.required = isSignUp;
 
-    this.refs.identifierLabel.textContent = isEmployee ? 'Login account' : 'Email';
-    this.refs.identifierInput.type = isEmployee ? 'text' : 'email';
-    this.refs.identifierInput.placeholder = isEmployee ? 'e.g. maria@company.com' : 'you@company.com';
-    this.refs.identifierInput.autocomplete = isSignUp ? 'email' : (isEmployee ? 'username' : 'email');
+    this.refs.identifierInput.autocomplete = isSignUp ? 'email' : 'username';
+    this.refs.submitBtn.textContent = isSignUp ? 'Create account' : 'Sign in';
 
-    const label = isSignUp ? 'Create account' : 'Sign in';
-    this.refs.submitBtn.textContent = label;
-    this.refs.switchHint.hidden = !isSignUp;
-    this.refs.switchHint.textContent = 'Already have an account?';
+    if (this.refs.sub) {
+      this.refs.sub.textContent = isSignUp
+        ? 'Create the administrator account — one-time setup.'
+        : "Sign in to manage your warehouse's assets.";
+    }
+    if (this.refs.signUpToggle) {
+      this.refs.signUpToggle.textContent = isSignUp ? 'Back to sign in' : 'Set up the administrator account';
+    }
   }
 
   getFormData() {

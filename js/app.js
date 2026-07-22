@@ -452,20 +452,18 @@ async function startApp(session) {
   document.getElementById('appShell').hidden = false;
 }
 
-/** Refs for the login screen (see #authScreen in index.html) — three tabs
- * (admin / employee / sign-up), one shared identifier+password form. */
+/** Refs for the login screen (see #authScreen in index.html) — one unified
+ * sign-in form (auto-detects employee vs administrator), plus a secondary
+ * sign-up toggle for the one-time administrator bootstrap. */
 function collectAuthRefs() {
   return {
     screen: document.getElementById('authScreen'),
-    adminTab: document.getElementById('authAdminTab'),
-    employeeTab: document.getElementById('authEmployeeTab'),
-    signUpTab: document.getElementById('authSignUpTab'),
-    switchHint: document.getElementById('authSwitchHint'),
+    sub: document.getElementById('authSub'),
+    signUpToggle: document.getElementById('authSignUpToggle'),
     errorBox: document.getElementById('authError'),
     form: document.getElementById('authForm'),
     usernameField: document.getElementById('authUsernameField'),
     usernameInput: document.getElementById('authUsername'),
-    identifierLabel: document.getElementById('authIdentifierLabel'),
     identifierInput: document.getElementById('authIdentifier'),
     passwordInput: document.getElementById('authPassword'),
     passwordToggle: document.getElementById('authPasswordToggle'),
