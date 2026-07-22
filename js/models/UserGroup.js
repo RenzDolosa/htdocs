@@ -14,8 +14,47 @@ import { generateId } from '../utils/id.js';
  */
 export const PERMISSION_TREE = [
   { key: 'home', label: 'Home Page' },
-  { key: 'manage', label: 'Manage' },
-  { key: 'inventory-assets', label: 'Inventory Assets' },
+  {
+    key: 'manage', label: 'Manage', children: [
+      { key: 'manage.add', label: 'Add Manage' },
+      { key: 'manage.import', label: 'Import' },
+      { key: 'manage.adjust-position', label: 'Adjust Position' },
+      { key: 'manage.preview-manifest', label: 'Preview Manifest' },
+      { key: 'manage.delete-selected', label: 'Delete selected' },
+      { key: 'manage.clear-all', label: 'Clear all data' },
+      {
+        key: 'manage.edit', label: 'Edit', children: [
+          { key: 'manage.edit.category', label: 'Category' },
+          { key: 'manage.edit.serial-number', label: 'Serial number' },
+          { key: 'manage.edit.mac-address', label: 'MAC address' },
+          { key: 'manage.edit.asset-tag-default', label: 'Asset tag (default)' },
+          { key: 'manage.edit.merchant', label: 'Merchant' },
+          { key: 'manage.edit.remarks', label: 'Remarks' }
+        ]
+      },
+      { key: 'manage.view-log', label: 'View log' },
+      { key: 'manage.delete', label: 'Delete' }
+    ]
+  },
+  {
+    key: 'inventory-assets', label: 'Inventory Assets', children: [
+      { key: 'inventory-assets.add', label: 'Add Asset' },
+      { key: 'inventory-assets.import', label: 'Import' },
+      { key: 'inventory-assets.delete-selected', label: 'Delete selected' },
+      { key: 'inventory-assets.clear-all', label: 'Clear all data' },
+      {
+        key: 'inventory-assets.edit', label: 'Edit', children: [
+          { key: 'inventory-assets.edit.category', label: 'Category' },
+          { key: 'inventory-assets.edit.serial-number', label: 'Serial number' },
+          { key: 'inventory-assets.edit.asset-tag', label: 'Asset tag' },
+          { key: 'inventory-assets.edit.mac-address', label: 'MAC address' },
+          { key: 'inventory-assets.edit.imei1', label: 'IMEI 1' },
+          { key: 'inventory-assets.edit.imei2', label: 'IMEI 2' }
+        ]
+      },
+      { key: 'inventory-assets.delete', label: 'Delete' }
+    ]
+  },
   { key: 'reports', label: 'Reports' },
   {
     key: 'settings', label: 'Settings', children: [

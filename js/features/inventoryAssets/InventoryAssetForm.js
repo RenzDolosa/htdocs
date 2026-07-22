@@ -28,8 +28,9 @@ function fromDateInputValue(value) {
  *
  * @param {object} [asset] - existing InventoryAsset to prefill, or omit for a blank form.
  * @param {string[]} [categoryOptions] - known categories, offered via <datalist>.
+ * @param {string[]} [lockedFields] - field `name`s to render disabled (grayed out, unfocusable, current value shown but not editable). Driven by InventoryAssetController from the signed-in group's Inventory Assets → Edit field permissions (see models/UserGroup.js's PERMISSION_TREE) when editing an existing asset; left empty for Add.
  */
-export function buildInventoryAssetForm(asset = null, categoryOptions = []) {
+export function buildInventoryAssetForm(asset = null, categoryOptions = [], lockedFields = []) {
   const node = el(`
     <form class="gadget-form" novalidate>
       <div class="field">
@@ -86,6 +87,13 @@ export function buildInventoryAssetForm(asset = null, categoryOptions = []) {
     node.querySelector('#iaMac').value = asset.macAddress;
     node.querySelector('#iaImei2').value = asset.imei2;
   }
+
+  lockedFields.forEach((name) => {
+    const input = node.querySelector(`[name="${name}"]`);
+    if (!input) return;
+    input.disabled = true;
+    input.title = 'You do not have permission to change this field.';
+  });
 
   function getData() {
     return {

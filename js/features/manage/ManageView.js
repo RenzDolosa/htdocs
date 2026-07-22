@@ -52,7 +52,8 @@ export class ManageView {
     selectEl._selectField?.sync();
   }
 
-  renderTable(pageGadgets, selectedIds, handlers, duplicateSerials = new Set(), catalogIssuesById = new Map(), { isAdmin = true } = {}) {
+  renderTable(pageGadgets, selectedIds, handlers, duplicateSerials = new Set(), catalogIssuesById = new Map(), perms = {}) {
+    const { canEdit = true, canViewLog = true, canDelete = true } = perms;
     if (pageGadgets.length === 0) {
       this.refs.tableBody.innerHTML = '';
       this.refs.emptyState.style.display = 'block';
@@ -61,17 +62,16 @@ export class ManageView {
     }
     this.refs.emptyState.style.display = 'none';
 
-    this.refs.tableBody.innerHTML = pageGadgets.map((g, index) => this._rowHTML(g, index, selectedIds.has(g.id), duplicateSerials, catalogIssuesById.get(g.id), isAdmin)).join('');
+    this.refs.tableBody.innerHTML = pageGadgets.map((g, index) => this._rowHTML(g, index, selectedIds.has(g.id), duplicateSerials, catalogIssuesById.get(g.id), { canEdit, canViewLog, canDelete })).join('');
 
     qsa('tr[data-id]', this.refs.tableBody).forEach((row) => {
       const id = row.getAttribute('data-id');
-      row.querySelector('[data-action="edit"]').addEventListener('click', () => handlers.onEdit(id));
-      row.querySelector('[data-action="log"]').addEventListener('click', () => handlers.onViewLog(id));
-      // Deleting is administrator-only — the button itself is rendered
-      // disabled below (see _rowHTML), but skip wiring the handler too
-      // rather than rely solely on browsers not firing click on a
-      // disabled button.
-      if (isAdmin) row.querySelector('[data-action="delete"]').addEventListener('click', () => handlers.onDelete(id));
+      // Each action button is rendered disabled below when its permission
+      // is denied (see _rowHTML) — skip wiring the handler too rather
+      // than rely solely on browsers not firing click on a disabled button.
+      if (canEdit) row.querySelector('[data-action="edit"]').addEventListener('click', () => handlers.onEdit(id));
+      if (canViewLog) row.querySelector('[data-action="log"]').addEventListener('click', () => handlers.onViewLog(id));
+      if (canDelete) row.querySelector('[data-action="delete"]').addEventListener('click', () => handlers.onDelete(id));
       row.querySelector('[data-action="select-row"]').addEventListener('change', (e) => handlers.onToggleSelect(id, e.target.checked));
       const toggle = row.querySelector('[data-action="reveal-password"]');
       if (toggle) {
@@ -121,7 +121,8 @@ export class ManageView {
     renderPagination(this.refs, { page, pageSize, totalPages }, handlers);
   }
 
-  _rowHTML(g, index, selected, duplicateSerials = new Set(), catalogIssue = null, isAdmin = true) {
+  _rowHTML(g, index, selected, duplicateSerials = new Set(), catalogIssue = null, perms = {}) {
+    const { canEdit = true, canViewLog = true, canDelete = true } = perms;
     const revealed = this._revealedPasswords.has(g.id);
     const passwordDisplay = g.password
       ? (revealed ? esc(g.password) : '••••••••')
@@ -171,13 +172,13 @@ export class ManageView {
         <td data-label="Updated" class="updated-col"><div><small>${fmtDate(g.updatedAt)}</small></div></td>
         <td data-label="Actions">
           <div class="row-actions">
-            <button tabindex="-1" class="icon-btn" data-action="edit" aria-label="Edit asset" title="Edit">
+            <button tabindex="-1" class="icon-btn" data-action="edit" aria-label="Edit asset" title="${canEdit ? 'Edit' : 'You do not have permission to edit assets.'}" ${canEdit ? '' : 'disabled'}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             </button>
-            <button tabindex="-1" class="icon-btn" data-action="log" aria-label="View history log" title="View log">
+            <button tabindex="-1" class="icon-btn" data-action="log" aria-label="View history log" title="${canViewLog ? 'View log' : 'You do not have permission to view the log.'}" ${canViewLog ? '' : 'disabled'}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
             </button>
-            <button tabindex="-1" class="icon-btn danger" data-action="delete" aria-label="Delete asset" title="${isAdmin ? 'Delete' : 'Only administrators can delete assets.'}" ${isAdmin ? '' : 'disabled'}>
+            <button tabindex="-1" class="icon-btn danger" data-action="delete" aria-label="Delete asset" title="${canDelete ? 'Delete' : 'You do not have permission to delete assets.'}" ${canDelete ? '' : 'disabled'}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
             </button>
           </div>

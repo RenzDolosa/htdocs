@@ -9,6 +9,7 @@ import { processInChunks } from '../../utils/asyncBatch.js';
 import { buildImportProgress } from '../../components/ImportProgress.js';
 import { el } from '../../utils/dom.js';
 import { fmtLocalDateTime, fmtLocalDateStamp } from '../../utils/format.js';
+import { can } from '../../core/Permissions.js';
 
 /** Column order/labels shared by the export template and the importer. */
 const IMPORT_HEADERS = ['Category', 'Serial Number', 'Asset Tag', 'MAC Address', 'IMEI 1', 'IMEI 2'];
@@ -102,7 +103,10 @@ export class InventoryAssetController {
       onDelete: (id) => this.deleteAsset(id),
       onToggleSelect: (id, checked) => this._toggleSelect(id, checked),
       onToggleSelectAll: (checked) => this._toggleSelectAll(pageAssets, checked)
-    }, this._duplicateSerialSet());
+    }, this._duplicateSerialSet(), {
+      canEdit: can('inventory-assets.edit'),
+      canDelete: can('inventory-assets.delete')
+    });
     this.view.renderSortHeaders(this.state.sortBy, this.state.sortDir);
     this.view.renderFooter(
       { totalItems, selectedCount: this.selected.size, page: this.state.page, pageSize: this.state.pageSize, totalPages },
@@ -115,6 +119,7 @@ export class InventoryAssetController {
       }
     );
     this._updateBulkDeleteVisibility();
+    this._applyActionBarPermissions();
   }
 
   _goToPage(page) {
@@ -138,12 +143,33 @@ export class InventoryAssetController {
   }
 
   _updateBulkDeleteVisibility() {
-    const show = this.selected.size > 0;
+    const show = this.selected.size > 0 && can('inventory-assets.delete-selected');
     this.refs.bulkDeleteBtn.style.display = show ? '' : 'none';
     this.refs.bulkDeleteSep.style.display = show ? '' : 'none';
   }
 
+  /** Add/Import/Clear-all are always visible — denied ones stay visible
+   * but disabled, same reasoning as the row-action buttons: it's clear
+   * the option exists, just not to this group. */
+  _applyActionBarPermissions() {
+    const canAdd = can('inventory-assets.add');
+    const canImport = can('inventory-assets.import');
+    const canClear = can('inventory-assets.clear-all');
+
+    // addItemBtn's menu offers both Add and Import (see _openAddOptionsMenu) —
+    // only disable the trigger itself if neither is allowed.
+    this.refs.addItemBtn.disabled = !canAdd && !canImport;
+    this.refs.addItemBtn.title = this.refs.addItemBtn.disabled ? 'You do not have permission to add or import assets.' : '';
+    if (this.refs.emptyAddBtn) {
+      this.refs.emptyAddBtn.disabled = !canAdd;
+      this.refs.emptyAddBtn.title = canAdd ? '' : 'You do not have permission to add assets.';
+    }
+    this.refs.clearAllBtn.disabled = !canClear;
+    this.refs.clearAllBtn.title = canClear ? '' : 'You do not have permission to clear all data.';
+  }
+
   async _deleteSelected() {
+    if (!can('inventory-assets.delete-selected')) return;
     const count = this.selected.size;
     if (count === 0) return;
     const ok = await confirmDialog({
@@ -198,13 +224,11 @@ export class InventoryAssetController {
    * Import — opened from a single shared DropdownMenu so only one menu
    * can ever be open across the whole app at once. */
   _openAddOptionsMenu() {
-    openDropdownMenu({
-      anchor: this.refs.addItemBtn,
-      items: [
-        { label: 'Add Asset', onClick: () => this.openAddModal() },
-        { label: 'Import', onClick: () => this.openImportModal() }
-      ]
-    });
+    const items = [];
+    if (can('inventory-assets.add')) items.push({ label: 'Add Asset', onClick: () => this.openAddModal() });
+    if (can('inventory-assets.import')) items.push({ label: 'Import', onClick: () => this.openImportModal() });
+    if (items.length === 0) return;
+    openDropdownMenu({ anchor: this.refs.addItemBtn, items });
   }
 
   _bindTableHead() {
@@ -224,16 +248,32 @@ export class InventoryAssetController {
 
   // ---------- CRUD orchestration ----------
   openAddModal() {
+    if (!can('inventory-assets.add')) return;
     this._openAssetModal(null);
   }
 
   openEditModal(id) {
+    if (!can('inventory-assets.edit')) return;
     const asset = this.store.get(id);
     if (asset) this._openAssetModal(asset);
   }
 
   _openAssetModal(asset) {
-    const form = buildInventoryAssetForm(asset, this._knownCategories());
+    // Field-level permissions under Inventory Assets → Edit (see
+    // models/UserGroup.js's PERMISSION_TREE) — only apply to an
+    // *existing* asset; adding a brand-new one is unrestricted either way.
+    const fieldPermKeys = {
+      category: 'inventory-assets.edit.category',
+      serialNumber: 'inventory-assets.edit.serial-number',
+      assetTag: 'inventory-assets.edit.asset-tag',
+      macAddress: 'inventory-assets.edit.mac-address',
+      imei1: 'inventory-assets.edit.imei1',
+      imei2: 'inventory-assets.edit.imei2'
+    };
+    const lockedFields = asset
+      ? Object.entries(fieldPermKeys).filter(([, key]) => !can(key)).map(([field]) => field)
+      : [];
+    const form = buildInventoryAssetForm(asset, this._knownCategories(), lockedFields);
 
     const modal = new Modal({
       title: asset ? 'Edit asset' : 'Add asset',
@@ -283,6 +323,7 @@ export class InventoryAssetController {
   }
 
   async deleteAsset(id) {
+    if (!can('inventory-assets.delete')) return;
     const asset = this.store.get(id);
     if (!asset) return;
     const ok = await confirmDialog({
@@ -298,6 +339,7 @@ export class InventoryAssetController {
   }
 
   async clearAll() {
+    if (!can('inventory-assets.clear-all')) return;
     if (this.store.list().length === 0) {
       Toast.show('There is nothing to clear.');
       return;
@@ -336,6 +378,7 @@ export class InventoryAssetController {
    * the file picker that triggers the actual import. Mirrors
    * ManageController.openImportModal() exactly. */
   openImportModal() {
+    if (!can('inventory-assets.import')) return;
     const progress = buildImportProgress();
     const body = el(`
       <div class="import-modal-body">
@@ -376,6 +419,7 @@ export class InventoryAssetController {
   }
 
   _handleImportFile(event) {
+    if (!can('inventory-assets.import')) return;
     const file = event.target.files?.[0];
     // Clear the input immediately so choosing the same filename again
     // still fires a change event next time.

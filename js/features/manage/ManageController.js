@@ -13,6 +13,7 @@ import { processInChunks } from '../../utils/asyncBatch.js';
 import { buildImportProgress } from '../../components/ImportProgress.js';
 import { el, esc } from '../../utils/dom.js';
 import { getOperatorName } from '../../core/Operator.js';
+import { can } from '../../core/Permissions.js';
 import { fmtLocalDateTime, fmtLocalDateStamp } from '../../utils/format.js';
 import { resolveMerchantPlacement } from '../../utils/merchantPlacement.js';
 
@@ -225,7 +226,11 @@ export class ManageController {
       onToggleSelect: (id, checked) => this._toggleSelect(id, checked),
       onToggleSelectAll: (checked) => this._toggleSelectAll(pageGadgets, checked),
       onRerender: () => this.render()
-    }, this._duplicateSerialSet(), this._catalogIssuesById());
+    }, this._duplicateSerialSet(), this._catalogIssuesById(), {
+      canEdit: can('manage.edit'),
+      canViewLog: can('manage.view-log'),
+      canDelete: can('manage.delete')
+    });
     this.view.renderSortHeaders(this.state.sortBy, this.state.sortDir);
     this.view.renderFooter(
       { totalItems, selectedCount: this.selected.size, page: this.state.page, pageSize: this.state.pageSize, totalPages },
@@ -238,6 +243,7 @@ export class ManageController {
       }
     );
     this._updateBulkDeleteVisibility();
+    this._applyActionBarPermissions();
   }
 
   _goToPage(page) {
@@ -286,15 +292,40 @@ export class ManageController {
 
   _updateBulkDeleteVisibility() {
     const show = this.selected.size > 0;
-    this.refs.bulkDeleteBtn.style.display = show ? '' : 'none';
-    this.refs.bulkDeleteSep.style.display = show ? '' : 'none';
-    this.refs.manifestBtn.style.display = show ? '' : 'none';
-    this.refs.manifestSep.style.display = show ? '' : 'none';
-    this.refs.transferItemBtn.style.display = show ? '' : 'none';
-    this.refs.transferItemSep.style.display = show ? '' : 'none';
+    const showDelete = show && can('manage.delete-selected');
+    const showManifest = show && can('manage.preview-manifest');
+    const showAdjust = show && can('manage.adjust-position');
+    this.refs.bulkDeleteBtn.style.display = showDelete ? '' : 'none';
+    this.refs.bulkDeleteSep.style.display = showDelete ? '' : 'none';
+    this.refs.manifestBtn.style.display = showManifest ? '' : 'none';
+    this.refs.manifestSep.style.display = showManifest ? '' : 'none';
+    this.refs.transferItemBtn.style.display = showAdjust ? '' : 'none';
+    this.refs.transferItemSep.style.display = showAdjust ? '' : 'none';
+  }
+
+  /** Add/Import/Clear-all are always visible (unlike the selection-triggered
+   * trio above) — denied ones stay visible but disabled, same reasoning as
+   * the row-action buttons: it's clear the option exists, just not to this
+   * group. */
+  _applyActionBarPermissions() {
+    const canAdd = can('manage.add');
+    const canImport = can('manage.import');
+    const canClear = can('manage.clear-all');
+
+    // addItemBtn's menu offers both Add and Import (see _openAddOptionsMenu) —
+    // only disable the trigger itself if neither is allowed.
+    this.refs.addItemBtn.disabled = !canAdd && !canImport;
+    this.refs.addItemBtn.title = this.refs.addItemBtn.disabled ? 'You do not have permission to add or import assets.' : '';
+    if (this.refs.emptyAddBtn) {
+      this.refs.emptyAddBtn.disabled = !canAdd;
+      this.refs.emptyAddBtn.title = canAdd ? '' : 'You do not have permission to add assets.';
+    }
+    this.refs.clearAllBtn.disabled = !canClear;
+    this.refs.clearAllBtn.title = canClear ? '' : 'You do not have permission to clear all data.';
   }
 
   async _deleteSelected() {
+    if (!can('manage.delete-selected')) return;
     const count = this.selected.size;
     if (count === 0) return;
     const ok = await confirmDialog({
@@ -363,13 +394,11 @@ export class ManageController {
   /** "+ Add asset" now branches into two paths: a manual entry (Add Manage,
    * same modal/logic as before) or a bulk CSV Import. */
   _openAddOptionsMenu() {
-    openDropdownMenu({
-      anchor: this.refs.addItemBtn,
-      items: [
-        { label: 'Add Manage', onClick: () => this.openAddModal() },
-        { label: 'Import', onClick: () => this.openImportModal() }
-      ]
-    });
+    const items = [];
+    if (can('manage.add')) items.push({ label: 'Add Manage', onClick: () => this.openAddModal() });
+    if (can('manage.import')) items.push({ label: 'Import', onClick: () => this.openImportModal() });
+    if (items.length === 0) return;
+    openDropdownMenu({ anchor: this.refs.addItemBtn, items });
   }
 
   _bindTableHead() {
@@ -394,10 +423,12 @@ export class ManageController {
 
   // ---------- CRUD orchestration ----------
   openAddModal() {
+    if (!can('manage.add')) return;
     this._openGadgetModal(null);
   }
 
   openEditModal(id) {
+    if (!can('manage.edit')) return;
     const gadget = this.store.get(id);
     if (gadget) this._openGadgetModal(gadget);
   }
@@ -459,8 +490,21 @@ export class ManageController {
 
   _openGadgetModal(gadget) {
     const inventoryAssets = this.inventoryAssetStore ? this.inventoryAssetStore.list() : [];
-    // Every signed-in account has equal access now — nothing locked.
-    const lockedFields = [];
+    // Field-level permissions under Manage → Edit (see models/UserGroup.js's
+    // PERMISSION_TREE) — only apply to an *existing* asset; adding a
+    // brand-new one is unrestricted either way, since there's nothing yet
+    // for a wrong value to disagree with.
+    const fieldPermKeys = {
+      category: 'manage.edit.category',
+      serialNumber: 'manage.edit.serial-number',
+      macAddress: 'manage.edit.mac-address',
+      assetTagDefault: 'manage.edit.asset-tag-default',
+      merchant: 'manage.edit.merchant',
+      remarks: 'manage.edit.remarks'
+    };
+    const lockedFields = gadget
+      ? Object.entries(fieldPermKeys).filter(([, key]) => !can(key)).map(([field]) => field)
+      : [];
     const form = buildManageForm(gadget, {
       userOptions: this._knownUsers(),
       inventoryAssets,
@@ -629,6 +673,7 @@ export class ManageController {
    * rather than Set insertion order.
    */
   openManifestModal() {
+    if (!can('manage.preview-manifest')) return;
     if (this.selected.size === 0) return;
     const gadgets = this._filteredSortedGadgets().filter((g) => this.selected.has(g.id));
     showManifestModal({ gadgets, store: this.store, locationStore: this.locationStore, warehouseStore: this.warehouseStore });
@@ -642,6 +687,7 @@ export class ManageController {
    * warehouse outright.
    */
   _openAdjustPositionMenu() {
+    if (!can('manage.adjust-position')) return;
     if (this.selected.size === 0) return;
     openDropdownMenu({
       anchor: this.refs.transferItemBtn,
@@ -843,6 +889,7 @@ export class ManageController {
   }
 
   viewLog(id) {
+    if (!can('manage.view-log')) return;
     const gadget = this.store.get(id);
     if (!gadget) return;
     openLogModal({
@@ -852,6 +899,7 @@ export class ManageController {
   }
 
   async deleteGadget(id) {
+    if (!can('manage.delete')) return;
     const gadget = this.store.get(id);
     if (!gadget) return;
     const ok = await confirmDialog({
@@ -867,6 +915,7 @@ export class ManageController {
   }
 
   async clearAll() {
+    if (!can('manage.clear-all')) return;
     if (this.store.list().length === 0) {
       Toast.show('There is nothing to clear.');
       return;
@@ -919,6 +968,7 @@ export class ManageController {
    * export-template download (so the user knows the expected columns) and
    * the file picker that triggers the actual import. */
   openImportModal() {
+    if (!can('manage.import')) return;
     const progress = buildImportProgress();
     const body = el(`
       <div class="import-modal-body">
@@ -959,6 +1009,7 @@ export class ManageController {
   }
 
   _handleImportFile(event) {
+    if (!can('manage.import')) return;
     const file = event.target.files?.[0];
     // Clear the input immediately so choosing the same filename again
     // still fires a change event next time.

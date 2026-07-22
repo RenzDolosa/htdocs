@@ -39,7 +39,7 @@ function distinctOptions(values) {
  * @param {Set<string>} [source.usedSerials] - serial numbers (lowercased, trimmed) already assigned to some other Manage record, excluded from suggestions so the dropdown doesn't offer a serial that would just fail the duplicate-serial check.
  * @param {string[]} [source.locationCodes] - created warehouse location names (e.g. "Samples", "Test Location"), suggested for the Merchant field.
  * @param {(merchant: string) => object} [source.resolvePlacement] - merchantPlacement.resolveMerchantPlacement bound to the app's stores; called on every Merchant keystroke to drive the live preview.
- * @param {string[]} [source.lockedFields] - field `name`s to render disabled (grayed out, unfocusable, current value shown but not editable). Used by ManageController to restrict Category / Serial number / MAC address / Asset tag (default) — the four fields that have to agree with the Inventory Assets catalog — to administrators when editing an existing asset; left empty for Add (anyone can add) and for administrators editing (nothing locked).
+ * @param {string[]} [source.lockedFields] - field `name`s to render disabled (grayed out, unfocusable, current value shown but not editable). Driven by ManageController from the signed-in group's Manage → Edit field permissions (see models/UserGroup.js's PERMISSION_TREE) when editing an existing asset; left empty for Add (unrestricted either way — nothing yet for a wrong value to disagree with) and for anyone with every Edit field permission allowed.
  */
 export function buildManageForm(gadget = null, { userOptions = [], inventoryAssets = [], usedSerials = new Set(), locationCodes = [], resolvePlacement = () => ({ matched: false }), lockedFields = [] } = {}) {
   const node = el(`
@@ -231,7 +231,7 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
     const input = node.querySelector(`[name="${name}"]`);
     if (!input) return;
     input.disabled = true;
-    input.title = 'Only administrators can change this.';
+    input.title = 'You do not have permission to change this field.';
   });
 
   function getData() {
