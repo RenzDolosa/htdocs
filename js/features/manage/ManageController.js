@@ -179,8 +179,8 @@ export class ManageController {
   _catalogIssuesById() {
     const map = new Map();
     this.store.list().forEach((g) => {
-      const issues = this._catalogIssues({ category: g.category, serialNumber: g.serialNumber, assetTagDefault: g.assetTagDefault });
-      if (issues.category || issues.serialNumber || issues.assetTagDefault) {
+      const issues = this._catalogIssues({ category: g.category, serialNumber: g.serialNumber, assetTagDefault: g.assetTagDefault, macAddress: g.macAddress });
+      if (issues.category || issues.serialNumber || issues.assetTagDefault || issues.macAddress) {
         map.set(g.id, issues);
       }
     });
@@ -490,9 +490,21 @@ export class ManageController {
    * given, category and asset tag are each checked independently against
    * whatever values exist anywhere in the catalog.
    */
-  _catalogIssues({ category, serialNumber, assetTagDefault }) {
+  /**
+   * Checks category / serialNumber / assetTagDefault / macAddress against
+   * the Inventory Assets catalog (source of truth). Returns { category,
+   * serialNumber, assetTagDefault, macAddress }, each either null (fine)
+   * or a message describing the mismatch.
+   *
+   * If a serial number is given, the other three must all agree with
+   * THAT SAME catalog record — a real serial can't be paired with a
+   * category, tag, or MAC lifted from a different device. With no serial
+   * given, each is checked independently against whatever values exist
+   * anywhere in the catalog.
+   */
+  _catalogIssues({ category, serialNumber, assetTagDefault, macAddress }) {
     const assets = this.inventoryAssetStore ? this.inventoryAssetStore.list() : [];
-    const issues = { category: null, serialNumber: null, assetTagDefault: null };
+    const issues = { category: null, serialNumber: null, assetTagDefault: null, macAddress: null };
     const serial = (serialNumber || '').trim();
 
     if (serial) {
@@ -501,6 +513,7 @@ export class ManageController {
         issues.serialNumber = 'This serial number was not found in Inventory Assets.';
         if (category) issues.category = 'Can\'t verify category — this serial number isn\'t in Inventory Assets.';
         if (assetTagDefault) issues.assetTagDefault = 'Can\'t verify asset tag — this serial number isn\'t in Inventory Assets.';
+        if (macAddress) issues.macAddress = 'Can\'t verify MAC address — this serial number isn\'t in Inventory Assets.';
       } else {
         if (category && match.category !== category) {
           issues.category = `Inventory Assets lists this serial under "${match.category}", not "${category}".`;
@@ -510,6 +523,11 @@ export class ManageController {
             ? `Inventory Assets lists this serial's tag as "${match.assetTag}", not "${assetTagDefault}".`
             : 'Inventory Assets has no asset tag on file for this serial number.';
         }
+        if (macAddress && (match.macAddress || '').toLowerCase() !== macAddress.toLowerCase()) {
+          issues.macAddress = match.macAddress
+            ? `Inventory Assets lists this serial's MAC address as "${match.macAddress}", not "${macAddress}".`
+            : 'Inventory Assets has no MAC address on file for this serial number.';
+        }
       }
     } else {
       if (category && !assets.some((a) => a.category === category)) {
@@ -518,15 +536,18 @@ export class ManageController {
       if (assetTagDefault && !assets.some((a) => a.assetTag === assetTagDefault)) {
         issues.assetTagDefault = 'This asset tag does not exist in Inventory Assets.';
       }
+      if (macAddress && !assets.some((a) => (a.macAddress || '').toLowerCase() === macAddress.toLowerCase())) {
+        issues.macAddress = 'This MAC address does not exist in Inventory Assets.';
+      }
     }
 
     return issues;
   }
 
-  /** True if any of category/serialNumber/assetTagDefault fails catalog validation. */
+  /** True if any of category/serialNumber/assetTagDefault/macAddress fails catalog validation. */
   _hasCatalogIssue(fields) {
     const issues = this._catalogIssues(fields);
-    return Boolean(issues.category || issues.serialNumber || issues.assetTagDefault);
+    return Boolean(issues.category || issues.serialNumber || issues.assetTagDefault || issues.macAddress);
   }
 
   _openGadgetModal(gadget) {
@@ -568,13 +589,14 @@ export class ManageController {
             const existingGadgets = this.store.list().filter((g) => !gadget || g.id !== gadget.id);
             const { valid, errors } = Gadget.validate(raw, { existingGadgets });
             const catalogIssues = this._catalogIssues(raw);
-            const hasCatalogIssue = Boolean(catalogIssues.category || catalogIssues.serialNumber || catalogIssues.assetTagDefault);
+            const hasCatalogIssue = Boolean(catalogIssues.category || catalogIssues.serialNumber || catalogIssues.assetTagDefault || catalogIssues.macAddress);
             if (!valid || hasCatalogIssue) {
               form.showErrors({
                 ...errors,
                 ...(catalogIssues.category ? { category: catalogIssues.category } : {}),
                 ...(catalogIssues.serialNumber ? { serialNumber: catalogIssues.serialNumber } : {}),
-                ...(catalogIssues.assetTagDefault ? { assetTagDefault: catalogIssues.assetTagDefault } : {})
+                ...(catalogIssues.assetTagDefault ? { assetTagDefault: catalogIssues.assetTagDefault } : {}),
+                ...(catalogIssues.macAddress ? { macAddress: catalogIssues.macAddress } : {})
               });
               return;
             }
@@ -1139,7 +1161,8 @@ export class ManageController {
 
       const category = pick(cells, 'category') || 'Uncategorized';
       const assetTagDefault = pick(cells, 'assetTagDefault');
-      if (this._hasCatalogIssue({ category, serialNumber, assetTagDefault })) {
+      const macAddress = pick(cells, 'macAddress');
+      if (this._hasCatalogIssue({ category, serialNumber, assetTagDefault, macAddress })) {
         skippedInvalidCatalog++;
         return;
       }

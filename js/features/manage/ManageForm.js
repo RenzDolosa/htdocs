@@ -73,6 +73,7 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
           <label for="gMac">MAC address</label>
           <input type="text" id="gMac" name="macAddress" list="gadgetMacOptions" placeholder="e.g. 3C:22:FB:AA:11:02">
           <datalist id="gadgetMacOptions"></datalist>
+          <div class="field-error" data-error-for="macAddress"></div>
         </div>
       </div>
       <div class="field-row">
