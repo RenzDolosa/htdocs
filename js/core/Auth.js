@@ -221,7 +221,7 @@ export async function adminAccountExists() {
  * supabase/schema.sql's verify_employee_login — pgcrypto crypt(), never
  * touches Supabase Auth, so this never counts against the email rate
  * limit no matter how many employees exist). Returns the matching
- * user_accounts row (id/username/userGroup/mail only — never a hash) on
+ * user_accounts row (id/username/userGroupId/mail only — never a hash) on
  * success, or null on any failure: wrong password, unknown login,
  * disabled account, or an employee row with no password set yet. Those
  * are deliberately indistinguishable here for the same reason Supabase

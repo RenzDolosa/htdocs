@@ -14,10 +14,10 @@ import { getOperatorName } from '../../core/Operator.js';
  * architecture split as UserAccountController — this owns filter/
  * pagination state and Store calls, UserGroupView owns rendering.
  *
- * UserAccount.userGroup stays a plain free-text field (no schema change
- * there) — a user "belongs" to a group purely by that string matching a
- * UserGroup's name. _boundUsernames() is what resolves that match for the
- * grid's "Bound user" column; nothing here writes back to userAccountStore.
+ * UserAccount.userGroupId is a real foreign key into this store now (see
+ * supabase/schema.sql) — a user "belongs" to a group by that id, not by
+ * name comparison. _boundUsernames() resolves it for the grid's "Bound
+ * user" column; nothing here writes back to userAccountStore.
  *
  * `warehouseStore` is read-only here too, same as ManageController's
  * reference to it — it's the option list for the add/edit modal's Bind
@@ -69,10 +69,10 @@ export class UserGroupController {
     }).sort((a, b) => b.createdAt - a.createdAt);
   }
 
-  /** Usernames of every UserAccount whose free-text userGroup matches this group's name (trimmed, case-sensitive — same as how the User form stores it verbatim). */
+  /** Usernames of every UserAccount whose userGroupId points at this group — a real FK match now, not a name comparison that would silently break on rename. */
   _boundUsernames(group) {
     return this.userAccountStore.list()
-      .filter((u) => (u.userGroup || '').trim() === group.name.trim())
+      .filter((u) => u.userGroupId === group.id)
       .map((u) => u.username);
   }
 

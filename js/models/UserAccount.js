@@ -15,7 +15,12 @@ export class UserAccount {
     this.userNumber = data.userNumber || String(10000000 + Math.floor(Math.random() * 89999999));
     this.username = data.username || '';
     this.loginAccount = data.loginAccount || '';
-    this.userGroup = data.userGroup || '';
+    // A real foreign key into UserGroup now (supabase/schema.sql's
+    // user_accounts.userGroupId, references user_groups.id) — this used
+    // to be a free-text group *name*, matched by string comparison
+    // everywhere it was read. That broke silently the moment a group got
+    // renamed; this doesn't.
+    this.userGroupId = data.userGroupId || null;
     this.mail = data.mail || '';
     this.phoneNumber = data.phoneNumber || '';
     this.enabled = data.enabled !== false;

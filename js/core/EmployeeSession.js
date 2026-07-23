@@ -7,7 +7,7 @@
  * *same value for every employee* and useless for "who is this really".
  *
  * This module is the answer to that: the real employee's directory row
- * (id, username, userGroup, mail — exactly what verify_employee_login()
+ * (id, username, userGroupId, mail — exactly what verify_employee_login()
  * returns, never a password or hash) gets stashed here right after that
  * RPC succeeds, and read back by AuthController on every subsequent
  * session-change (including page reloads, where Supabase silently
@@ -33,7 +33,7 @@ export function setEmployeeProfile(profile) {
   }
 }
 
-/** @returns {{id: string, username: string, userGroup: string, mail: string}|null} */
+/** @returns {{id: string, username: string, userGroupId: string|null, mail: string}|null} */
 export function getEmployeeProfile() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);

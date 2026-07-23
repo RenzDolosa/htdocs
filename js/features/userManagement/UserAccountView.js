@@ -29,7 +29,7 @@ export class UserAccountView {
         <td data-label="User Number"><div>${esc(u.userNumber)}</div></td>
         <td data-label="Username"><div class="um-username-cell">${esc(u.username)}${u.authUserId ? ' <span class="pill pill-linked" title="Real Supabase Auth account — can sign in">Linked</span>' : ''}</div></td>
         <td data-label="Login Account"><div>${esc(u.loginAccount)}</div></td>
-        <td data-label="User Group"><div>${esc(u.userGroup) || '<span class="muted">—</span>'}</div></td>
+        <td data-label="User Group"><div>${esc(u.userGroupName) || '<span class="muted">—</span>'}</div></td>
         <td data-label="Mail"><div>${esc(u.mail) || '<span class="muted">—</span>'}</div></td>
         <td data-label="Phone Number"><div>${esc(u.phoneNumber) || '<span class="muted">—</span>'}</div></td>
         <td data-label="Enable"><div><input type="checkbox" tabindex="-1" class="um-enable-toggle" ${u.enabled ? 'checked' : ''}></div></td>

@@ -41,13 +41,13 @@ values
   ('asset-seed-4', 'Tablet',           'SN-19087K', 'IPAD-2201', '',                  '',            '',           (extract(epoch from now()) * 1000)::bigint - 5*86400000)
 on conflict (id) do nothing;
 
-insert into public.user_accounts (id, "userNumber", username, "loginAccount", "userGroup", mail, "phoneNumber", enabled, "createdAt", "updatedAt", "lastLoginAt")
+insert into public.user_accounts (id, "userNumber", username, "loginAccount", mail, "phoneNumber", enabled, "createdAt", "updatedAt", "lastLoginAt")
 values
-  ('usr-seed-1', '10023841', 'Maria Santos',   'maria.santos@inspi.com.ph',   'Warehouse Associate', 'maria.santos@inspi.com.ph',   '09171234567', true,  (extract(epoch from now()) * 1000)::bigint - 400*86400000, (extract(epoch from now()) * 1000)::bigint - 12*86400000, (extract(epoch from now()) * 1000)::bigint - 1*86400000),
-  ('usr-seed-2', '10045210', 'Jun Dela Cruz',  'jun.delacruz@inspi.com.ph',   'Forklift Operator',   'jun.delacruz@inspi.com.ph',   '09189876543', true,  (extract(epoch from now()) * 1000)::bigint - 300*86400000, (extract(epoch from now()) * 1000)::bigint - 40*86400000, (extract(epoch from now()) * 1000)::bigint - 5*86400000),
-  ('usr-seed-3', '10067732', 'Liza Bautista',  'liza.bautista@inspi.com.ph',  'Inventory Clerk',     '',                            '',            false, (extract(epoch from now()) * 1000)::bigint - 200*86400000, (extract(epoch from now()) * 1000)::bigint - 200*86400000, null),
-  ('usr-seed-4', '10088456', 'Rico Fernandez', 'rico.fernandez@inspi.com.ph', 'Site Supervisor',     'rico.fernandez@inspi.com.ph','09201112233', true,  (extract(epoch from now()) * 1000)::bigint - 90*86400000,  (extract(epoch from now()) * 1000)::bigint - 2*86400000,  (extract(epoch from now()) * 1000)::bigint - 2*86400000),
-  ('usr-seed-5', '10091023', 'Company Admin',  'admin@inspi.com.ph',          'Admin',               'admin@inspi.com.ph',          '09175132562', true,  (extract(epoch from now()) * 1000)::bigint - 500*86400000, (extract(epoch from now()) * 1000)::bigint - 1*86400000,  (extract(epoch from now()) * 1000)::bigint)
+  ('usr-seed-1', '10023841', 'Maria Santos',   'maria.santos@inspi.com.ph',   'maria.santos@inspi.com.ph',   '09171234567', true,  (extract(epoch from now()) * 1000)::bigint - 400*86400000, (extract(epoch from now()) * 1000)::bigint - 12*86400000, (extract(epoch from now()) * 1000)::bigint - 1*86400000),
+  ('usr-seed-2', '10045210', 'Jun Dela Cruz',  'jun.delacruz@inspi.com.ph',   'jun.delacruz@inspi.com.ph',   '09189876543', true,  (extract(epoch from now()) * 1000)::bigint - 300*86400000, (extract(epoch from now()) * 1000)::bigint - 40*86400000, (extract(epoch from now()) * 1000)::bigint - 5*86400000),
+  ('usr-seed-3', '10067732', 'Liza Bautista',  'liza.bautista@inspi.com.ph',  '',                            '',            false, (extract(epoch from now()) * 1000)::bigint - 200*86400000, (extract(epoch from now()) * 1000)::bigint - 200*86400000, null),
+  ('usr-seed-4', '10088456', 'Rico Fernandez', 'rico.fernandez@inspi.com.ph', 'rico.fernandez@inspi.com.ph','09201112233', true,  (extract(epoch from now()) * 1000)::bigint - 90*86400000,  (extract(epoch from now()) * 1000)::bigint - 2*86400000,  (extract(epoch from now()) * 1000)::bigint - 2*86400000),
+  ('usr-seed-5', '10091023', 'Company Admin',  'admin@inspi.com.ph',          'admin@inspi.com.ph',          '09175132562', true,  (extract(epoch from now()) * 1000)::bigint - 500*86400000, (extract(epoch from now()) * 1000)::bigint - 1*86400000,  (extract(epoch from now()) * 1000)::bigint)
 on conflict (id) do nothing;
 
 -- user_groups deliberately left empty — the original app didn't seed it either.

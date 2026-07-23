@@ -15,7 +15,7 @@ import { ReportsController } from './features/reports/ReportsController.js';
 import { ReportsView } from './features/reports/ReportsView.js';
 import { UserAccount } from './models/UserAccount.js';
 import { UserAccountView } from './features/userManagement/UserAccountView.js';
-import { UserAccountController } from './features/auth/UserAccountController.js';
+import { UserAccountController } from './features/userManagement/UserAccountController.js';
 import { UserGroup } from './models/UserGroup.js';
 import { UserGroupView } from './features/userManagement/UserGroupView.js';
 import { UserGroupController } from './features/userManagement/UserGroupController.js';
@@ -466,16 +466,15 @@ function bindChangePasswordPanel(session) {
  */
 function applyCurrentUserPermissions(session, userAccountStore, userGroupStore) {
   const isEmployeePortalSession = (session.user?.email || '').toLowerCase() === EMPLOYEE_PORTAL_EMAIL.toLowerCase();
-  const groupName = isEmployeePortalSession
-    ? getEmployeeProfile()?.userGroup
-    : userAccountStore.list().find((u) => u.authUserId === session.user.id)?.userGroup;
+  const groupId = isEmployeePortalSession
+    ? getEmployeeProfile()?.userGroupId
+    : userAccountStore.list().find((u) => u.authUserId === session.user.id)?.userGroupId;
 
-  const group = groupName
-    ? userGroupStore.list().find((g) => g.enabled && g.name.trim().toLowerCase() === groupName.trim().toLowerCase())
-    : null;
+  const group = groupId ? userGroupStore.get(groupId) : null;
+  const resolvedGroup = group?.enabled ? group : null;
 
-  setPermissions(group ? group.permissions : null);
-  setBoundWarehouseIds(group ? group.boundWarehouseIds : null);
+  setPermissions(resolvedGroup ? resolvedGroup.permissions : null);
+  setBoundWarehouseIds(resolvedGroup ? resolvedGroup.boundWarehouseIds : null);
 }
 
 async function startApp(session) {

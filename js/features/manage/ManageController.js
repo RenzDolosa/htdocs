@@ -611,6 +611,14 @@ export class ManageController {
   }
 
   _saveGadget(existingGadget, raw) {
+    const inventoryAssets = this.inventoryAssetStore ? this.inventoryAssetStore.list() : [];
+    const serial = (raw.serialNumber || '').trim();
+    // Same match _catalogIssues() already validates against — this just
+    // additionally *persists* it as a real foreign key (see
+    // models/Gadget.js's inventoryAssetId) instead of only ever
+    // re-deriving the relationship at validation/render time.
+    const matchedAsset = serial ? inventoryAssets.find((a) => (a.serialNumber || '').trim() === serial) : null;
+
     const payload = {
       user: raw.user,
       role: raw.role,
@@ -622,7 +630,8 @@ export class ManageController {
       password: raw.password,
       merchant: raw.merchant,
       remarks: raw.remarks,
-      description: raw.description
+      description: raw.description,
+      inventoryAssetId: matchedAsset ? matchedAsset.id : null
     };
 
     // Merchant is the key for Position Type / Warehouse / Owner (see
@@ -1169,6 +1178,13 @@ export class ManageController {
 
       if (serialKey) seenSerials.add(serialKey);
 
+      // Guaranteed to exist — _hasCatalogIssue above already confirmed
+      // this exact serial number matches a catalog row, so this is just
+      // grabbing that same row's id to persist as the real foreign key
+      // (see models/Gadget.js's inventoryAssetId), not a second lookup
+      // that could plausibly come back empty.
+      const matchedAsset = this.inventoryAssetStore?.list().find((a) => (a.serialNumber || '').trim() === serialNumber);
+
       // Merchant is the key: if it matches a created warehouse location,
       // Position Type / Warehouse / Owner are derived from that location
       // rather than trusted from the file. An imported Owner column is
@@ -1190,7 +1206,8 @@ export class ManageController {
         positionType: placement.matched ? placement.positionType : '',
         warehouse: placement.matched ? placement.warehouse : '',
         remarks: pick(cells, 'remarks'),
-        description: pick(cells, 'description')
+        description: pick(cells, 'description'),
+        inventoryAssetId: matchedAsset ? matchedAsset.id : null
       });
       gadget.addLogEntry('Asset added via CSV import.', 'create', null, getOperatorName());
       this.store.create(gadget);

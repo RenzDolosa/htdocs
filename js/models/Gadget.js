@@ -45,6 +45,14 @@ export class Gadget {
     this.positionType = data.positionType || '';
     this.warehouse = data.warehouse || '';
     this.temporaryPosition = data.temporaryPosition || '';
+    // The catalog row (Inventory Assets) this gadget's serial number
+    // actually matches, if any — see ManageController._catalogIssues()
+    // for the matching logic and models/Gadget.js's own history for why
+    // this wasn't a real relationship until now. null, not '', because
+    // this is a real foreign key reference (public.gadgets."inventoryAssetId"
+    // → public.inventory_assets.id in supabase/schema.sql), not a
+    // free-text field like the others above.
+    this.inventoryAssetId = data.inventoryAssetId || null;
     this.createdAt = data.createdAt || Date.now();
     this.updatedAt = data.updatedAt || Date.now();
     this.history = Array.isArray(data.history) ? data.history : [];

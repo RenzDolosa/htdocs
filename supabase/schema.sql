@@ -142,6 +142,31 @@ create table if not exists public.inventory_assets (
 
 create index if not exists inventory_assets_serial_idx on public.inventory_assets ("serialNumber");
 
+-- A real foreign key from gadgets to its Inventory Assets catalog match,
+-- alongside (not instead of) ManageController's existing text-matching
+-- validation (_catalogIssues) — that logic still runs at save time and
+-- still allows a gadget with no catalog match to exist (hence `on delete
+-- set null` below, not `not null`); this column is what makes the
+-- relationship a real one Postgres knows about too, not just something
+-- re-derived by string comparison on every render. Placed here (after
+-- inventory_assets exists), not inline in the gadgets table above,
+-- because it references this table — `add column if not exists` is what
+-- actually lands it on the *existing* live database; a fresh install
+-- just gets it in one pass same as any other column.
+alter table public.gadgets add column if not exists "inventoryAssetId" text references public.inventory_assets(id) on delete set null;
+create index if not exists gadgets_inventory_asset_id_idx on public.gadgets ("inventoryAssetId");
+
+-- One-time backfill for rows that predate this column: link any existing
+-- gadget to its catalog match by the same rule the app already applies
+-- (exact, trimmed serial number match). Safe to re-run — only touches
+-- rows whose link is missing or out of date.
+update public.gadgets g
+set "inventoryAssetId" = ia.id
+from public.inventory_assets ia
+where trim(g."serialNumber") <> ''
+  and trim(g."serialNumber") = trim(ia."serialNumber")
+  and g."inventoryAssetId" is distinct from ia.id;
+
 -- ----------------------------------------------------------------------------
 -- user_accounts  (Settings → User management → User)
 -- ----------------------------------------------------------------------------
@@ -150,7 +175,6 @@ create table if not exists public.user_accounts (
   "userNumber"    text,
   username        text not null,
   "loginAccount"  text not null,
-  "userGroup"     text default '',
   mail            text default '',
   "phoneNumber"   text default '',
   enabled         boolean default true,
@@ -377,18 +401,26 @@ grant execute on function public.admin_account_exists() to anon;
 -- credentials" — specific failure reasons make account enumeration easier.
 -- anon-callable (grant below): this *is* the login step, so it has to work
 -- before any session exists.
+-- CREATE OR REPLACE can't change a function's return column list, which
+-- this one does (userGroup -> userGroupId, as part of the userGroupId
+-- foreign-key migration above) — has to be dropped first, or re-running
+-- this file errors with "cannot change return type of existing function".
+drop function if exists public.verify_employee_login(text, text);
 create or replace function public.verify_employee_login(p_login_account text, p_password text)
-returns table (id text, username text, "userGroup" text, mail text)
-language sql
+returns table (id text, username text, "userGroupId" text, mail text)
+language plpgsql
 security definer
 set search_path = public, extensions
 as $$
-  select ua.id, ua.username, ua."userGroup", ua.mail
+begin
+  return query
+  select ua.id, ua.username, ua."userGroupId", ua.mail
   from public.user_accounts ua
   join public.employee_credentials ec on ec."userAccountId" = ua.id
   where lower(ua."loginAccount") = lower(p_login_account)
     and ua.enabled = true
     and ec."passwordHash" = extensions.crypt(p_password, ec."passwordHash");
+end;
 $$;
 grant execute on function public.verify_employee_login(text, text) to anon;
 
@@ -441,6 +473,43 @@ create unique index if not exists user_groups_name_idx on public.user_groups (lo
 -- Existing deployments that already ran this file before "Bind warehouse"
 -- existed won't have this column from `create table if not exists` alone.
 alter table public.user_groups add column if not exists "boundWarehouseIds" jsonb default '[]'::jsonb;
+
+-- user_accounts.userGroup used to be a plain free-text name, matched
+-- against user_groups.name by string comparison on every permission
+-- check and every "Bound user" render — same problem gadgets.
+-- inventoryAssetId above already solved for gadgets/inventory_assets:
+-- a name match breaks silently the moment a group gets renamed, and
+-- can't be indexed or joined properly. This column is what makes the
+-- relationship a real one Postgres knows about, same as that one.
+--
+-- Placed here (after user_groups exists), not inline in the
+-- user_accounts table far above, for the same reason inventoryAssetId
+-- isn't inline in gadgets — it references this table. `add column if
+-- not exists` is what actually lands it on the *existing* live
+-- database; a fresh install just gets it in one pass same as any other
+-- column.
+alter table public.user_accounts add column if not exists "userGroupId" text references public.user_groups(id) on delete set null;
+create index if not exists user_accounts_user_group_id_idx on public.user_accounts ("userGroupId");
+
+-- One-time backfill for rows that predate this column: link any existing
+-- account to its group by the same rule the app used to apply at read
+-- time (trimmed, case-insensitive name match — the unique index above
+-- guarantees this is never ambiguous). Safe to re-run — only touches
+-- rows whose link is missing.
+update public.user_accounts ua
+set "userGroupId" = ug.id
+from public.user_groups ug
+where ua."userGroupId" is null
+  and ua."userGroup" is not null
+  and trim(ua."userGroup") <> ''
+  and lower(trim(ug.name)) = lower(trim(ua."userGroup"));
+
+-- Now redundant — every reader (admin_can/employee_can below,
+-- UserGroupController._boundUsernames, UserAccountForm's group picker)
+-- uses userGroupId instead. Dropped rather than left alongside it so
+-- there's exactly one place a group assignment can live, not two that
+-- could quietly disagree.
+alter table public.user_accounts drop column if exists "userGroup";
 
 -- ============================================================================
 -- Row Level Security
