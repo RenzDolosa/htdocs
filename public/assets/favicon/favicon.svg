@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" fill="none"
+viewBox="0 0 64 64"
+preserveAspectRatio="xMidYMid meet">
+
+  <rect width="64" height="64" rx="14" fill="#1c1d21"/>
+  <text x="31.25" y="34" text-anchor="middle" dominant-baseline="central"
+        font-family="Oswald, Arial Narrow, Arial, sans-serif"
+        font-weight="900" font-size="40" letter-spacing="-0.5"
+        fill="#ff6b00">GT</text>
+</svg>
