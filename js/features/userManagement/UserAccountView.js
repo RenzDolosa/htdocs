@@ -27,7 +27,7 @@ export class UserAccountView {
       row.innerHTML = `
         <td data-label="SN" class="sn-col"><div style="display: flex; justify-content: center; padding: 0;">${i + 1}</div></td>
         <td data-label="User Number"><div>${esc(u.userNumber)}</div></td>
-        <td data-label="Username"><div class="um-username-cell">${esc(u.username)}${u.authUserId ? ' <span class="pill pill-linked" title="Real Supabase Auth account — can sign in">Linked</span>' : ''}</div></td>
+        <td data-label="Username"><div class="um-username-cell um-username-clickable" tabindex="0" role="button" title=${esc(u.username)}>${esc(u.username)}${u.authUserId ? ' <span class="pill pill-linked" title="Real Supabase Auth account — can sign in">Linked</span>' : ''}</div></td>
         <td data-label="Login Account"><div>${esc(u.loginAccount)}</div></td>
         <td data-label="User Group"><div>${esc(u.userGroupName) || '<span class="muted">—</span>'}</div></td>
         <td data-label="Mail"><div>${esc(u.mail) || '<span class="muted">—</span>'}</div></td>
@@ -46,6 +46,11 @@ export class UserAccountView {
       `;
       row.querySelector('.um-enable-toggle').addEventListener('change', (e) => handlers.onToggleEnabled(u.id, e.target.checked));
       row.querySelector('.um-edit-btn').addEventListener('click', () => handlers.onEdit(u.id));
+      const usernameCell = row.querySelector('.um-username-clickable');
+      usernameCell.addEventListener('click', () => handlers.onEdit(u.id));
+      usernameCell.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handlers.onEdit(u.id); }
+      });
       tableBody.appendChild(row);
     });
   }

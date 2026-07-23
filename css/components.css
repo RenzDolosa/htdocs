@@ -88,7 +88,15 @@ tbody tr:hover td.sn-col, tbody tr:hover td.checkbox-col{ background: var(--surf
 tbody tr.row-selected td.sn-col, tbody tr.row-selected td.checkbox-col{ background: var(--accent-soft); }
 
 .item-name,
-.um-username-cell{ font-weight: 600; color: var(--ink); }
+.um-username-cell{ font-weight: 600; color: var(--steel); }
+
+/* Username cell in User management → User doubles as an edit trigger
+   (same action as the row's pencil button) — same lightweight
+   cursor+hover affordance as .report-stat--clickable, not a blue link
+   style, since this table otherwise has no inline text links. */
+.um-username-clickable{ cursor: pointer; border-radius: 4px; margin: -2px -4px; padding: 2px 4px; width: fit-content; }
+/* .um-username-clickable:hover{ text-decoration: underline; text-underline-offset: 2px; } */
+/* .um-username-clickable:focus-visible{ outline: 2px solid var(--steel); outline-offset: 1px; } */
 
 /* Generic "this field is blank" placeholder — same intent as the ad hoc
    inline `style="color:var(--ink-faint);"` spans in Manage/Inventory
