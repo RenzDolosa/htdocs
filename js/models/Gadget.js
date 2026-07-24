@@ -53,6 +53,16 @@ export class Gadget {
     // → public.inventory_assets.id in supabase/schema.sql), not a
     // free-text field like the others above.
     this.inventoryAssetId = data.inventoryAssetId || null;
+    // A merchant change requested on an existing asset, when it resolves
+    // to a real created location, doesn't take effect immediately — it
+    // sits here until someone whose User Group is bound to the
+    // destination warehouse (see core/WarehouseScope.js) — or anyone
+    // with the manage.confirm-transfers permission — confirms it via
+    // ManageController.confirmTransfer(). merchant/positionType/warehouse/
+    // owner above stay exactly as they were until then. Shape:
+    // { toMerchant, toPositionType, toWarehouse, toOwner, toWarehouseId,
+    //   requestedAt, requestedBy }. null = no transfer awaiting confirmation.
+    this.pendingTransfer = data.pendingTransfer || null;
     this.createdAt = data.createdAt || Date.now();
     this.updatedAt = data.updatedAt || Date.now();
     this.history = Array.isArray(data.history) ? data.history : [];

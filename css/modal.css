@@ -42,6 +42,16 @@
 .placement-preview-matched{ color: var(--good); }
 .placement-preview-unmatched{ color: var(--warn); }
 
+/* ManageForm's Merchant field: shown when the asset already has a
+   transfer awaiting confirmation (see models/Gadget.js's
+   pendingTransfer) — the merchant value above it is deliberately still
+   the old one, so this explains why without the form looking like it
+   silently reverted a change. */
+.pending-transfer-banner{
+  font-size: 11.5px; color: var(--warn); background: var(--warn-soft);
+  border-radius: 4px; padding: 6px 9px; margin-top: 6px;
+}
+
 /* ManifestModal only: the preview sits inline with the "+ Add row" button
    below the detail table (button flush left, preview flush right — see
    .manifest-below-table-row), so it needs its own box instead of the bare

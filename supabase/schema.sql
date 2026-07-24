@@ -168,6 +168,32 @@ where trim(g."serialNumber") <> ''
   and g."inventoryAssetId" is distinct from ia.id;
 
 -- ----------------------------------------------------------------------------
+-- Receiving / pending transfers (Task 1)
+-- ----------------------------------------------------------------------------
+-- A merchant transfer requested on an existing asset, when it resolves to
+-- a real created location, doesn't take effect immediately — it's
+-- stashed here until someone whose User Group is bound to the
+-- destination warehouse (user_groups."boundWarehouseIds" — the same
+-- scoping that already governs what a group sees elsewhere in Manage/
+-- Reports, see core/WarehouseScope.js) — or anyone with the
+-- manage.confirm-transfers permission — confirms it via
+-- ManageController.confirmTransfer(). See models/Gadget.js's
+-- pendingTransfer for the JSON shape (toWarehouseId is the id this
+-- checks against boundWarehouseIds).
+--
+-- This used to instead be gated by a per-location "assigned user"
+-- (warehouse_locations."assignedUsername", set one specific username per
+-- position) — dropped in favor of boundWarehouseIds so "who can act on
+-- this" follows the exact same group-based scoping as everywhere else in
+-- the app, rather than a second, separate assignment mechanism to keep
+-- in sync. If you're upgrading an existing database, this column and
+-- its data are gone after running this — reassign access via each User
+-- Group's "Bind warehouse" list (Settings → User management → User
+-- group) instead.
+alter table public.gadgets add column if not exists "pendingTransfer" jsonb;
+alter table public.warehouse_locations drop column if exists "assignedUsername";
+
+-- ----------------------------------------------------------------------------
 -- user_accounts  (Settings → User management → User)
 -- ----------------------------------------------------------------------------
 create table if not exists public.user_accounts (
@@ -203,6 +229,85 @@ create unique index if not exists user_accounts_login_idx on public.user_account
 -- directory entries only until that email actually signs up.
 alter table public.user_accounts add column if not exists "authUserId" uuid references auth.users(id) on delete set null;
 create unique index if not exists user_accounts_auth_user_idx on public.user_accounts ("authUserId") where "authUserId" is not null;
+
+-- Every account here — whether from the one-time bootstrap "Set up the
+-- account" sign-up or an admin's "+ Add user" → "Link account" (see
+-- adminCreateAccount() in js/core/Auth.js) — is created by someone who
+-- already has (or is) legitimate access to this internal tool; nobody
+-- signs up to it the way they would to a public product. Email
+-- confirmation exists to prove "you own this inbox" before trusting a
+-- *stranger's* self-service signup, which isn't the threat model here.
+--
+-- Left ON (the Supabase default), it actively breaks logins on this
+-- project's Free tier: the built-in email sender is aggressively rate
+-- limited and often just doesn't deliver, so a real, correctly-linked
+-- account (user_accounts."authUserId" set, "Linked" badge showing) can
+-- sit permanently unable to sign in — GoTrue rejects
+-- signInWithPassword() for an unconfirmed user regardless of whether the
+-- password was even correct. That's indistinguishable, on screen, from a
+-- typo'd password (see AuthController._handleSubmit's deliberately
+-- generic "Incorrect email/login account or password" — kept generic on
+-- purpose to avoid letting sign-in attempts enumerate which emails have
+-- accounts; see that function's own comment) — so the person has no way
+-- to tell the two apart or self-recover.
+--
+-- This trigger removes the gate at the source instead: every new
+-- auth.users row is marked confirmed the instant it's created, so
+-- signInWithPassword() never has an "unconfirmed" reason to fail here.
+-- Confirmation-email delivery becomes a non-issue rather than a
+-- recurring support problem. If this project ever adds genuine public
+-- self-service signup, revisit this trigger first.
+create or replace function public.auto_confirm_email()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.email_confirmed_at is null then
+    new.email_confirmed_at := now();
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_auto_confirm on auth.users;
+create trigger on_auth_user_auto_confirm
+  before insert on auth.users
+  for each row execute function public.auto_confirm_email();
+
+-- This file is the sole owner of what's attached to auth.users — only
+-- the three triggers it defines (immediately above, plus
+-- on_auth_user_created/on_auth_user_login further below) should ever be
+-- there. Sweeps away anything else before the UPDATE just below can fire
+-- it: a schema that's had features added and later removed can be left
+-- with a trigger from one of those old features still attached to
+-- auth.users — e.g. a since-removed "mirror email_confirmed_at onto
+-- user_accounts" trigger, whose backing function still updates a
+-- user_accounts column that isn't there anymore. Nothing here except
+-- signing in ever touches auth.users, so any stray trigger silently
+-- sitting on it exists purely to break that UPDATE with an unrelated
+-- error the moment it fires — not to preserve behavior anything in this
+-- codebase still depends on.
+do $$
+declare
+  t record;
+begin
+  for t in
+    select tgname from pg_trigger
+    where tgrelid = 'auth.users'::regclass
+      and not tgisinternal
+      and tgname not in ('on_auth_user_created', 'on_auth_user_login', 'on_auth_user_auto_confirm')
+  loop
+    execute format('drop trigger if exists %I on auth.users;', t.tgname);
+  end loop;
+end $$;
+
+-- One-time backfill: unblocks every account that already got stuck
+-- unconfirmed before this trigger existed (this is what actually fixes
+-- an already-"Linked" account that still can't sign in today). Safe to
+-- re-run — only touches rows that are still unconfirmed.
+update auth.users set email_confirmed_at = now() where email_confirmed_at is null;
 
 -- Fires the moment someone signs up (supabase.auth.signUp — see
 -- js/core/Auth.js) and creates their user_accounts row automatically,
@@ -494,15 +599,29 @@ create index if not exists user_accounts_user_group_id_idx on public.user_accoun
 -- One-time backfill for rows that predate this column: link any existing
 -- account to its group by the same rule the app used to apply at read
 -- time (trimmed, case-insensitive name match — the unique index above
--- guarantees this is never ambiguous). Safe to re-run — only touches
--- rows whose link is missing.
-update public.user_accounts ua
-set "userGroupId" = ug.id
-from public.user_groups ug
-where ua."userGroupId" is null
-  and ua."userGroup" is not null
-  and trim(ua."userGroup") <> ''
-  and lower(trim(ug.name)) = lower(trim(ua."userGroup"));
+-- guarantees this is never ambiguous). Safe to re-run, including *after*
+-- "userGroup" has already been dropped below (which it will be, on any
+-- run past the first) — wrapped in a DO block that checks the column
+-- still exists first, since PL/pgSQL only parses/plans a statement
+-- inside a branch that actually executes. Without this guard, re-running
+-- this file at all fails outright on the second run: "userGroup" is gone
+-- by then, and Postgres won't even plan a bare UPDATE referencing a
+-- column that doesn't exist, guarded or not.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'user_accounts' and column_name = 'userGroup'
+  ) then
+    update public.user_accounts ua
+    set "userGroupId" = ug.id
+    from public.user_groups ug
+    where ua."userGroupId" is null
+      and ua."userGroup" is not null
+      and trim(ua."userGroup") <> ''
+      and lower(trim(ug.name)) = lower(trim(ua."userGroup"));
+  end if;
+end $$;
 
 -- Now redundant — every reader (admin_can/employee_can below,
 -- UserGroupController._boundUsernames, UserAccountForm's group picker)

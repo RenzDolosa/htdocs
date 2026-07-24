@@ -107,6 +107,12 @@ tbody tr.row-selected td.sn-col, tbody tr.row-selected td.checkbox-col{ backgrou
 .pill-cat{ background: var(--steel-soft); color: var(--steel); }
 .pill-warehouse{ background: var(--accent-soft); color: var(--accent-ink); }
 /* .pill-tempbin{ background: var(--warn-soft); color: var(--warn); } */
+/* Manage's Merchant cell: a transfer requested but not yet confirmed by
+   the destination's assigned receiver (see models/Gadget.js's
+   pendingTransfer / ManageController's receiving workflow). Warm amber
+   rather than the accent orange already used by .pill-warehouse, so a
+   pending transfer reads as "waiting", not as just another warehouse tag. */
+.pill-pending{ display: block; margin-top: 3px; background: var(--warn-soft); color: var(--warn); }
 /* Marks a User-management row as a real Supabase Auth account (see
    UserAccountView.js / supabase/schema.sql's auth.users linkage) rather
    than a directory-only entry added by hand via "+ Add user". */
@@ -176,6 +182,7 @@ td.cell-catalog-invalid{
 }
 .icon-btn:hover{ background: var(--surface-sunk); color: var(--ink); }
 .icon-btn.danger:hover{ background: var(--bad-soft); color: var(--bad); border-color: #efc1ba; }
+.icon-btn.success:hover{ background: var(--good-soft); color: var(--good); border-color: #a9dab9; }
 
 /* Pagination controls */
 .page-nav, .page-btn{

@@ -101,6 +101,7 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
         <label for="gMerchant">Merchant</label>
         <input type="text" id="gMerchant" name="merchant" list="gadgetMerchantOptions" placeholder="e.g. Samples">
         <datalist id="gadgetMerchantOptions"></datalist>
+        <div class="pending-transfer-banner" data-role="pending-transfer-banner" hidden></div>
         <div class="placement-preview" data-role="placement-preview"></div>
       </div>
       <div class="field">
@@ -185,6 +186,14 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
   // will resolve to *before* Save is clicked, so the merchant -> location
   // -> {position type, warehouse, owner} chain is visible while editing,
   // not just discoverable afterward in the Manage grid.
+  //
+  // When the resolved location is matched and this is an existing asset
+  // (not a fresh Add), saving this merchant change won't apply it right
+  // away — it goes into Gadget.pendingTransfer until someone whose User
+  // Group is bound to that destination warehouse confirms it (see
+  // ManageController._saveGadget / confirmTransfer). The preview says so
+  // up front rather than letting Save quietly behave differently than
+  // the last field on this form did.
   const merchantInput = node.querySelector('#gMerchant');
   const previewEl = node.querySelector('[data-role="placement-preview"]');
   function updatePlacementPreview() {
@@ -192,8 +201,12 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
     previewEl.classList.remove('placement-preview-matched', 'placement-preview-unmatched');
     if (!value) { previewEl.textContent = ''; return; }
     const placement = resolvePlacement(value);
+    const merchantIsChanging = !gadget || (gadget.merchant || '') !== value;
     if (placement.matched) {
-      previewEl.textContent = `→ Position Type: ${placement.positionType} · Warehouse: ${placement.warehouse} · Owner: ${placement.owner}`;
+      const willPend = merchantIsChanging && Boolean(gadget);
+      previewEl.textContent = willPend
+        ? `→ Position Type: ${placement.positionType} · Warehouse: ${placement.warehouse} · Owner: ${placement.owner} — will stay pending until someone with access to ${placement.owner} confirms receiving it.`
+        : `→ Position Type: ${placement.positionType} · Warehouse: ${placement.warehouse} · Owner: ${placement.owner}`;
       previewEl.classList.add('placement-preview-matched');
     } else {
       previewEl.textContent = 'No warehouse location named this yet — Position Type / Warehouse / Owner will stay unassigned until one is created under this name.';
@@ -201,6 +214,17 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
     }
   }
   merchantInput.addEventListener('input', updatePlacementPreview);
+
+  // A transfer already awaiting confirmation stays visible on the form so
+  // reopening this asset doesn't look like the merchant field silently
+  // reverted — gadget.merchant genuinely hasn't changed yet; it's the
+  // pendingTransfer sitting alongside it that's new.
+  const pendingBannerEl = node.querySelector('[data-role="pending-transfer-banner"]');
+  if (gadget?.pendingTransfer) {
+    const p = gadget.pendingTransfer;
+    pendingBannerEl.hidden = false;
+    pendingBannerEl.textContent = `A transfer to '${p.toMerchant}' is pending — awaiting confirmation from anyone with access to ${p.toOwner || 'the destination warehouse'}. The merchant above stays as-is until then.`;
+  }
 
   node.querySelector('[data-action="toggle-password"]').addEventListener('click', (e) => {
     const input = node.querySelector('#gPassword');

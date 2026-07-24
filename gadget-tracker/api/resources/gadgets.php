@@ -19,6 +19,7 @@ handle_crud($pdo, 'gadgets', [
   'positionType' => 'string',
   'warehouse' => 'string',
   'temporaryPosition' => 'string',
+  'pendingTransfer' => 'json',
   'createdAt' => 'int',
   'updatedAt' => 'int',
   'history' => 'json',

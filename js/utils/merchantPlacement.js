@@ -56,3 +56,18 @@ export function resolveMerchantPlacement(merchant, { locationStore, warehouseSto
     warehouseSite
   };
 }
+
+/**
+ * The warehouse (Settings → Warehouse Information site) id a transfer
+ * into this resolved placement would land in, or '' if unmatched. This
+ * is what decides who may confirm the transfer: see
+ * core/WarehouseScope.js's isWarehouseAllowed() and
+ * ManageController._canActOnPendingTransfer — anyone whose User Group is
+ * bound to this warehouse (Settings → User management → User group →
+ * "Bind warehouse") can act on it, the same scoping that already governs
+ * what they see elsewhere in Manage/Reports, rather than a separate
+ * per-location assignment.
+ */
+export function destinationWarehouseId(placement) {
+  return placement?.matched ? (placement.warehouseSite?.id || '') : '';
+}

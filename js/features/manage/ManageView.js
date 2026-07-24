@@ -53,7 +53,7 @@ export class ManageView {
   }
 
   renderTable(pageGadgets, selectedIds, handlers, duplicateSerials = new Set(), catalogIssuesById = new Map(), perms = {}) {
-    const { canEdit = true, canViewLog = true, canDelete = true } = perms;
+    const { canEdit = true, canViewLog = true, canDelete = true, canActOnTransfer = () => false } = perms;
     if (pageGadgets.length === 0) {
       this.refs.tableBody.innerHTML = '';
       this.refs.emptyState.style.display = 'block';
@@ -62,7 +62,7 @@ export class ManageView {
     }
     this.refs.emptyState.style.display = 'none';
 
-    this.refs.tableBody.innerHTML = pageGadgets.map((g, index) => this._rowHTML(g, index, selectedIds.has(g.id), duplicateSerials, catalogIssuesById.get(g.id), { canEdit, canViewLog, canDelete })).join('');
+    this.refs.tableBody.innerHTML = pageGadgets.map((g, index) => this._rowHTML(g, index, selectedIds.has(g.id), duplicateSerials, catalogIssuesById.get(g.id), { canEdit, canViewLog, canDelete, canActOnTransfer: canActOnTransfer(g) })).join('');
 
     qsa('tr[data-id]', this.refs.tableBody).forEach((row) => {
       const id = row.getAttribute('data-id');
@@ -73,6 +73,10 @@ export class ManageView {
       if (canViewLog) row.querySelector('[data-action="log"]').addEventListener('click', () => handlers.onViewLog(id));
       if (canDelete) row.querySelector('[data-action="delete"]').addEventListener('click', () => handlers.onDelete(id));
       row.querySelector('[data-action="select-row"]').addEventListener('change', (e) => handlers.onToggleSelect(id, e.target.checked));
+      const confirmBtn = row.querySelector('[data-action="confirm-transfer"]');
+      if (confirmBtn && !confirmBtn.disabled) confirmBtn.addEventListener('click', () => handlers.onConfirmTransfer(id));
+      const cancelBtn = row.querySelector('[data-action="cancel-transfer"]');
+      if (cancelBtn && !cancelBtn.disabled) cancelBtn.addEventListener('click', () => handlers.onCancelTransfer(id));
       const toggle = row.querySelector('[data-action="reveal-password"]');
       if (toggle) {
         toggle.addEventListener('click', () => {
@@ -122,7 +126,7 @@ export class ManageView {
   }
 
   _rowHTML(g, index, selected, duplicateSerials = new Set(), catalogIssue = null, perms = {}) {
-    const { canEdit = true, canViewLog = true, canDelete = true } = perms;
+    const { canEdit = true, canViewLog = true, canDelete = true, canActOnTransfer = false } = perms;
     const revealed = this._revealedPasswords.has(g.id);
     const passwordDisplay = g.password
       ? (revealed ? esc(g.password) : '••••••••')
@@ -139,6 +143,11 @@ export class ManageView {
     const tagIssue = catalogIssue?.assetTagDefault;
     const macIssue = catalogIssue?.macAddress;
     const badge = (message) => (message ? `<span class="catalog-flag" title="${esc(message)}">⚠</span>` : '');
+
+    const p = g.pendingTransfer;
+    const pendingNote = p
+      ? `<div class="pill pill-pending" title="Requested by ${esc(p.requestedBy || 'someone')} · awaiting confirmation from anyone with access to ${esc(p.toOwner || 'the destination warehouse')}">→ ${esc(p.toMerchant)}</div>`
+      : '';
 
     return `
       <tr data-id="${g.id}" class="${selected ? 'row-selected' : ''}">
@@ -159,7 +168,7 @@ export class ManageView {
             </button>` : ''}
           </div>
         </td>
-        <td data-label="Merchant" style="font-family:var(--font-mono); font-size:12px;"><div>${g.merchant ? esc(g.merchant) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
+        <td data-label="Merchant" style="font-family:var(--font-mono); font-size:12px;"><div>${g.merchant ? esc(g.merchant) : '<span style="color:var(--ink-faint);">—</span>'}${pendingNote}</div></td>
         <td data-label="Remarks"><div class="clamp-text" title="${esc(g.remarks)}">${g.remarks ? esc(g.remarks) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
         <td data-label="Description"><div class="clamp-text" title="${esc(g.description)}">${g.description ? esc(g.description) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
         <td data-label="PositionType"><div>${
@@ -173,6 +182,12 @@ export class ManageView {
         <td data-label="Updated" class="updated-col"><div><small>${fmtDate(g.updatedAt)}</small></div></td>
         <td data-label="Actions">
           <div class="row-actions">
+            ${p ? `<button tabindex="-1" class="icon-btn success" data-action="confirm-transfer" aria-label="Confirm receipt" title="${canActOnTransfer ? `Confirm receipt at '${esc(p.toMerchant)}'` : `Only someone with access to ${esc(p.toOwner || 'the destination warehouse')} (or Confirm transfers access) can confirm this.`}" ${canActOnTransfer ? '' : 'disabled'}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+            </button>
+            <button tabindex="-1" class="icon-btn danger" data-action="cancel-transfer" aria-label="Cancel pending transfer" title="${canActOnTransfer ? 'Cancel this pending transfer' : `Only someone with access to ${esc(p.toOwner || 'the destination warehouse')} (or edit/oversight access) can cancel this.`}" ${canActOnTransfer ? '' : 'disabled'}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>
+            </button>` : ''}
             <button tabindex="-1" class="icon-btn" data-action="edit" aria-label="Edit asset" title="${canEdit ? 'Edit' : 'You do not have permission to edit assets.'}" ${canEdit ? '' : 'disabled'}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             </button>

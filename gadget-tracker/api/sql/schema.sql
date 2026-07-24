@@ -89,6 +89,7 @@ CREATE TABLE IF NOT EXISTS gadgets (
   positionType        VARCHAR(64)  DEFAULT '',
   warehouse           VARCHAR(190) DEFAULT '',
   temporaryPosition   VARCHAR(190) DEFAULT '',
+  pendingTransfer     JSON,
   createdAt           BIGINT NOT NULL,
   updatedAt           BIGINT NOT NULL,
   history             JSON,

@@ -16,7 +16,7 @@ import { getOperatorName } from '../../core/Operator.js';
 import { can } from '../../core/Permissions.js';
 import { isWarehouseAllowed, isWarehouseScoped } from '../../core/WarehouseScope.js';
 import { fmtLocalDateTime, fmtLocalDateStamp } from '../../utils/format.js';
-import { resolveMerchantPlacement } from '../../utils/merchantPlacement.js';
+import { resolveMerchantPlacement, destinationWarehouseId } from '../../utils/merchantPlacement.js';
 
 /** Column order/labels shared by the CSV export, the import template, and the importer. */
 const IMPORT_HEADERS = ['User', 'Role', 'Category', 'Serial Number', 'Warehouse Asset Tag', 'Asset Tag (Default)', 'MAC Address', 'Merchant', 'Owner', 'Remarks', 'Description'];
@@ -51,7 +51,7 @@ export class ManageController {
     this.locationStore = locationStore;
 
     this.state = {
-      filters: { keyword: '', category: 'all', owner: 'all', serialNumber: '', macAddress: '' },
+      filters: { keyword: '', category: 'all', owner: 'all', serialNumber: '', macAddress: '', pendingOnly: false },
       sortBy: 'user',
       sortDir: 'asc',
       page: 1,
@@ -70,6 +70,18 @@ export class ManageController {
 
   init() {
     this.render();
+
+    // A one-time nudge for anyone whose User Group is specifically bound
+    // to a warehouse a transfer is waiting on. Deliberately scoped to
+    // *warehouse-restricted* sessions only, not everything
+    // manage.confirm-transfers could act on — an unrestricted account
+    // with oversight access doesn't need a toast every time they sign in
+    // for transfers that aren't really theirs to chase (see
+    // _pendingTransfersForMe).
+    const mine = this._pendingTransfersForMe();
+    if (mine.length > 0) {
+      Toast.show(`You have ${mine.length} transfer${mine.length === 1 ? '' : 's'} awaiting your confirmation.`);
+    }
   }
 
   // ---------- Derived data ----------
@@ -88,6 +100,38 @@ export class ManageController {
     const fromSettings = this.warehouseStore?.list().map((w) => w.name) || [];
     const fromAssets = this.store.list().map((g) => g.warehouse);
     return [...new Set([...fromSettings, ...fromAssets].filter(Boolean))].sort();
+  }
+
+  /**
+   * Pending transfers into a warehouse this session's User Group is
+   * specifically bound to — the "personal inbox" count used for the
+   * onload toast. Deliberately '' for an *unrestricted* session (no
+   * group, or a group with no "Bind warehouse" list) rather than
+   * treating unrestricted-so-technically-allowed as "mine, personally" —
+   * that's oversight access, not a job assignment, and toasting
+   * oversight holders for every transfer app-wide on every sign-in would
+   * be noise, not a nudge. See core/WarehouseScope.js's isWarehouseScoped.
+   */
+  _pendingTransfersForMe() {
+    if (!isWarehouseScoped()) return [];
+    return this.store.list().filter((g) => g.pendingTransfer && isWarehouseAllowed(g.pendingTransfer.toWarehouseId));
+  }
+
+  /** Every pending transfer this session is actually allowed to confirm/cancel — assigned-to-me ones plus, for manage.confirm-transfers holders, everyone else's too. Drives the toolbar badge count and the "Pending transfers" quick filter. */
+  _pendingTransfersActionable() {
+    return this.store.list().filter((g) => g.pendingTransfer && this._canActOnPendingTransfer(g));
+  }
+
+  /** Shows/hides and labels the "Pending transfers (n)" toolbar toggle — visible whenever there's something to act on, or while the filter itself is switched on (so it stays reachable to turn back off even if the count just dropped to zero). */
+  _updatePendingTransfersButton() {
+    if (!this.refs.pendingTransfersBtn) return;
+    const count = this._pendingTransfersActionable().length;
+    const active = this.state.filters.pendingOnly;
+    const show = count > 0 || active;
+    this.refs.pendingTransfersBtn.style.display = show ? '' : 'none';
+    if (this.refs.pendingTransfersSep) this.refs.pendingTransfersSep.style.display = show ? '' : 'none';
+    this.refs.pendingTransfersBtn.textContent = `Pending transfers (${count})`;
+    this.refs.pendingTransfersBtn.classList.toggle('active', active);
   }
 
   /**
@@ -201,12 +245,25 @@ export class ManageController {
     // it doesn't belong to any *other* warehouse either, so hiding it
     // from every scoped group would make it invisible to everyone —
     // nobody could ever claim it into their own warehouse.
+    //
+    // A gadget with a pending transfer *into* one of this session's
+    // warehouses is also let through, even while its current owner is
+    // still a warehouse outside scope — otherwise the very receiver
+    // assigned to confirm it (who's typically scoped to the destination
+    // warehouse, not the source one) could never find the row to act on
+    // it. Ownership hasn't moved yet, so it stays counted under its old
+    // owner everywhere else (Reports, the Owner column, etc.) — this is
+    // strictly about visibility for the pending receiver.
     const allowedOwners = isWarehouseScoped() ? new Set(this._knownOwners()) : null;
 
     let gadgets = this.store.list().filter((g) => {
       if (f.category !== 'all' && g.category !== f.category) return false;
+      if (f.pendingOnly && (!g.pendingTransfer || !this._canActOnPendingTransfer(g))) return false;
       const ownerKey = g.owner || 'Unassigned';
-      if (allowedOwners && ownerKey !== 'Unassigned' && !allowedOwners.has(ownerKey)) return false;
+      if (allowedOwners && ownerKey !== 'Unassigned' && !allowedOwners.has(ownerKey)) {
+        const pendingToOwner = g.pendingTransfer?.toOwner;
+        if (!pendingToOwner || !allowedOwners.has(pendingToOwner)) return false;
+      }
       if (ownerFilter !== 'all' && ownerKey !== ownerFilter) return false;
       if (serial && !g.serialNumber.toLowerCase().includes(serial)) return false;
       if (mac && !g.macAddress.toLowerCase().includes(mac)) return false;
@@ -252,18 +309,22 @@ export class ManageController {
 
     this.view.renderFilterOptions(this._knownCategories(), this.state.filters);
     this.view.renderWarehouseFilterButton(this._knownOwners().length > 0, this._effectiveOwnerFilter());
+    this._updatePendingTransfersButton();
     this.view.renderTable(pageGadgets, this.selected, {
       onEdit: (id) => this.openEditModal(id),
       onTransfer: (id) => this.openTransferModal(id),
       onViewLog: (id) => this.viewLog(id),
       onDelete: (id) => this.deleteGadget(id),
+      onConfirmTransfer: (id) => this._confirmTransferWithPrompt(id),
+      onCancelTransfer: (id) => this._cancelTransferWithPrompt(id),
       onToggleSelect: (id, checked) => this._toggleSelect(id, checked),
       onToggleSelectAll: (checked) => this._toggleSelectAll(pageGadgets, checked),
       onRerender: () => this.render()
     }, this._duplicateSerialSet(), this._catalogIssuesById(), {
       canEdit: can('manage.edit'),
       canViewLog: can('manage.view-log'),
-      canDelete: can('manage.delete')
+      canDelete: can('manage.delete'),
+      canActOnTransfer: (gadget) => this._canActOnPendingTransfer(gadget)
     });
     this.view.renderSortHeaders(this.state.sortBy, this.state.sortDir);
     this.view.renderFooter(
@@ -396,6 +457,11 @@ export class ManageController {
     this.refs.searchBtn.addEventListener('click', () => this._applyFilters());
     this.refs.resetBtn.addEventListener('click', () => this._resetFilters());
     this.refs.warehouseFilterBtn?.addEventListener('click', () => this._openWarehouseFilterMenu());
+    this.refs.pendingTransfersBtn?.addEventListener('click', () => {
+      this.state.filters.pendingOnly = !this.state.filters.pendingOnly;
+      this.state.page = 1;
+      this.render();
+    });
   }
 
   _applyFilters() {
@@ -404,7 +470,8 @@ export class ManageController {
       category: this.refs.filterCategory.value,
       owner: this.state.filters.owner,
       serialNumber: this.refs.filterSerial.value,
-      macAddress: this.refs.filterMac.value
+      macAddress: this.refs.filterMac.value,
+      pendingOnly: this.state.filters.pendingOnly
     };
     this.state.page = 1;
     this.render();
@@ -414,7 +481,7 @@ export class ManageController {
     this.refs.filterKeyword.value = '';
     this.refs.filterSerial.value = '';
     this.refs.filterMac.value = '';
-    this.state.filters = { keyword: '', category: 'all', owner: 'all', serialNumber: '', macAddress: '' };
+    this.state.filters = { keyword: '', category: 'all', owner: 'all', serialNumber: '', macAddress: '', pendingOnly: false };
     this.state.page = 1;
     this.render();
   }
@@ -642,19 +709,60 @@ export class ManageController {
     // action. A changed merchant that no longer resolves to any created
     // location clears the three fields to unassigned rather than leaving
     // a stale placement from whatever the merchant used to be.
+    //
+    // Receiving (Task 1): if the *new* merchant resolves to a real
+    // created location, the change doesn't apply here at all —
+    // merchant/positionType/warehouse/owner all stay exactly as they
+    // were, and the request goes into pendingTransfer for whoever's User
+    // Group is bound to that destination warehouse (or someone with
+    // manage.confirm-transfers) to confirm via confirmTransfer() below.
+    // Only an *existing* asset can go through this — a brand-new asset
+    // has no current merchant to transfer away from, so filling in
+    // Merchant while adding one is an initial placement, not a transfer.
     const merchantChanged = !existingGadget || existingGadget.merchant !== raw.merchant;
     let placement = { matched: false };
+    let requiresConfirmation = false;
+    // Preserved by default — editing some *other* field shouldn't disturb
+    // a transfer this asset is already waiting on.
+    let pendingTransfer = existingGadget ? existingGadget.pendingTransfer : null;
+
     if (merchantChanged) {
       placement = this._resolvePlacement(raw.merchant);
-      payload.positionType = placement.matched ? placement.positionType : '';
-      payload.warehouse = placement.matched ? placement.warehouse : '';
-      payload.owner = placement.matched ? placement.owner : '';
+      requiresConfirmation = Boolean(existingGadget) && placement.matched;
+
+      if (requiresConfirmation) {
+        payload.merchant = existingGadget.merchant;
+        payload.positionType = existingGadget.positionType;
+        payload.warehouse = existingGadget.warehouse;
+        payload.owner = existingGadget.owner;
+        pendingTransfer = {
+          toMerchant: raw.merchant,
+          toPositionType: placement.positionType,
+          toWarehouse: placement.warehouse,
+          toOwner: placement.owner,
+          toWarehouseId: destinationWarehouseId(placement),
+          requestedAt: Date.now(),
+          requestedBy: getOperatorName()
+        };
+      } else {
+        payload.positionType = placement.matched ? placement.positionType : '';
+        payload.warehouse = placement.matched ? placement.warehouse : '';
+        payload.owner = placement.matched ? placement.owner : '';
+        // A direct, ungated merchant change (nothing resolved, or a
+        // brand-new asset) supersedes any stale pending request left
+        // over from before — the merchant is being set right now, not
+        // queued.
+        pendingTransfer = null;
+      }
     }
+    payload.pendingTransfer = pendingTransfer;
 
     if (existingGadget) {
-      this._logFieldChanges(existingGadget, payload, merchantChanged);
+      this._logFieldChanges(existingGadget, payload, merchantChanged, requiresConfirmation);
       this.store.update(existingGadget.id, payload);
-      Toast.success(`Saved changes for ${payload.user || 'this asset'}.`);
+      Toast.success(requiresConfirmation
+        ? `Saved changes for ${payload.user || 'this asset'}. Transfer to '${raw.merchant}' is pending confirmation from anyone with access to ${pendingTransfer.toOwner}.`
+        : `Saved changes for ${payload.user || 'this asset'}.`);
     } else {
       const gadget = new Gadget(payload);
       gadget.addLogEntry('Asset added to inventory.', 'create', null, getOperatorName());
@@ -676,15 +784,26 @@ export class ManageController {
    * transfers made through the Transfer action are logged separately by
    * openTransferModal/openBulkWarehouseTransferModal; `merchantChanged`
    * covers the merchant-driven Position Type/Warehouse/Owner resolution
-   * that happens right here in _saveGadget.
+   * that happens right here in _saveGadget — `requiresConfirmation`
+   * further splits that into "applied immediately" vs. "queued, awaiting
+   * the assigned receiver" (see confirmTransfer/cancelPendingTransfer for
+   * the log entries written once that's resolved either way).
    */
-  _logFieldChanges(gadget, payload, merchantChanged) {
+  _logFieldChanges(gadget, payload, merchantChanged, requiresConfirmation) {
     if (gadget.user !== payload.user) {
       const from = gadget.user || 'Unassigned';
       const to = payload.user || 'Unassigned';
       gadget.addLogEntry(`Reassigned from ${from} to ${to}.`, 'user', { from, to }, getOperatorName());
     }
-    if (merchantChanged) {
+    if (merchantChanged && requiresConfirmation) {
+      const p = payload.pendingTransfer;
+      gadget.addLogEntry(
+        `Transfer requested: merchant '${gadget.merchant || 'None'}' → '${p.toMerchant}'. Resolved to ${p.toPositionType} · ${p.toWarehouse} · ${p.toOwner}. Awaiting confirmation from anyone with access to ${p.toOwner}.`,
+        'transfer',
+        { from: gadget.merchant || '', to: p.toMerchant },
+        getOperatorName()
+      );
+    } else if (merchantChanged) {
       const from = gadget.merchant || 'None';
       const to = payload.merchant || 'None';
       const placementNote = payload.positionType
@@ -700,6 +819,96 @@ export class ManageController {
     if (otherFieldsChanged) {
       gadget.addLogEntry('Asset details updated.', 'update', null, getOperatorName());
     }
+  }
+
+  /**
+   * True when the signed-in session may confirm or cancel this gadget's
+   * pending transfer: either their User Group is bound to the
+   * destination warehouse (see core/WarehouseScope.js's
+   * isWarehouseAllowed — an unrestricted group passes this too, same as
+   * everywhere else that check is used), or their group has been
+   * explicitly granted manage.confirm-transfers oversight regardless of
+   * warehouse scope. Deliberately an OR — the whole point of warehouse
+   * scoping is that people already scoped to a site can act on their own
+   * inbox without needing a separate permission grant; the permission
+   * exists for oversight/backup on top of that, not as a second gate.
+   */
+  _canActOnPendingTransfer(gadget) {
+    if (!gadget.pendingTransfer) return false;
+    if (isWarehouseAllowed(gadget.pendingTransfer.toWarehouseId)) return true;
+    return can('manage.confirm-transfers');
+  }
+
+  /** Applies a pending transfer: writes merchant/positionType/warehouse/owner from the
+   * stashed request and clears it. See models/Gadget.js's pendingTransfer for the shape. */
+  confirmTransfer(id) {
+    const gadget = this.store.get(id);
+    if (!gadget || !gadget.pendingTransfer) return;
+    if (!this._canActOnPendingTransfer(gadget)) {
+      Toast.error('Only someone with access to the destination warehouse (or Confirm transfers access) can confirm this.');
+      return;
+    }
+    const p = gadget.pendingTransfer;
+    gadget.addLogEntry(
+      `Transfer confirmed: merchant '${gadget.merchant || 'None'}' → '${p.toMerchant}'. Resolved to ${p.toPositionType || 'Unassigned'} · ${p.toWarehouse || '—'} · ${p.toOwner || '—'}.`,
+      'transfer',
+      { from: gadget.merchant || '', to: p.toMerchant },
+      getOperatorName()
+    );
+    this.store.update(gadget.id, {
+      merchant: p.toMerchant,
+      positionType: p.toPositionType,
+      warehouse: p.toWarehouse,
+      owner: p.toOwner,
+      pendingTransfer: null
+    });
+    Toast.success(`Transfer to '${p.toMerchant}' confirmed.`);
+  }
+
+  /** Withdraws a pending transfer without applying it — merchant/positionType/warehouse/
+   * owner are untouched, exactly as if the request had never been made. Open to the same
+   * people who can confirm, plus manage.edit.merchant holders (the same permission that
+   * could have requested it in the first place, so they can also take it back). */
+  cancelPendingTransfer(id) {
+    const gadget = this.store.get(id);
+    if (!gadget || !gadget.pendingTransfer) return;
+    if (!this._canActOnPendingTransfer(gadget) && !can('manage.edit.merchant')) {
+      Toast.error('You do not have permission to cancel this transfer.');
+      return;
+    }
+    const p = gadget.pendingTransfer;
+    gadget.addLogEntry(`Transfer to '${p.toMerchant}' cancelled before confirmation.`, 'transfer', { from: p.toMerchant, to: gadget.merchant || '' }, getOperatorName());
+    this.store.update(gadget.id, { pendingTransfer: null });
+    Toast.show(`Pending transfer to '${p.toMerchant}' cancelled.`);
+  }
+
+  /** Row-action entry point for Confirm: asks first, since this is the one click that
+   * actually moves the asset (changes merchant/warehouse/owner), same weight as Delete. */
+  async _confirmTransferWithPrompt(id) {
+    const gadget = this.store.get(id);
+    if (!gadget?.pendingTransfer) return;
+    const p = gadget.pendingTransfer;
+    const ok = await confirmDialog({
+      title: 'Confirm receipt',
+      message: `Confirm this asset has arrived at '${p.toMerchant}' (${p.toPositionType || 'Unassigned'} · ${p.toWarehouse || '—'} · ${p.toOwner || '—'})? This will finalize the transfer.`,
+      confirmLabel: 'Confirm receipt'
+    });
+    if (ok) this.confirmTransfer(id);
+  }
+
+  /** Row-action entry point for Cancel — a lighter prompt than Confirm's, since cancelling
+   * is reversible (the merchant can just be transferred again) where confirming isn't. */
+  async _cancelTransferWithPrompt(id) {
+    const gadget = this.store.get(id);
+    if (!gadget?.pendingTransfer) return;
+    const p = gadget.pendingTransfer;
+    const ok = await confirmDialog({
+      title: 'Cancel pending transfer',
+      message: `Cancel the pending transfer to '${p.toMerchant}'? The asset will stay at its current merchant.`,
+      confirmLabel: 'Cancel transfer',
+      danger: true
+    });
+    if (ok) this.cancelPendingTransfer(id);
   }
 
   openTransferModal(id) {

@@ -1,21 +1,14 @@
 /**
  * Whether the currently signed-in session is an Administrator or an
- * Employee — set once by AuthController right after it works out which
- * kind of session this is (see AuthController._handleSessionChange's own
- * isEmployeePortalSession check), read synchronously by any feature that
- * needs to gate something to administrators only.
- *
- * Same tiny-module state pattern as Operator.js / EmployeeSession.js —
- * deliberately not folded into either of those: Operator is a
- * self-reported display name, not an identity check, and EmployeeSession
- * only ever holds data for employee sessions specifically. This one is
- * the single yes/no every feature controller actually needs.
- *
- * Defaults to true (administrator) simply so nothing before the first
- * real session check accidentally renders as locked-down — in practice
- * nothing reads this before AuthController has already set it, since
- * feature controllers are only ever constructed after a successful
- * sign-in (see app.js's onSignedIn).
+ * Employee — used to be read synchronously by feature controllers to
+ * gate admin-only behavior. That gating is gone now (see
+ * AuthController.js's own header comment: every signed-in account has
+ * equal access, and Settings → User management → User group's
+ * permission tree is the one access-control layer left) — nothing
+ * calls setIsAdministrator() anymore, so isAdministrator() is dead code
+ * left over from that architecture. Not removed here since that's a
+ * separate cleanup from what this module is being extended for below;
+ * flagging it rather than silently deleting it.
  */
 let administrator = true;
 
@@ -25,4 +18,33 @@ export function setIsAdministrator(value) {
 
 export function isAdministrator() {
   return administrator;
+}
+
+/**
+ * The signed-in session's own UserAccount.username. Set by app.js's
+ * applyCurrentUserPermissions(), from the exact same account lookup that
+ * already resolves the session's permissions and warehouse scope
+ * (employee: EmployeeSession's stashed profile; administrator: the
+ * user_accounts row matching this browser's authUserId).
+ *
+ * This existed for one thing: matching a signed-in person against
+ * WarehouseLocation.assignedUsername / Gadget.pendingTransfer.assignedTo
+ * to decide whether *they specifically* could confirm a given pending
+ * transfer. That per-location assignment mechanism is gone now (see
+ * models/WarehouseLocation.js's own history, and merchantPlacement.js's
+ * destinationWarehouseId) — confirming a pending transfer is decided by
+ * core/WarehouseScope.js's isWarehouseAllowed() instead, which needs a
+ * warehouse id, not a username. Nothing reads getCurrentUsername()
+ * anymore, so — same as isAdministrator() above — this is dead code left
+ * over from the architecture it was built for; flagging it rather than
+ * silently deleting it, same reasoning as that comment.
+ */
+let currentUsername = '';
+
+export function setCurrentUsername(username) {
+  currentUsername = (username || '').trim();
+}
+
+export function getCurrentUsername() {
+  return currentUsername;
 }

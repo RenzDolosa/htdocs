@@ -5,7 +5,7 @@ import { fmtManifestDate } from '../utils/format.js';
 import { getOperatorName } from '../core/Operator.js';
 import { Toast } from './Toast.js';
 import { confirmDialog } from './ConfirmDialog.js';
-import { resolveMerchantPlacement } from '../utils/merchantPlacement.js';
+import { resolveMerchantPlacement, destinationWarehouseId } from '../utils/merchantPlacement.js';
 
 /**
  * ManifestModal renders a printable "Manifest / Transmittal" document for
@@ -22,11 +22,14 @@ import { resolveMerchantPlacement } from '../utils/merchantPlacement.js';
  * Transfer / Print (only enabled once Prepared by/Department/Received by/
  * Transfer to/Date are all filled in) opens the print dialog, and once
  * that closes, asks the user to confirm the print/save actually went
- * through before setting every real asset's `merchant` to the "Transfer
- * to" value and logging it to that asset's history via the `store`
- * passed in. That confirmation step exists because browsers give no way
- * to tell "printed" apart from "hit Cancel" — pass no `store` and this
- * whole step is skipped, printing still works.
+ * through before applying the transfer for every real asset via
+ * applyMerchantTransfer() — which either updates `merchant` right away, or,
+ * if "Transfer to" resolves to a location with a receiver assigned, queues
+ * a Gadget.pendingTransfer for that receiver to confirm instead (see that
+ * function's own doc comment). That confirmation step here (print vs.
+ * pending) exists because browsers give no way to tell "printed" apart
+ * from "hit Cancel" — pass no `store` and this whole step is skipped,
+ * printing still works.
  *
  * "Transfer to" doubles as the merchant/location key: when `locationStore`
  * and `warehouseStore` are supplied, the field suggests the location names
@@ -317,6 +320,19 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
    * / Warehouse / Owner are resolved from that location and written back
    * to every transferred asset in the same update — this is the piece
    * that actually changes all three columns, not just the merchant name.
+   *
+   * Receiving (Task 1): a resolved location transfer doesn't apply here
+   * at all — merchant/positionType/warehouse/owner are left exactly as
+   * they are, and a Gadget.pendingTransfer is written instead, the same
+   * shape ManageController._saveGadget writes for a single-asset merchant
+   * edit. It only actually takes effect once someone whose User Group is
+   * bound to the destination warehouse (see core/WarehouseScope.js — or
+   * anyone with manage.confirm-transfers) confirms it from the Manage
+   * grid. This is deliberately the *same* gate as the single-asset path —
+   * a manifest transfer is still a transfer to another merchant, and
+   * routing a whole batch of assets around receiving confirmation just
+   * because it went through this dialog instead of the Edit form would
+   * make the feature trivially bypassable.
    */
   function applyMerchantTransfer() {
     if (!store) return;
@@ -332,8 +348,11 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
     const placementNote = placement.matched
       ? ` Resolved to ${placement.positionType} · ${placement.warehouse} · ${placement.owner}.`
       : '';
+    const requestedAt = Date.now();
+    const requestedBy = getOperatorName();
 
     let updatedCount = 0;
+    let pendingCount = 0;
     qsa('tr[data-row-id]', tbody).forEach((tr) => {
       const rowId = tr.getAttribute('data-row-id');
       const gadget = store.get(rowId);
@@ -342,19 +361,43 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
       const previousMerchant = gadget.merchant || '';
       if (previousMerchant === transferTo) return;
 
-      gadget.addLogEntry(
-        `Transferred merchant from '${previousMerchant}' to '${transferTo}'.${placementNote}`,
-        'transfer',
-        { from: previousMerchant, to: transferTo },
-        getOperatorName()
-      );
-      store.update(gadget.id, { merchant: transferTo, ...placementPatch });
-      updatedCount++;
+      if (placement.matched) {
+        gadget.addLogEntry(
+          `Transfer requested: merchant '${previousMerchant}' → '${transferTo}' via manifest.${placementNote} Awaiting confirmation from anyone with access to ${placement.owner}.`,
+          'transfer',
+          { from: previousMerchant, to: transferTo },
+          requestedBy
+        );
+        store.update(gadget.id, {
+          pendingTransfer: {
+            toMerchant: transferTo,
+            toPositionType: placement.positionType,
+            toWarehouse: placement.warehouse,
+            toOwner: placement.owner,
+            toWarehouseId: destinationWarehouseId(placement),
+            requestedAt,
+            requestedBy
+          }
+        });
+        pendingCount++;
+        // The manifest row keeps showing the *current* merchant — the
+        // transfer hasn't actually happened yet — rather than a value
+        // that would misrepresent this printed sheet as already final.
+      } else {
+        gadget.addLogEntry(
+          `Transferred merchant from '${previousMerchant}' to '${transferTo}'.${placementNote}`,
+          'transfer',
+          { from: previousMerchant, to: transferTo },
+          requestedBy
+        );
+        store.update(gadget.id, { merchant: transferTo, pendingTransfer: null, ...placementPatch });
+        updatedCount++;
 
-      // Reflect the new merchant in the manifest row itself so the
-      // printed sheet shows the post-transfer value, not the stale one.
-      const merchantInput = tr.querySelector('input[data-field="merchant"]');
-      if (merchantInput) merchantInput.value = transferTo;
+        // Reflect the new merchant in the manifest row itself so the
+        // printed sheet shows the post-transfer value, not the stale one.
+        const merchantInput = tr.querySelector('input[data-field="merchant"]');
+        if (merchantInput) merchantInput.value = transferTo;
+      }
     });
 
     if (updatedCount > 0) {
@@ -362,6 +405,9 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
         ? ` (${placement.positionType} · ${placement.warehouse} · ${placement.owner})`
         : '';
       Toast.success(`Updated merchant to "${transferTo}" for ${updatedCount} asset${updatedCount === 1 ? '' : 's'}${suffix}.`);
+    }
+    if (pendingCount > 0) {
+      Toast.show(`${pendingCount} asset${pendingCount === 1 ? '' : 's'} queued for transfer to "${transferTo}" — awaiting confirmation from ${receiver}.`);
     }
   }
 

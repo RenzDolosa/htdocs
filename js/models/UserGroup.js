@@ -20,6 +20,7 @@ export const PERMISSION_TREE = [
       { key: 'manage.import', label: 'Import' },
       { key: 'manage.adjust-position', label: 'Adjust Position' },
       { key: 'manage.preview-manifest', label: 'Preview Manifest' },
+      { key: 'manage.confirm-transfers', label: 'Confirm transfers' },
       { key: 'manage.delete-selected', label: 'Delete selected' },
       { key: 'manage.clear-all', label: 'Clear all data' },
       {

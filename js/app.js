@@ -25,6 +25,7 @@ import { AuthController } from './features/auth/AuthController.js';
 import { updatePassword, updateOwnUsername } from './core/Auth.js';
 import { setPermissions, can } from './core/Permissions.js';
 import { setBoundWarehouseIds } from './core/WarehouseScope.js';
+import { setCurrentUsername } from './core/CurrentUser.js';
 import { getEmployeeProfile } from './core/EmployeeSession.js';
 import { EMPLOYEE_PORTAL_EMAIL } from './core/supabaseConfig.js';
 
@@ -51,6 +52,8 @@ function collectRefs() {
     exportBtn: document.getElementById('exportBtn'),
     manifestBtn: document.getElementById('manifestBtn'),
     manifestSep: document.getElementById('manifestSep'),
+    pendingTransfersBtn: document.getElementById('pendingTransfersBtn'),
+    pendingTransfersSep: document.getElementById('pendingTransfersSep'),
     transferItemBtn: document.getElementById('transferItemBtn'),
     transferItemSep: document.getElementById('transferItemSep'),
     bulkDeleteBtn: document.getElementById('bulkDeleteBtn'),
@@ -463,18 +466,25 @@ function bindChangePasswordPanel(session) {
  * The same resolved group's boundWarehouseIds is applied here too, via
  * core/WarehouseScope.js — one lookup, two singletons updated, since
  * both read off the exact same group record.
+ *
+ * The account itself (not just its group) is also stashed via
+ * core/CurrentUser.js's setCurrentUsername() — the one place that needs
+ * "who is signed in", not "what can they do" (see that module's own doc
+ * comment for why it's a real account lookup rather than Operator.js's
+ * self-reported name).
  */
 function applyCurrentUserPermissions(session, userAccountStore, userGroupStore) {
   const isEmployeePortalSession = (session.user?.email || '').toLowerCase() === EMPLOYEE_PORTAL_EMAIL.toLowerCase();
-  const groupId = isEmployeePortalSession
-    ? getEmployeeProfile()?.userGroupId
-    : userAccountStore.list().find((u) => u.authUserId === session.user.id)?.userGroupId;
+  const account = isEmployeePortalSession
+    ? getEmployeeProfile()
+    : userAccountStore.list().find((u) => u.authUserId === session.user.id);
 
-  const group = groupId ? userGroupStore.get(groupId) : null;
+  const group = account?.userGroupId ? userGroupStore.get(account.userGroupId) : null;
   const resolvedGroup = group?.enabled ? group : null;
 
   setPermissions(resolvedGroup ? resolvedGroup.permissions : null);
   setBoundWarehouseIds(resolvedGroup ? resolvedGroup.boundWarehouseIds : null);
+  setCurrentUsername(account?.username || '');
 }
 
 async function startApp(session) {

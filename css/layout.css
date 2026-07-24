@@ -165,6 +165,10 @@ html, body{ height: 100%; }
 }
 .link-btn:hover{ text-decoration: underline; }
 .link-btn.danger{ color: var(--bad); }
+/* Persistent toggle buttons (Pending transfers) rather than one-shot
+   actions — underline stays on while the filter is active, same visual
+   language as :hover so "pressed" reads as a natural extension of it. */
+.link-btn.active{ color: var(--warn); text-decoration: underline; font-weight: 700; }
 .link-sep{ color: var(--border); font-size: 12px; }
 
 .grid-panel{
