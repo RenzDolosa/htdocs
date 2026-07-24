@@ -260,11 +260,22 @@ export class ManageController {
       if (f.category !== 'all' && g.category !== f.category) return false;
       if (f.pendingOnly && (!g.pendingTransfer || !this._canActOnPendingTransfer(g))) return false;
       const ownerKey = g.owner || 'Unassigned';
+      const pendingToOwner = g.pendingTransfer?.toOwner;
       if (allowedOwners && ownerKey !== 'Unassigned' && !allowedOwners.has(ownerKey)) {
-        const pendingToOwner = g.pendingTransfer?.toOwner;
         if (!pendingToOwner || !allowedOwners.has(pendingToOwner)) return false;
       }
-      if (ownerFilter !== 'all' && ownerKey !== ownerFilter) return false;
+      // Same exception as the scope check just above, for the same
+      // reason: a scoped session with exactly one bound warehouse gets
+      // that warehouse auto-applied as the owner filter (see
+      // _effectiveOwnerFilter), and this asset's *current* owner is
+      // still its old warehouse — ownership hasn't moved yet, that's the
+      // whole point of "pending". Without this, the scope check above
+      // lets the row through, and this very next check silently excluded
+      // it again right after — the practical effect was that a pending
+      // transfer was only ever visible to an unscoped ("Bound Warehouse:
+      // all") session, since that's the only case where ownerFilter is
+      // 'all' and this check is skipped entirely.
+      if (ownerFilter !== 'all' && ownerKey !== ownerFilter && pendingToOwner !== ownerFilter) return false;
       if (serial && !g.serialNumber.toLowerCase().includes(serial)) return false;
       if (mac && !g.macAddress.toLowerCase().includes(mac)) return false;
       if (kw) {
