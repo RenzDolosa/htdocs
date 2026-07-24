@@ -501,7 +501,7 @@ export class ManageController {
   _bindActionBar() {
     this.refs.addItemBtn.addEventListener('click', () => this._openAddOptionsMenu());
     this.refs.emptyAddBtn.addEventListener('click', () => this.openAddModal());
-    this.refs.exportBtn.addEventListener('click', () => this.exportCsv());
+    this.refs.exportBtn.addEventListener('click', () => this._openExportMenu());
     this.refs.clearAllBtn.addEventListener('click', () => this.clearAll());
     this.refs.bulkDeleteBtn.addEventListener('click', () => this._deleteSelected());
     this.refs.manifestBtn.addEventListener('click', () => this.openManifestModal());
@@ -1224,10 +1224,26 @@ export class ManageController {
     Toast.show('All asset data cleared.');
   }
 
-  exportCsv() {
-    const gadgets = this._filteredSortedGadgets();
+  /** Plain export when nothing's selected (only one sensible option); a dropdown to choose between all/selected once something is. */
+  _openExportMenu() {
+    if (this.selected.size === 0) {
+      this.exportCsv();
+      return;
+    }
+    openDropdownMenu({
+      anchor: this.refs.exportBtn,
+      items: [
+        { label: 'Export all', onClick: () => this.exportCsv() },
+        { label: `Export selected (${this.selected.size})`, onClick: () => this.exportCsv({ selectedOnly: true }) }
+      ]
+    });
+  }
+
+  exportCsv({ selectedOnly = false } = {}) {
+    const filtered = this._filteredSortedGadgets();
+    const gadgets = selectedOnly ? filtered.filter((g) => this.selected.has(g.id)) : filtered;
     if (gadgets.length === 0) {
-      Toast.show('There is nothing to export.');
+      Toast.show(selectedOnly ? 'No selected assets to export.' : 'There is nothing to export.');
       return;
     }
     // Password is intentionally excluded from CSV export to avoid writing
@@ -1247,12 +1263,12 @@ export class ManageController {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `stockroom-assets-${fmtLocalDateStamp()}.csv`;
+    a.download = `stockroom-assets${selectedOnly ? '-selected' : ''}-${fmtLocalDateStamp()}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    Toast.success(`Exported ${gadgets.length} assets to CSV.`);
+    Toast.success(`Exported ${gadgets.length} ${selectedOnly ? 'selected ' : ''}asset${gadgets.length === 1 ? '' : 's'} to CSV.`);
   }
 
   // ---------- Import (opened from the "Add asset" options menu) ----------

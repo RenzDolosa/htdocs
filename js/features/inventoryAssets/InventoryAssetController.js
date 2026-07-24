@@ -215,7 +215,7 @@ export class InventoryAssetController {
     this.refs.bulkDeleteBtn.addEventListener('click', () => this._deleteSelected());
     this.refs.clearAllBtn.addEventListener('click', () => this.clearAll());
     this.refs.refreshBtn.addEventListener('click', () => this.render());
-    this.refs.exportBtn.addEventListener('click', () => this.exportCsv());
+    this.refs.exportBtn.addEventListener('click', () => this._openExportMenu());
     this.refs.importFileInput.addEventListener('change', (e) => this._handleImportFile(e));
   }
 
@@ -357,10 +357,26 @@ export class InventoryAssetController {
   }
 
   // ---------- Export (full data, mirrors Manage's exportCsv) ----------
-  exportCsv() {
-    const assets = this._filteredSortedAssets();
+  /** Plain export when nothing's selected (only one sensible option); a dropdown to choose between all/selected once something is. */
+  _openExportMenu() {
+    if (this.selected.size === 0) {
+      this.exportCsv();
+      return;
+    }
+    openDropdownMenu({
+      anchor: this.refs.exportBtn,
+      items: [
+        { label: 'Export all', onClick: () => this.exportCsv() },
+        { label: `Export selected (${this.selected.size})`, onClick: () => this.exportCsv({ selectedOnly: true }) }
+      ]
+    });
+  }
+
+  exportCsv({ selectedOnly = false } = {}) {
+    const filtered = this._filteredSortedAssets();
+    const assets = selectedOnly ? filtered.filter((a) => this.selected.has(a.id)) : filtered;
     if (assets.length === 0) {
-      Toast.show('There is nothing to export.');
+      Toast.show(selectedOnly ? 'No selected assets to export.' : 'There is nothing to export.');
       return;
     }
     const rows = assets.map((a) => [
@@ -368,8 +384,8 @@ export class InventoryAssetController {
       fmtLocalDateTime(a.createdAt)
     ]);
     const csv = toCsv([...IMPORT_HEADERS, 'Created'], rows);
-    downloadCsv(csv, `inventory-assets-${fmtLocalDateStamp()}.csv`);
-    Toast.success(`Exported ${assets.length} ${assets.length === 1 ? 'asset' : 'assets'} to CSV.`);
+    downloadCsv(csv, `inventory-assets${selectedOnly ? '-selected' : ''}-${fmtLocalDateStamp()}.csv`);
+    Toast.success(`Exported ${assets.length} ${selectedOnly ? 'selected ' : ''}${assets.length === 1 ? 'asset' : 'assets'} to CSV.`);
   }
 
   // ---------- Import / export template ----------
