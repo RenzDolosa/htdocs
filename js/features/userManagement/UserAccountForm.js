@@ -1,5 +1,6 @@
 import { el } from '../../utils/dom.js';
 import { buildFilterDropdown } from '../../components/FilterDropdown.js';
+import { mountPasswordRequirements } from '../../components/PasswordRequirements.js';
 
 /**
  * Builds the add/edit user form as a detached DOM node — same
@@ -113,6 +114,18 @@ export function buildUserAccountForm(user = null, { userGroups = [] } = {}) {
     input.type = showing ? 'password' : 'text';
     e.currentTarget.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
   });
+
+  // Same checklist as Change password / sign-up (see
+  // utils/passwordPolicy.js), shown here purely as guidance — this
+  // password is SQL-stored (see setEmployeePassword in core/Auth.js), not
+  // a Supabase Auth password, so there's no server-side policy backing
+  // it and UserAccountController's own validation stays at the existing
+  // "6 characters minimum" rather than newly requiring every character
+  // class. Only mounted when the field is actually on the page —
+  // showPasswordFields above can leave it out entirely for an
+  // already-linked account.
+  const uaPasswordInput = node.querySelector('#uaPassword');
+  if (uaPasswordInput) mountPasswordRequirements(uaPasswordInput);
 
   node.querySelector('#uaUsername').value = user?.username || '';
   node.querySelector('#uaLoginAccount').value = user?.loginAccount || '';

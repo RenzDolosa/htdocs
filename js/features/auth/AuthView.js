@@ -1,3 +1,5 @@
+import { mountPasswordRequirements } from '../../components/PasswordRequirements.js';
+
 /**
  * AuthView owns the full-page login screen markup (#authScreen in
  * index.html). One unified sign-in form now, not the old three-tab
@@ -18,7 +20,6 @@ export class AuthView {
   constructor(refs) {
     this.refs = refs;
     this.mode = 'sign-in';
-    this._applyMode();
 
     this.refs.signUpToggle?.addEventListener('click', () => {
       this.setMode(this.mode === 'sign-up' ? 'sign-in' : 'sign-up');
@@ -32,6 +33,13 @@ export class AuthView {
       input.type = showing ? 'password' : 'text';
       e.currentTarget.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
     });
+
+    // #authPassword is shared between sign-in and sign-up (see this
+    // class's own doc comment) — the checklist only makes sense while
+    // *creating* a password, so it's mounted once here but shown/hidden
+    // per mode in _applyMode() rather than mounted fresh each toggle.
+    this._passwordChecklist = mountPasswordRequirements(this.refs.passwordInput);
+    this._applyMode();
   }
 
   setMode(mode) {
@@ -71,6 +79,13 @@ export class AuthView {
     }
     if (this.refs.signUpToggle) {
       this.refs.signUpToggle.textContent = isSignUp ? 'Back to sign in' : 'Set up the account';
+    }
+
+    // Only relevant while *creating* a password — hidden for sign-in,
+    // where this same field is just proving you already know one.
+    if (this._passwordChecklist) {
+      this._passwordChecklist.list.hidden = !isSignUp;
+      if (!isSignUp) this._passwordChecklist.update(); // reset to neutral so it doesn't reappear mid-state on the next toggle
     }
   }
 

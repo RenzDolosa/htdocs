@@ -5,6 +5,7 @@ import {
 import { getOperatorName, setOperatorName } from '../../core/Operator.js';
 import { setEmployeeProfile, getEmployeeProfile, clearEmployeeProfile } from '../../core/EmployeeSession.js';
 import { EMPLOYEE_PORTAL_EMAIL } from '../../core/supabaseConfig.js';
+import { isPasswordValid, describeMissingRequirements, friendlyPasswordError } from '../../utils/passwordPolicy.js';
 
 /**
  * AuthController is the gatekeeper in front of the rest of the app.
@@ -192,8 +193,8 @@ export class AuthController {
         this.view.showError('Username is required.');
         return;
       }
-      if (password.length < 6) {
-        this.view.showError('Password must be at least 6 characters.');
+      if (!isPasswordValid(password)) {
+        this.view.showError(describeMissingRequirements(password));
         return;
       }
     }
@@ -203,7 +204,7 @@ export class AuthController {
       if (mode === 'sign-up') {
         const { needsEmailConfirmation, error } = await signUp(identifier, password, username);
         if (error) {
-          this.view.showError(this._friendlyError(error));
+          this.view.showError(this._friendlyError(error, password));
         } else if (needsEmailConfirmation) {
           this.view.showNotice('Account created — check your email to confirm it, then sign in.');
           this.view.setMode('sign-in');
@@ -259,10 +260,10 @@ export class AuthController {
     }
   }
 
-  _friendlyError(error) {
+  _friendlyError(error, password) {
     const message = error?.message || 'Something went wrong. Please try again.';
     if (/invalid login credentials/i.test(message)) return 'Incorrect email or password.';
     if (/user already registered/i.test(message)) return 'An account with that email already exists — try signing in instead.';
-    return message;
+    return friendlyPasswordError(message, password);
   }
 }

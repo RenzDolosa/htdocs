@@ -158,7 +158,7 @@ export class ManageView {
         <td data-label="Category"${catIssue ? ' class="cell-catalog-invalid"' : ''}><div><span class="pill pill-cat">${esc(g.category)}</span> ${badge(catIssue)}</div></td>
         <td data-label="Serial Number"${serialCellClass}${serialCellTitle}><div>${g.serialNumber ? `<span class="code-tag"><span class="bars"></span>${esc(g.serialNumber)}</span>` : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
         <td data-label="Warehouse Asset Tag" style="font-family:var(--font-mono); font-size:12px;"><div>${g.warehouseAssetTag ? esc(g.warehouseAssetTag) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
-        <td data-label="Asset Tag (Default)" style="font-family:var(--font-mono); font-size:12px;"${tagIssue ? ' class="cell-catalog-invalid"' : ''}><div>${g.assetTagDefault ? esc(g.assetTagDefault) : '<span style="color:var(--ink-faint);">—</span>'} ${badge(tagIssue)}</div></td>
+        <td data-label="Asset Tag (Default)" style="font-family:var(--font-mono); font-size:12px;"${tagIssue ? ' class="cell-catalog-invalid"' : ''}><div>${g.assetTagDefault ? `<span class="code-tag"><span class="bars"></span>${esc(g.assetTagDefault)}</span>` : '<span style="color:var(--ink-faint);">—</span>'} ${badge(tagIssue)}</div></td>
         <td data-label="Mac Address" style="font-family:var(--font-mono); font-size:12px;"${macIssue ? ' class="cell-catalog-invalid"' : ''}><div>${g.macAddress ? esc(g.macAddress) : '<span style="color:var(--ink-faint);">—</span>'} ${badge(macIssue)}</div></td>
         <td data-label="Password">
           <div class="password-cell">

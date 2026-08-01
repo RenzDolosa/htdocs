@@ -23,6 +23,8 @@ import { supabase } from './core/supabaseClient.js';
 import { AuthView } from './features/auth/AuthView.js';
 import { AuthController } from './features/auth/AuthController.js';
 import { updatePassword, updateOwnUsername } from './core/Auth.js';
+import { isPasswordValid, describeMissingRequirements, friendlyPasswordError } from './utils/passwordPolicy.js';
+import { mountPasswordRequirements } from './components/PasswordRequirements.js';
 import { setPermissions, can } from './core/Permissions.js';
 import { setBoundWarehouseIds } from './core/WarehouseScope.js';
 import { setCurrentUsername } from './core/CurrentUser.js';
@@ -406,6 +408,12 @@ function bindChangePasswordPanel(session) {
     e.currentTarget.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
   });
 
+  // See utils/passwordPolicy.js for why this mirrors the project's actual
+  // Supabase Auth password policy instead of just a length check — this
+  // is what replaces submitting blind and getting GoTrue's raw
+  // "at least one character of each: abcdefg..., ABCDEFG..." error back.
+  const passwordChecklist = mountPasswordRequirements(newInput);
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearErrors();
@@ -418,8 +426,8 @@ function bindChangePasswordPanel(session) {
       showFieldError(currentInput, 'currentPassword', 'Enter your current password.');
       valid = false;
     }
-    if (newPassword.length < 6) {
-      showFieldError(newInput, 'newPassword', 'Password must be at least 6 characters.');
+    if (!isPasswordValid(newPassword)) {
+      showFieldError(newInput, 'newPassword', describeMissingRequirements(newPassword));
       valid = false;
     }
     if (confirmPassword !== newPassword) {
@@ -436,11 +444,12 @@ function bindChangePasswordPanel(session) {
         if (/current password/i.test(error.message || '')) {
           showFieldError(currentInput, 'currentPassword', error.message);
         } else {
-          Toast.error(error.message || 'Could not update password. Please try again.');
+          Toast.error(friendlyPasswordError(error.message, newPassword) || 'Could not update password. Please try again.');
         }
         return;
       }
       form.reset();
+      passwordChecklist.update(); // clear the checklist back to its neutral, empty state
       Toast.success('Password updated.');
     } finally {
       submitBtn.disabled = false;

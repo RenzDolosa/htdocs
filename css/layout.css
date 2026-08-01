@@ -168,7 +168,7 @@ html, body{ height: 100%; }
 /* Persistent toggle buttons (Pending transfers) rather than one-shot
    actions — underline stays on while the filter is active, same visual
    language as :hover so "pressed" reads as a natural extension of it. */
-.link-btn.active{ color: var(--warn); text-decoration: underline; font-weight: 700; }
+.link-btn.active{ color: var(--warn); text-decoration: underline; }
 .link-sep{ color: var(--border); font-size: 12px; }
 
 .grid-panel{
@@ -179,7 +179,7 @@ html, body{ height: 100%; }
   display: flex;
   flex-direction: column;
 }
-.grid-scroll{ flex: 1; min-height: 0; overflow: auto; }
+.grid-scroll{ flex: 1; min-height: 0; overflow: auto;}
 
 /* Warehouse side tabs (Manage/assets page) — sourced from Warehouse
    Information; sits to the left of the assets grid. */
