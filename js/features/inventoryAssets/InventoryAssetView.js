@@ -91,7 +91,7 @@ export class InventoryAssetView {
         <td class="checkbox-col"><div><input type="checkbox" tabindex="-1" data-action="select-row" ${selected ? 'checked' : ''} aria-label="Select asset" style="height: 15px; width: 15px;"></div></td>
         <td data-label="Category"><div><span class="pill pill-cat">${esc(a.category)}</span></div></td>
         <td data-label="Serial Number"${serialCellClass}${serialCellTitle}><div>${a.serialNumber ? `<span class="code-tag"><span class="bars"></span>${esc(a.serialNumber)}</span>` : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
-        <td data-label="Asset Tag" style="font-family:var(--font-mono); font-size:12px;"><div>${a.assetTag ? esc(a.assetTag) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
+        <td data-label="Asset Tag" style="font-family:var(--font-mono); font-size:12px;"><div>${a.assetTag ? `<span class="code-tag"><span class="bars"></span>${esc(a.assetTag)}</span>` : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
         <td data-label="Mac Address" style="font-family:var(--font-mono); font-size:12px;"><div>${a.macAddress ? esc(a.macAddress) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
         <td data-label="IMEI" style="font-family:var(--font-mono); font-size:12px;">${(a.imei1 || a.imei2) ? `<div>${esc(a.imei1)}</div><div>${esc(a.imei2)}</div>` : '<div><span style="color:var(--ink-faint);">—</span></div>'}</td>
         <td data-label="Created" class="created-col"><div><small>${fmtDate(a.createdAt)}</small></div></td>

@@ -101,6 +101,7 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
         <label for="gMerchant">Merchant</label>
         <input type="text" id="gMerchant" name="merchant" list="gadgetMerchantOptions" placeholder="e.g. Samples">
         <datalist id="gadgetMerchantOptions"></datalist>
+        <div class="field-error" data-error-for="merchant"></div>
         <div class="pending-transfer-banner" data-role="pending-transfer-banner" hidden></div>
         <div class="placement-preview" data-role="placement-preview"></div>
       </div>

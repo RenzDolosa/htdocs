@@ -1,5 +1,3 @@
-import { mountPasswordRequirements } from '../../components/PasswordRequirements.js';
-
 /**
  * AuthView owns the full-page login screen markup (#authScreen in
  * index.html). One unified sign-in form now, not the old three-tab
@@ -35,10 +33,9 @@ export class AuthView {
     });
 
     // #authPassword is shared between sign-in and sign-up (see this
-    // class's own doc comment) — the checklist only makes sense while
-    // *creating* a password, so it's mounted once here but shown/hidden
-    // per mode in _applyMode() rather than mounted fresh each toggle.
-    this._passwordChecklist = mountPasswordRequirements(this.refs.passwordInput);
+    // class's own doc comment). Deliberately no live password-requirements
+    // checklist here — see components/PasswordRequirements.js's own doc
+    // comment for why that's kept to Settings → Change password only.
     this._applyMode();
   }
 
@@ -79,13 +76,6 @@ export class AuthView {
     }
     if (this.refs.signUpToggle) {
       this.refs.signUpToggle.textContent = isSignUp ? 'Back to sign in' : 'Set up the account';
-    }
-
-    // Only relevant while *creating* a password — hidden for sign-in,
-    // where this same field is just proving you already know one.
-    if (this._passwordChecklist) {
-      this._passwordChecklist.list.hidden = !isSignUp;
-      if (!isSignUp) this._passwordChecklist.update(); // reset to neutral so it doesn't reappear mid-state on the next toggle
     }
   }
 

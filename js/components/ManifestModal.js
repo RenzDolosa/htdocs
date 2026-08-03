@@ -24,12 +24,13 @@ import { resolveMerchantPlacement, destinationWarehouseId } from '../utils/merch
  * that closes, asks the user to confirm the print/save actually went
  * through before applying the transfer for every real asset via
  * applyMerchantTransfer() — which either updates `merchant` right away, or,
- * if "Transfer to" resolves to a location with a receiver assigned, queues
- * a Gadget.pendingTransfer for that receiver to confirm instead (see that
- * function's own doc comment). That confirmation step here (print vs.
- * pending) exists because browsers give no way to tell "printed" apart
- * from "hit Cancel" — pass no `store` and this whole step is skipped,
- * printing still works.
+ * if "Transfer to" resolves to a real created location, queues a
+ * Gadget.pendingTransfer for whoever's User Group is bound to that
+ * destination warehouse to confirm instead (see that function's own doc
+ * comment). That confirmation step here (print vs. pending) exists
+ * because browsers give no way to tell "printed" apart from "hit
+ * Cancel" — pass no `store` and this whole step is skipped, printing
+ * still works.
  *
  * "Transfer to" doubles as the merchant/location key: when `locationStore`
  * and `warehouseStore` are supplied, the field suggests the location names
@@ -211,7 +212,7 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
   const merchantMetaInput = body.querySelector('[data-meta="merchant"]');
   const merchantPreviewEl = body.querySelector('[data-role="manifest-placement-preview"]');
   if (locationStore) {
-    const locationCodes = [...new Set(locationStore.list().map((l) => l.locationCode).filter(Boolean))].sort();
+    const locationCodes = [...new Set(locationStore.list().filter((l) => l.enabled).map((l) => l.locationCode).filter(Boolean))].sort();
     body.querySelector('#manifestMerchantOptions').innerHTML =
       locationCodes.map((code) => `<option value="${esc(code)}">`).join('');
   }
@@ -407,7 +408,7 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
       Toast.success(`Updated merchant to "${transferTo}" for ${updatedCount} asset${updatedCount === 1 ? '' : 's'}${suffix}.`);
     }
     if (pendingCount > 0) {
-      Toast.show(`${pendingCount} asset${pendingCount === 1 ? '' : 's'} queued for transfer to "${transferTo}" — awaiting confirmation from ${receiver}.`);
+      Toast.show(`${pendingCount} asset${pendingCount === 1 ? '' : 's'} queued for transfer to "${transferTo}" — awaiting confirmation from anyone with access to ${placement.owner}.`);
     }
   }
 
@@ -422,6 +423,16 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
         variant: 'btn-accent',
         onClick: () => {
           if (!isMetaComplete()) return; // belt-and-suspenders — the button is disabled anyway
+          // Same rule as Edit asset (Manage): "Transfer to" must be blank,
+          // or an exact match to a currently *enabled* Warehouse location —
+          // never arbitrary typed text, and never a deactivated location's
+          // name. A manifest transfer is still a transfer, so it gets the
+          // same gate rather than being a way around it.
+          const transferTo = body.querySelector('[data-meta="merchant"]').value.trim();
+          if (transferTo && locationStore && warehouseStore && !resolveMerchantPlacement(transferTo, { locationStore, warehouseStore }).matched) {
+            Toast.error(`"${transferTo}" isn't a currently active merchant — pick one from the list, or clear "Transfer to" to leave it unassigned.`);
+            return;
+          }
           addPrintPadding();
           document.body.classList.add('printing-manifest');
           // Registered fresh on every click and always removes itself, so

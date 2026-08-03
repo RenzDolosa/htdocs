@@ -128,7 +128,9 @@
   padding: 10px 2px 0;
 }
 .loc-footer-left{ display: flex; align-items: center; gap: 16px; font-size: 12.5px; color: var(--ink-faint); }
-.loc-footer-right{ display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* nowrap for the same reason as .grid-footer-right in css/layout.css —
+   the page-size select and pagination controls are one row, not two. */
+.loc-footer-right{ display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
 .loc-footer-right select{
   padding: 6px 8px; border-radius: 5px; border: 1px solid var(--border); font-size: 12.5px; color: var(--ink); background: var(--surface);
 }

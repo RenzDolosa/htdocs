@@ -115,11 +115,28 @@ textarea.invalid:focus{ box-shadow: 0 0 0 3px var(--bad-soft); }
 /* Live checklist under a new-password field — see
    components/PasswordRequirements.js. Neutral grey + a plain dot while a
    rule isn't met yet (this is guidance, not an error state); turns to a
-   green check the moment that rule is satisfied. */
-.password-requirements{ display: flex; position: absolute; top: 20%; right: -60%; list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+   green check the moment that rule is satisfied. Normal document flow on
+   purpose — not absolutely positioned — so it always sits predictably
+   relative to whatever it was mounted after/into, rather than floating
+   at a fixed offset that only happens to line up for one particular
+   field's width and one particular screen size. */
+.password-requirements{ list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .password-requirements li{ display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-faint); }
 .password-requirements li.met{ color: var(--good); }
 .password-req-icon{ width: 12px; text-align: center; font-weight: 700; flex-shrink: 0; }
+
+/* Settings → General → Change password: wide enough to put the
+   requirements checklist beside New password + Confirm password instead
+   of stacked underneath either one (see app.js's bindChangePasswordPanel,
+   which mounts PasswordRequirements into #newPasswordRequirementsSlot). */
+.change-password-form{ max-width: 640px; }
+.change-password-row{ display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap; }
+.change-password-fields{ flex: 1 1 260px; min-width: 220px; }
+.change-password-requirements-slot{ flex: 1 1 220px; min-width: 200px; padding-top: 27px; }
+.change-password-requirements-slot .password-requirements{ margin-top: 0; }
+@media (max-width: 560px){
+  .change-password-requirements-slot{ padding-top: 0; }
+}
 
 /* Transfer form */
 .transfer-current{

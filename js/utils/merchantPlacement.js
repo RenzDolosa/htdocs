@@ -24,10 +24,14 @@ const UNMATCHED = Object.freeze({ matched: false, positionType: '', warehouse: '
  *   - owner: the warehouse *site* that zone belongs to (e.g. "Warehouse 1"
  *     — the warehouse.name from Settings → Warehouse Information).
  *
- * Matching is case-insensitive/trimmed on the location's code, and prefers
- * an enabled location if the same code was created more than once. Returns
- * an all-blank, `matched: false` result when the merchant is empty or
- * doesn't correspond to any created location yet — callers decide how to
+ * Matching is case-insensitive/trimmed on the location's code. A location
+ * that's been deactivated (Settings → Warehouse Information → Warehouse
+ * location's Enable toggle) never matches, even if its code is otherwise
+ * an exact match and even if it's the only location ever created under
+ * that name — a merchant name only resolves to somewhere real if that
+ * somewhere is currently active. Returns an all-blank, `matched: false`
+ * result in that case, and whenever the merchant is empty or doesn't
+ * correspond to any created location at all — callers decide how to
  * render/handle that (e.g. leave the asset's placement as unassigned
  * rather than guessing).
  *
@@ -40,10 +44,9 @@ export function resolveMerchantPlacement(merchant, { locationStore, warehouseSto
   const key = (merchant || '').trim().toLowerCase();
   if (!key || !locationStore || !warehouseStore) return UNMATCHED;
 
-  const matches = locationStore.list().filter((l) => (l.locationCode || '').trim().toLowerCase() === key);
-  if (matches.length === 0) return UNMATCHED;
+  const location = locationStore.list().find((l) => l.enabled && (l.locationCode || '').trim().toLowerCase() === key);
+  if (!location) return UNMATCHED;
 
-  const location = matches.find((l) => l.enabled) || matches[0];
   const warehouseSite = warehouseStore.get(location.warehouseId);
   if (!warehouseSite) return UNMATCHED;
 

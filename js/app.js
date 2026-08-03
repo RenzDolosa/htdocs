@@ -412,7 +412,12 @@ function bindChangePasswordPanel(session) {
   // Supabase Auth password policy instead of just a length check — this
   // is what replaces submitting blind and getting GoTrue's raw
   // "at least one character of each: abcdefg..., ABCDEFG..." error back.
-  const passwordChecklist = mountPasswordRequirements(newInput);
+  // Mounted into #newPasswordRequirementsSlot (see index.html's
+  // .change-password-row) so it sits beside New password + Confirm
+  // password, not stacked under either one.
+  const passwordChecklist = mountPasswordRequirements(newInput, {
+    target: document.getElementById('newPasswordRequirementsSlot')
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

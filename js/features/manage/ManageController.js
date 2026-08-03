@@ -170,11 +170,15 @@ export class ManageController {
     return this.state.filters.owner;
   }
 
-  /** Created warehouse location names (e.g. "Samples", "Test Location") —
-   * the merchant values that actually resolve to a Position Type /
-   * Warehouse / Owner. Suggested in the Merchant field's datalist. */
+  /** Created, currently-*enabled* warehouse location names (e.g. "Samples",
+   * "Test Location") — the merchant values that actually resolve to a
+   * Position Type / Warehouse / Owner right now. Suggested in the Merchant
+   * field's datalist, and what Gadget.merchant is validated against on
+   * save (see _saveGadget) — a deactivated location's name is deliberately
+   * excluded from both: it's neither offered nor accepted until it's
+   * re-enabled. */
   _locationCodes() {
-    return this.locationStore ? [...new Set(this.locationStore.list().map((l) => l.locationCode).filter(Boolean))].sort() : [];
+    return this.locationStore ? [...new Set(this.locationStore.list().filter((l) => l.enabled).map((l) => l.locationCode).filter(Boolean))].sort() : [];
   }
 
   /** Resolves a merchant name against created locations — see
@@ -668,13 +672,28 @@ export class ManageController {
             const { valid, errors } = Gadget.validate(raw, { existingGadgets });
             const catalogIssues = this._catalogIssues(raw);
             const hasCatalogIssue = Boolean(catalogIssues.category || catalogIssues.serialNumber || catalogIssues.assetTagDefault || catalogIssues.macAddress);
-            if (!valid || hasCatalogIssue) {
+            // Merchant must be blank, or an exact match to a currently
+            // *enabled* Warehouse location — never arbitrary typed text,
+            // and never a deactivated location's name (see
+            // utils/merchantPlacement.js's resolveMerchantPlacement).
+            // Deliberately only enforced when editing an *existing* asset:
+            // a brand-new one (this modal doubles as "Add asset") can
+            // still be created with the merchant left for later, or set
+            // once the location it belongs to actually exists — see this
+            // file's header comment on the receiving workflow for why a
+            // fresh add was never gated the same way a transfer is.
+            const merchantValue = (raw.merchant || '').trim();
+            const merchantError = (gadget && merchantValue && !this._resolvePlacement(merchantValue).matched)
+              ? `"${merchantValue}" isn't a currently active merchant — pick one from the list, or clear this field to leave it unassigned.`
+              : null;
+            if (!valid || hasCatalogIssue || merchantError) {
               form.showErrors({
                 ...errors,
                 ...(catalogIssues.category ? { category: catalogIssues.category } : {}),
                 ...(catalogIssues.serialNumber ? { serialNumber: catalogIssues.serialNumber } : {}),
                 ...(catalogIssues.assetTagDefault ? { assetTagDefault: catalogIssues.assetTagDefault } : {}),
-                ...(catalogIssues.macAddress ? { macAddress: catalogIssues.macAddress } : {})
+                ...(catalogIssues.macAddress ? { macAddress: catalogIssues.macAddress } : {}),
+                ...(merchantError ? { merchant: merchantError } : {})
               });
               return;
             }

@@ -390,7 +390,7 @@
                   You'll stay signed in on this device; other signed-in devices/tabs will need the new password
                   next time they sign in.
                 </p>
-                <form id="changePasswordForm" class="gadget-form" style="max-width:360px;" novalidate>
+                <form id="changePasswordForm" class="gadget-form change-password-form" novalidate>
                   <div class="field">
                     <label for="currentPasswordInput">Current password</label>
                     <div class="password-field">
@@ -401,25 +401,30 @@
                     </div>
                     <div class="field-error" data-error-for="currentPassword"></div>
                   </div>
-                  <div class="field">
-                    <label for="newPasswordInput">New password</label>
-                    <div class="password-field">
-                      <input type="password" id="newPasswordInput" name="newPassword" autocomplete="new-password" placeholder="••••••••">
-                      <button tabindex="-1" type="button" class="password-toggle" data-action="toggle-new-password" aria-label="Show password">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
-                      </button>
+                  <div class="change-password-row">
+                    <div class="change-password-fields">
+                      <div class="field">
+                        <label for="newPasswordInput">New password</label>
+                        <div class="password-field">
+                          <input type="password" id="newPasswordInput" name="newPassword" autocomplete="new-password" placeholder="••••••••">
+                          <button tabindex="-1" type="button" class="password-toggle" data-action="toggle-new-password" aria-label="Show password">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+                          </button>
+                        </div>
+                        <div class="field-error" data-error-for="newPassword"></div>
+                      </div>
+                      <div class="field">
+                        <label for="confirmPasswordInput">Confirm new password</label>
+                        <div class="password-field">
+                          <input type="password" id="confirmPasswordInput" name="confirmPassword" autocomplete="new-password" placeholder="••••••••">
+                          <button tabindex="-1" type="button" class="password-toggle" data-action="toggle-confirm-password" aria-label="Show password">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+                          </button>
+                        </div>
+                        <div class="field-error" data-error-for="confirmPassword"></div>
+                      </div>
                     </div>
-                    <div class="field-error" data-error-for="newPassword"></div>
-                  </div>
-                  <div class="field">
-                    <label for="confirmPasswordInput">Confirm new password</label>
-                    <div class="password-field">
-                      <input type="password" id="confirmPasswordInput" name="confirmPassword" autocomplete="new-password" placeholder="••••••••">
-                      <button tabindex="-1" type="button" class="password-toggle" data-action="toggle-confirm-password" aria-label="Show password">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
-                      </button>
-                    </div>
-                    <div class="field-error" data-error-for="confirmPassword"></div>
+                    <div class="change-password-requirements-slot" id="newPasswordRequirementsSlot"></div>
                   </div>
                   <button tabindex="-1" type="submit" class="btn btn-accent" id="changePasswordSubmitBtn" style="margin-top:8px;">Update password</button>
                 </form>
