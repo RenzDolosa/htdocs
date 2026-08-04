@@ -290,10 +290,19 @@ const SETTINGS_SECTION_PERMISSION_KEYS = {
  * "IP whitelist" already hides itself for being an unbuilt stub. Purely
  * a nav-visibility pass; SettingsController's own click-to-show logic is
  * untouched; a hidden button just never gets a chance to be clicked.
+ *
+ * Resets every item to visible before re-evaluating, rather than only
+ * ever adding `hidden` — this runs again any time User Group permissions
+ * change live (see refreshLivePermissions), not just once at sign-in, so
+ * a section that was hidden a moment ago needs to be able to reappear
+ * the instant its group is granted access, not just disappear further.
  */
 function applySettingsNavPermissions() {
   const nav = document.getElementById('settingsNav');
   if (!nav) return;
+
+  nav.querySelectorAll('[data-settings-section]').forEach((btn) => { btn.hidden = false; });
+  nav.querySelectorAll('.settings-nav-group').forEach((group) => { group.hidden = false; });
 
   let activeSectionHidden = false;
 
@@ -628,6 +637,43 @@ async function startApp(session) {
   bindAdvancedFilterToggle();
   bindSettingsPanel(session);
   bindChangePasswordPanel(session);
+
+  // Live permission propagation: userGroupStore/userAccountStore are both
+  // realtime-subscribed (see SupabaseStore's own doc comment) — an admin
+  // editing a User Group's permissions or Bind warehouse list, or
+  // reassigning someone's group, already lands in these stores' caches
+  // the moment it happens, in every open tab/session, not just the one
+  // that made the change. The only thing missing was applying that to
+  // *this* session's own access: applyCurrentUserPermissions() and
+  // applySettingsNavPermissions() were both only ever called once, at
+  // sign-in, so a permission change wouldn't take effect here until the
+  // next full sign-out/sign-in.
+  //
+  // Re-running both, then re-rendering every controller whose action-bar
+  // buttons and row actions are gated by can()/isWarehouseAllowed(), is
+  // what makes that instant instead: a button disabled a second ago
+  // because Confirm transfers was off becomes clickable the moment an
+  // admin turns it on, with no reload, in whatever tab is already open.
+  //
+  // Deliberately unfiltered — this re-evaluates on *any* row change in
+  // either table, not just edits to this session's own group/account.
+  // Filtering to "was it actually mine" would need to track the group id
+  // across reassignment (today's group might not be tomorrow's), and the
+  // work skipped by filtering is cheap: a couple of lookups plus renders
+  // these controllers already do constantly in response to other store
+  // changes. Same "simplicity over cleverness" trade SupabaseStore's own
+  // realtime handler already makes.
+  function refreshLivePermissions() {
+    applyCurrentUserPermissions(session, userAccountStore, userGroupStore);
+    applySettingsNavPermissions();
+    controller.render();
+    inventoryAssetController.render();
+    userGroupController.render();
+    userAccountController.render();
+    reportsController.render();
+  }
+  userGroupStore.on('change', refreshLivePermissions);
+  userAccountStore.on('change', refreshLivePermissions);
 
   document.getElementById('appShell').hidden = false;
 }
