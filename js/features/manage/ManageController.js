@@ -111,9 +111,17 @@ export class ManageController {
    * that's oversight access, not a job assignment, and toasting
    * oversight holders for every transfer app-wide on every sign-in would
    * be noise, not a nudge. See core/WarehouseScope.js's isWarehouseScoped.
+   *
+   * Also requires manage.confirm-transfers itself, same as
+   * _canActOnPendingTransfer — being scoped to a warehouse without that
+   * permission means there's nothing here this person can actually act
+   * on, so telling them "N transfers awaiting your confirmation" would
+   * be the same bug this whole permission exists to prevent, just
+   * surfacing as a misleading notification instead of an unauthorized
+   * button.
    */
   _pendingTransfersForMe() {
-    if (!isWarehouseScoped()) return [];
+    if (!isWarehouseScoped() || !can('manage.confirm-transfers')) return [];
     return this.store.list().filter((g) => g.pendingTransfer && isWarehouseAllowed(g.pendingTransfer.toWarehouseId));
   }
 
@@ -853,19 +861,22 @@ export class ManageController {
 
   /**
    * True when the signed-in session may confirm or cancel this gadget's
-   * pending transfer: either their User Group is bound to the
-   * destination warehouse (see core/WarehouseScope.js's
-   * isWarehouseAllowed — an unrestricted group passes this too, same as
-   * everywhere else that check is used), or their group has been
-   * explicitly granted manage.confirm-transfers oversight regardless of
-   * warehouse scope. Deliberately an OR — the whole point of warehouse
-   * scoping is that people already scoped to a site can act on their own
-   * inbox without needing a separate permission grant; the permission
-   * exists for oversight/backup on top of that, not as a second gate.
+   * pending transfer: their group has been explicitly granted
+   * manage.confirm-transfers — full stop, same single-permission gate as
+   * every other action in this tree (manage.edit, manage.delete,
+   * manage.adjust-position, ...). No implicit bypass for being scoped to
+   * the destination warehouse: warehouse scope (core/WarehouseScope.js)
+   * already controls a separate thing — which pending transfers show up
+   * in the grid at all (see _filteredSortedGadgets's allowedOwners/
+   * pendingToOwner check) — not what you're allowed to *do* with the
+   * ones you can see. Folding scope into this action-level check meant
+   * an unrestricted group (no boundWarehouseIds set — the common,
+   * default case) passed isWarehouseAllowed() for every warehouse
+   * automatically, letting anyone confirm/cancel regardless of what
+   * Confirm transfers was actually set to.
    */
   _canActOnPendingTransfer(gadget) {
     if (!gadget.pendingTransfer) return false;
-    if (isWarehouseAllowed(gadget.pendingTransfer.toWarehouseId)) return true;
     return can('manage.confirm-transfers');
   }
 
@@ -875,7 +886,7 @@ export class ManageController {
     const gadget = this.store.get(id);
     if (!gadget || !gadget.pendingTransfer) return;
     if (!this._canActOnPendingTransfer(gadget)) {
-      Toast.error('Only someone with access to the destination warehouse (or Confirm transfers access) can confirm this.');
+      Toast.error('You do not have Confirm transfers access.');
       return;
     }
     const p = gadget.pendingTransfer;

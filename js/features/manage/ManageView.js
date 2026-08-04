@@ -182,10 +182,10 @@ export class ManageView {
         <td data-label="Updated" class="updated-col"><div><small>${fmtDate(g.updatedAt)}</small></div></td>
         <td data-label="Actions">
           <div class="row-actions">
-            ${p ? `<button tabindex="-1" class="icon-btn success" data-action="confirm-transfer" aria-label="Confirm receipt" title="${canActOnTransfer ? `Confirm receipt at '${esc(p.toMerchant)}'` : `Only someone with access to ${esc(p.toOwner || 'the destination warehouse')} (or Confirm transfers access) can confirm this.`}" ${canActOnTransfer ? '' : 'disabled'}>
+            ${p ? `<button tabindex="-1" class="icon-btn success" data-action="confirm-transfer" aria-label="Confirm receipt" title="${canActOnTransfer ? `Confirm receipt at '${esc(p.toMerchant)}'` : 'You do not have Confirm transfers access.'}" ${canActOnTransfer ? '' : 'disabled'}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
             </button>
-            <button tabindex="-1" class="icon-btn danger" data-action="cancel-transfer" aria-label="Cancel pending transfer" title="${canActOnTransfer ? 'Cancel this pending transfer' : `Only someone with access to ${esc(p.toOwner || 'the destination warehouse')} (or edit/oversight access) can cancel this.`}" ${canActOnTransfer ? '' : 'disabled'}>
+            <button tabindex="-1" class="icon-btn danger" data-action="cancel-transfer" aria-label="Cancel pending transfer" title="${canActOnTransfer ? 'Cancel this pending transfer' : 'You need Confirm transfers access, or edit access to the merchant field, to cancel this.'}" ${canActOnTransfer ? '' : 'disabled'}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>
             </button>` : ''}
             <button tabindex="-1" class="icon-btn" data-action="edit" aria-label="Edit asset" title="${canEdit ? 'Edit' : 'You do not have permission to edit assets.'}" ${canEdit ? '' : 'disabled'}>

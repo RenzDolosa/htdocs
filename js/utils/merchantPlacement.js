@@ -62,14 +62,15 @@ export function resolveMerchantPlacement(merchant, { locationStore, warehouseSto
 
 /**
  * The warehouse (Settings → Warehouse Information site) id a transfer
- * into this resolved placement would land in, or '' if unmatched. This
- * is what decides who may confirm the transfer: see
- * core/WarehouseScope.js's isWarehouseAllowed() and
- * ManageController._canActOnPendingTransfer — anyone whose User Group is
- * bound to this warehouse (Settings → User management → User group →
- * "Bind warehouse") can act on it, the same scoping that already governs
- * what they see elsewhere in Manage/Reports, rather than a separate
- * per-location assignment.
+ * into this resolved placement would land in, or '' if unmatched.
+ * Stored on Gadget.pendingTransfer.toWarehouseId for two separate
+ * purposes that shouldn't be conflated (see
+ * ManageController._canActOnPendingTransfer's own doc comment): it's
+ * what core/WarehouseScope.js's isWarehouseAllowed() checks to decide
+ * whether a pending transfer is even *visible* to a given scoped
+ * session, but it plays no part in deciding who may actually confirm or
+ * cancel it — that's manage.confirm-transfers alone, the same explicit
+ * single-permission gate as every other action in this app.
  */
 export function destinationWarehouseId(placement) {
   return placement?.matched ? (placement.warehouseSite?.id || '') : '';
