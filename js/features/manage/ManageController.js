@@ -568,6 +568,11 @@ export class ManageController {
     return [...new Set(this.store.list().map((g) => g.user).filter(Boolean))].sort();
   }
 
+  /** Every Role value already in use, suggested in the Edit/Add form's Role field — same idea as _knownUsers, just for the other half of that same field pair. */
+  _knownRoles() {
+    return [...new Set(this.store.list().map((g) => g.role).filter(Boolean))].sort();
+  }
+
   /**
    * Checks category / serialNumber / assetTagDefault against the
    * Inventory Assets catalog (source of truth). Returns { category,
@@ -659,6 +664,7 @@ export class ManageController {
       : [];
     const form = buildManageForm(gadget, {
       userOptions: this._knownUsers(),
+      roleOptions: this._knownRoles(),
       inventoryAssets,
       usedSerials: this._usedSerialSet(gadget ? gadget.id : null),
       locationCodes: this._locationCodes(),

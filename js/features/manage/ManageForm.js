@@ -35,13 +35,14 @@ function distinctOptions(values) {
  * @param {object} [gadget] - existing Gadget to prefill, or omit for a blank form.
  * @param {object} [source]
  * @param {string[]} [source.userOptions] - known users from Manage's own records.
+ * @param {string[]} [source.roleOptions] - known roles from Manage's own records.
  * @param {object[]} [source.inventoryAssets] - InventoryAsset records (category, serialNumber, assetTag, macAddress).
  * @param {Set<string>} [source.usedSerials] - serial numbers (lowercased, trimmed) already assigned to some other Manage record, excluded from suggestions so the dropdown doesn't offer a serial that would just fail the duplicate-serial check.
  * @param {string[]} [source.locationCodes] - created warehouse location names (e.g. "Samples", "Test Location"), suggested for the Merchant field.
  * @param {(merchant: string) => object} [source.resolvePlacement] - merchantPlacement.resolveMerchantPlacement bound to the app's stores; called on every Merchant keystroke to drive the live preview.
  * @param {string[]} [source.lockedFields] - field `name`s to render disabled (grayed out, unfocusable, current value shown but not editable). Driven by ManageController from the signed-in group's Manage → Edit field permissions (see models/UserGroup.js's PERMISSION_TREE) when editing an existing asset; left empty for Add (unrestricted either way — nothing yet for a wrong value to disagree with) and for anyone with every Edit field permission allowed.
  */
-export function buildManageForm(gadget = null, { userOptions = [], inventoryAssets = [], usedSerials = new Set(), locationCodes = [], resolvePlacement = () => ({ matched: false }), lockedFields = [] } = {}) {
+export function buildManageForm(gadget = null, { userOptions = [], roleOptions = [], inventoryAssets = [], usedSerials = new Set(), locationCodes = [], resolvePlacement = () => ({ matched: false }), lockedFields = [] } = {}) {
   const node = el(`
     <form class="gadget-form" novalidate>
       <div class="field-row">
@@ -53,7 +54,8 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
         </div>
         <div class="field">
           <label for="gRole">Role</label>
-          <input type="text" id="gRole" name="role" placeholder="e.g. Warehouse Associate">
+          <input type="text" id="gRole" name="role" list="gadgetRoleOptions" placeholder="e.g. Warehouse Associate">
+          <datalist id="gadgetRoleOptions"></datalist>
         </div>
       </div>
       <div class="field">
@@ -123,6 +125,9 @@ export function buildManageForm(gadget = null, { userOptions = [], inventoryAsse
   // Manage's own records are the source of truth for who's already been assigned something.
   node.querySelector('#gadgetUserOptions').innerHTML =
     distinctOptions(userOptions).map((v) => `<option value="${esc(v)}">`).join('');
+
+  node.querySelector('#gadgetRoleOptions').innerHTML =
+    distinctOptions(roleOptions).map((v) => `<option value="${esc(v)}">`).join('');
 
   // Settings → Warehouse Information's created locations are the source of
   // truth for which merchant names actually resolve to a Position Type /
