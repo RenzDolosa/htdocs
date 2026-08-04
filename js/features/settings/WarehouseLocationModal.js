@@ -407,6 +407,10 @@ export function openWarehouseLocationModal({ warehouse, zone, locationStore }) {
       Toast.show('There is nothing to export.');
       return;
     }
+    // Every column text-forced — see utils/csv.js's toCsv/escapeCell for
+    // why: Position Number is a long digit string that otherwise
+    // silently becomes scientific notation the instant the file is
+    // opened in Excel. No date/time column here to leave plain.
     const csv = toCsv(
       ['Location', 'Enable', 'Types of', 'Position Number'],
       rows.map((l) => [l.locationCode, l.enabled ? 'Enabled' : 'Disabled', TYPE_LABEL[l.property] || l.property, l.positionNumber])

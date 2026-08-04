@@ -383,7 +383,11 @@ export class InventoryAssetController {
       a.category, a.serialNumber, a.assetTag, a.macAddress, a.imei1, a.imei2,
       fmtLocalDateTime(a.createdAt)
     ]);
-    const csv = toCsv([...IMPORT_HEADERS, 'Created'], rows);
+    // Every column text-forced except Created — see utils/csv.js's
+    // toCsv/escapeCell for why: opened straight in Excel, a serial
+    // number, asset tag, MAC address, or IMEI otherwise silently becomes
+    // scientific notation the instant the file is opened.
+    const csv = toCsv([...IMPORT_HEADERS, 'Created'], rows, { plainHeaders: ['Created'] });
     downloadCsv(csv, `inventory-assets${selectedOnly ? '-selected' : ''}-${fmtLocalDateStamp()}.csv`);
     Toast.success(`Exported ${assets.length} ${selectedOnly ? 'selected ' : ''}${assets.length === 1 ? 'asset' : 'assets'} to CSV.`);
   }

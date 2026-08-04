@@ -4,9 +4,35 @@
  * (commas/quotes/newlines inside quotes) on both ends.
  */
 
-/** Escapes a single value for safe placement in a CSV row. */
-function escapeCell(value) {
+/**
+ * Escapes a single value for safe placement in a CSV row.
+ * @param {*} value
+ * @param {boolean} [forceText] - when true, wraps the value as an Excel
+ *   "text formula" cell (`="value"`) instead of a bare one. Excel's CSV
+ *   importer auto-types any cell that *looks* like a number — a long
+ *   digit string (serial numbers, position numbers), a MAC address or
+ *   IMEI — silently reformatting it into scientific notation and
+ *   dropping leading zeros the moment the file is opened, no matter how
+ *   the CSV itself quoted the field (a plain quoted string is still just
+ *   a string of digits to Excel's auto-detection). Wrapping it in
+ *   ="value" makes the cell a formula whose *result* is that exact text,
+ *   which Excel stores and displays as text, immune to that
+ *   reinterpretation. Every other CSV reader — including this app's own
+ *   parseCsv() — just sees ="foo" as an ordinary quoted string and
+ *   ignores the formula syntax, so this is safe for round-tripping
+ *   through this app's own CSV import too, not just for opening in Excel.
+ */
+function escapeCell(value, forceText = false) {
   const s = value == null ? '' : String(value);
+  if (forceText && s !== '') {
+    // Quotes within the value itself are doubled once, for the CSV
+    // layer — real-world values here (serials, MAC addresses, names)
+    // essentially never contain a literal `"`, so this doesn't also
+    // attempt a second, Excel-formula-level escape of that same
+    // character; the rare pathological value with a quote in it stays a
+    // valid CSV file either way, just not a perfectly-formed formula.
+    return `"=""${s.replace(/"/g, '""')}"""`;
+  }
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
@@ -52,11 +78,36 @@ function decodeCsvBuffer(buffer) {
  * Builds a CSV string from headers + row arrays.
  * @param {string[]} headers
  * @param {Array<Array<string|number>>} rows
+ * @param {{ plainHeaders?: string[] }} [options] - `plainHeaders`: header
+ *   names to leave as plain values instead of text-forcing (see
+ *   escapeCell's own doc comment) — typically date/time columns, which
+ *   Excel doesn't misread as a giant number and are easier to skim as a
+ *   normal cell. Every other column is text-forced by default, so a new
+ *   column added later is safe without this call site having to
+ *   remember to opt it in.
  */
-export function toCsv(headers, rows) {
-  const lines = [headers.map(escapeCell).join(',')];
-  rows.forEach((row) => lines.push(row.map(escapeCell).join(',')));
+export function toCsv(headers, rows, { plainHeaders = [] } = {}) {
+  const plainSet = new Set(plainHeaders);
+  const forceTextAt = headers.map((h) => !plainSet.has(h));
+  const lines = [headers.map((h) => escapeCell(h)).join(',')];
+  rows.forEach((row) => lines.push(row.map((value, i) => escapeCell(value, forceTextAt[i])).join(',')));
   return lines.join('\r\n');
+}
+
+/**
+ * Strips the `="value"` Excel-text-formula wrapper (see toCsv/escapeCell)
+ * back off, if present. Opening an exported file in Excel and re-saving
+ * as CSV never needs this — CSV has no way to represent a formula at
+ * all, so Excel always writes out the *computed* value ("value", not
+ * ="value") the moment it saves. This only matters for a file round-
+ * tripped straight back into this app's own import without ever passing
+ * through Excel — parseCsv() applies it to every field unconditionally
+ * so all three import call sites (ManageController, InventoryAssetController,
+ * SettingsController's Warehouse Information import) get it for free.
+ */
+function unwrapExcelText(value) {
+  const match = /^="(.*)"$/.exec(value);
+  return match ? match[1] : value;
 }
 
 /**
@@ -100,7 +151,9 @@ export function parseCsv(text) {
   // Flush the last field/row if the file didn't end with a newline.
   if (field !== '' || row.length > 0) pushRow();
 
-  return rows.filter((r) => !(r.length === 1 && r[0].trim() === ''));
+  return rows
+    .filter((r) => !(r.length === 1 && r[0].trim() === ''))
+    .map((r) => r.map(unwrapExcelText));
 }
 
 /**

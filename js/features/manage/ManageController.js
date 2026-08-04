@@ -1288,22 +1288,14 @@ export class ManageController {
     const rows = gadgets.map((g) => [
       g.user, g.role, g.category, g.serialNumber, g.warehouseAssetTag, g.assetTagDefault,
       g.macAddress, g.merchant, g.owner, g.remarks, g.description, g.warehouse, fmtLocalDateTime(g.createdAt), fmtLocalDateTime(g.updatedAt)
-    ].map((v) => {
-      let s = String(v == null ? '' : v);
-      if (s.includes(',') || s.includes('"')) s = `"${s.replace(/"/g, '""')}"`;
-      return s;
-    }).join(','));
-
-    const csv = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `stockroom-assets${selectedOnly ? '-selected' : ''}-${fmtLocalDateStamp()}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    ]);
+    // Every column text-forced except the two date/time ones — see
+    // utils/csv.js's toCsv/escapeCell for why: opened straight in Excel,
+    // a long digit string like a serial number or MAC/IMEI-shaped value
+    // otherwise silently becomes scientific notation the moment the file
+    // is opened, with no way to tell from the CSV alone that it happened.
+    const csv = toCsv(headers, rows, { plainHeaders: ['Created', 'Last Updated'] });
+    downloadCsv(csv, `stockroom-assets${selectedOnly ? '-selected' : ''}-${fmtLocalDateStamp()}.csv`);
     Toast.success(`Exported ${gadgets.length} ${selectedOnly ? 'selected ' : ''}asset${gadgets.length === 1 ? '' : 's'} to CSV.`);
   }
 
