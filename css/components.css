@@ -117,6 +117,7 @@ tbody tr.row-selected td.sn-col, tbody tr.row-selected td.checkbox-col{ backgrou
    UserAccountView.js / supabase/schema.sql's auth.users linkage) rather
    than a directory-only entry added by hand via "+ Add user". */
 .pill-linked{ background: var(--good-soft); color: var(--good); }
+.pill-bad{ background: var(--bad-soft); color: var(--bad); }
 
 .code-tag{
   display: inline-flex; align-items: center; gap: 7px;

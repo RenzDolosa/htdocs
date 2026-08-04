@@ -1,7 +1,7 @@
 import { Modal } from '../../components/Modal.js';
 import { Toast } from '../../components/Toast.js';
 import { confirmDialog } from '../../components/ConfirmDialog.js';
-import { openLogModal } from '../../components/LogModal.js';
+import { openUserAccountActivityLogModal } from '../../components/UserAccountActivityLogModal.js';
 import { buildFilterDropdown } from '../../components/FilterDropdown.js';
 import { UserAccount } from '../../models/UserAccount.js';
 import { buildUserAccountForm } from './UserAccountForm.js';
@@ -400,9 +400,6 @@ export class UserAccountController {
 
   // ---------- Activity log ----------
   viewLog() {
-    const entries = this.store.list().flatMap((u) =>
-      (u.history || []).map((entry) => ({ ...entry, message: `${u.username || u.loginAccount}: ${entry.message}` }))
-    );
-    openLogModal({ title: 'User management activity log', entries });
+    openUserAccountActivityLogModal({ accounts: this.store.list() });
   }
 }

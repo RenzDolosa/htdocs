@@ -1,7 +1,7 @@
 import { Modal } from '../../components/Modal.js';
 import { Toast } from '../../components/Toast.js';
 import { confirmDialog } from '../../components/ConfirmDialog.js';
-import { openLogModal } from '../../components/LogModal.js';
+import { openUserGroupActivityLogModal } from '../../components/UserGroupActivityLogModal.js';
 import { buildFilterDropdown } from '../../components/FilterDropdown.js';
 import { UserGroup } from '../../models/UserGroup.js';
 import { buildUserGroupForm } from './UserGroupForm.js';
@@ -236,9 +236,6 @@ export class UserGroupController {
 
   // ---------- Activity log ----------
   viewLog() {
-    const entries = this.store.list().flatMap((g) =>
-      (g.history || []).map((entry) => ({ ...entry, message: `${g.name}: ${entry.message}` }))
-    );
-    openLogModal({ title: 'User group activity log', entries });
+    openUserGroupActivityLogModal({ groups: this.store.list() });
   }
 }
