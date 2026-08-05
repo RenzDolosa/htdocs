@@ -52,7 +52,7 @@ export class ManageController {
 
     this.state = {
       filters: { keyword: '', category: 'all', position: 'all', warehouseArea: 'all', owner: 'all', pendingOnly: false },
-      sortBy: 'user',
+      sortBy: 'category',
       sortDir: 'asc',
       page: 1,
       pageSize: 50
@@ -89,13 +89,12 @@ export class ManageController {
     return [...new Set(this.store.list().map((g) => g.category).filter(Boolean))].sort();
   }
 
-  /** Position Type filter options — every label a gadget could actually
-   * show in its own Position Type column (see models/Gadget.js's
-   * effectivePositionLabel), including "Unassigned" as a real,
-   * selectable value since that's the state most assets are in before
-   * ever being placed (see the Manage grid's own Position Type column). */
+  /** Position Type filter options — every real label a gadget's Position
+   * Type column can show (see models/Gadget.js's effectivePositionLabel),
+   * except "Unassigned" — that's the default state most assets start in,
+   * not something worth offering as its own filter choice. */
   _knownPositionTypes() {
-    return [...new Set(this.store.list().map((g) => effectivePositionLabel(g)))].sort();
+    return [...new Set(this.store.list().map((g) => effectivePositionLabel(g)).filter((label) => label !== 'Unassigned'))].sort();
   }
 
   /** Warehouse Area filter options — every value the Manage grid's own
@@ -103,10 +102,10 @@ export class ManageController {
    * resolved to — see utils/merchantPlacement.js), not the warehouse
    * *site* names the separate "Warehouse" scope filter button already
    * covers (that one filters by `g.owner`; this is a different column
-   * entirely). "Unassigned" is included for the same reason as
+   * entirely). "Unassigned" is excluded for the same reason as
    * _knownPositionTypes() above. */
   _knownWarehouseAreas() {
-    return [...new Set(this.store.list().map((g) => g.warehouse || 'Unassigned'))].sort();
+    return [...new Set(this.store.list().map((g) => g.warehouse).filter(Boolean))].sort();
   }
 
   /**
