@@ -43,8 +43,6 @@ function collectRefs() {
     filterKeyword: document.getElementById('filterKeyword'),
     filterCategory: document.getElementById('filterCategory'),
     warehouseFilterBtn: document.getElementById('warehouseFilterBtn'),
-    filterSerial: document.getElementById('filterSerial'),
-    filterMac: document.getElementById('filterMac'),
     searchBtn: document.getElementById('searchBtn'),
     resetBtn: document.getElementById('resetBtn'),
 

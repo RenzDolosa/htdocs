@@ -51,7 +51,7 @@ export class ManageController {
     this.locationStore = locationStore;
 
     this.state = {
-      filters: { keyword: '', category: 'all', owner: 'all', serialNumber: '', macAddress: '', pendingOnly: false },
+      filters: { keyword: '', category: 'all', owner: 'all', pendingOnly: false },
       sortBy: 'user',
       sortDir: 'asc',
       page: 1,
@@ -246,8 +246,6 @@ export class ManageController {
   _filteredSortedGadgets() {
     const f = this.state.filters;
     const kw = f.keyword.trim().toLowerCase();
-    const serial = f.serialNumber.trim().toLowerCase();
-    const mac = f.macAddress.trim().toLowerCase();
     const ownerFilter = this._effectiveOwnerFilter();
     // When scoped, "All" still only ever means "all of MY warehouses" —
     // this is what actually enforces that, on top of whatever single
@@ -288,8 +286,6 @@ export class ManageController {
       // all") session, since that's the only case where ownerFilter is
       // 'all' and this check is skipped entirely.
       if (ownerFilter !== 'all' && ownerKey !== ownerFilter && pendingToOwner !== ownerFilter) return false;
-      if (serial && !g.serialNumber.toLowerCase().includes(serial)) return false;
-      if (mac && !g.macAddress.toLowerCase().includes(mac)) return false;
       if (kw) {
         const haystack = [g.user, g.role, g.category, g.serialNumber, g.warehouseAssetTag, g.assetTagDefault, g.macAddress, g.warehouse, g.owner, g.remarks, g.description]
           .join(' ').toLowerCase();
@@ -469,8 +465,6 @@ export class ManageController {
   _bindFilterBar() {
     const applyOnEnter = (el) => el.addEventListener('keydown', (e) => { if (e.key === 'Enter') this._applyFilters(); });
     applyOnEnter(this.refs.filterKeyword);
-    applyOnEnter(this.refs.filterSerial);
-    applyOnEnter(this.refs.filterMac);
 
     // Dropdowns apply immediately on selection — there's no "typing in progress"
     // state to wait out, so requiring a separate Search click just makes them
@@ -492,8 +486,6 @@ export class ManageController {
       keyword: this.refs.filterKeyword.value,
       category: this.refs.filterCategory.value,
       owner: this.state.filters.owner,
-      serialNumber: this.refs.filterSerial.value,
-      macAddress: this.refs.filterMac.value,
       pendingOnly: this.state.filters.pendingOnly
     };
     this.state.page = 1;
@@ -502,9 +494,7 @@ export class ManageController {
 
   _resetFilters() {
     this.refs.filterKeyword.value = '';
-    this.refs.filterSerial.value = '';
-    this.refs.filterMac.value = '';
-    this.state.filters = { keyword: '', category: 'all', owner: 'all', serialNumber: '', macAddress: '', pendingOnly: false };
+    this.state.filters = { keyword: '', category: 'all', owner: 'all', pendingOnly: false };
     this.state.page = 1;
     this.render();
   }

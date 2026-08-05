@@ -62,7 +62,7 @@ export class InventoryAssetController {
     let assets = this.store.list().filter((a) => {
       if (f.category !== 'all' && a.category !== f.category) return false;
       if (kw) {
-        const haystack = [a.category, a.serialNumber, a.assetTag, a.macAddress].join(' ').toLowerCase();
+        const haystack = [a.serialNumber, a.assetTag, a.macAddress, a.imei1, a.imei2].join(' ').toLowerCase();
         if (!haystack.includes(kw)) return false;
       }
       return true;
