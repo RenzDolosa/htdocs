@@ -103,7 +103,9 @@
           <div class="filterbar-row">
             <div class="filterbar-col">
               <input id="filterKeyword" type="text" title="Keyword (User, Role, Serial, Tag, MAC, Remarks…)" placeholder="Keyword (User, Role, Serial, Tag, MAC, Remarks…)">
-              <select class="field-option" id="filterCategory"><option value="all">All categories</option></select>
+              <select class="field-option" id="filterPosition"><option value="all">Position Type</option></select>
+              <select class="field-option" id="filterWarehouse"><option value="all">Warehouse Area</option></select>
+              <select class="field-option" id="filterCategory"><option value="all">All Categories</option></select>
             </div>
             <button tabindex="-1" class="btn btn-accent btn-sm" id="searchBtn">Search</button>
             <button tabindex="-1" class="btn btn-outline btn-sm" id="resetBtn">Reset</button>
@@ -165,7 +167,7 @@
                     <th><div>Description</div></th>
                     <th data-sort="positionType"><div>Position Type <span class="arrow">↕</span></div></th>
                     <th data-sort="warehouse"><div>Warehouse <span class="arrow">↕</span></div></th>
-                    <th data-sort="owner"><div>Owner <span class="arrow">↕</span></div></th>
+                    <!-- <th data-sort="owner"><div>Owner <span class="arrow">↕</span></div></th> -->
                     <th data-sort="createdAt"><div>Created <span class="arrow">↕</span></div></th>
                     <th data-sort="updatedAt"><div>Updated <span class="arrow">↕</span></div></th>
                     <th style="text-align:right;"><div>Actions</div></th>

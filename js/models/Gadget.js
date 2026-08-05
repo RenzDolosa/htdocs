@@ -19,6 +19,21 @@ export function temporaryPositionLabel(value) {
 }
 
 /**
+ * The Position Type label a gadget actually displays as, in one place —
+ * Manage's own Position Type column, Reports' "Gadgets by Position Type"
+ * breakdown, and Manage's Position Type filter (ManageController) all
+ * point at this rather than each re-deriving it slightly differently.
+ * A temporary bin (see TEMP_POSITION_TYPES above) always wins over the
+ * gadget's normal positionType while it's parked there — that's the
+ * point of a temporary position, to override the regular one without
+ * losing/overwriting it (it's just sitting elsewhere for now).
+ */
+export function effectivePositionLabel(gadget) {
+  if (gadget.temporaryPosition) return temporaryPositionLabel(gadget.temporaryPosition);
+  return gadget.positionType || 'Unassigned';
+}
+
+/**
  * Gadget is the domain model for a single tracked asset (a device assigned
  * to a user, sitting in a warehouse). Unlike a stock-keeping unit, each
  * Gadget record represents one physical item — there's no quantity.

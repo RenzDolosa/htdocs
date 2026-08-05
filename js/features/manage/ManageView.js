@@ -14,15 +14,22 @@ export class ManageView {
     this._revealedPasswords = new Set();
     // Category has 20+ options, so it gets the search box; the underlying
     // <select> stays fully functional (value/change/innerHTML) — see
-    // components/SelectField.js for why that matters here.
+    // components/SelectField.js for why that matters here. Position Type
+    // and Warehouse Area have far fewer options in practice, so they're
+    // enhanced for consistent visual styling but without the search box.
     enhanceSelect(this.refs.filterCategory, { searchable: true });
+    enhanceSelect(this.refs.filterPosition);
+    enhanceSelect(this.refs.filterWarehouse);
   }
 
-  /** Populates the Category <select> filter, preserving the current selection.
-   * Warehouse has exactly one filter control now — the side tab bar
-   * (see renderWarehouseFilterButton) — so there's no dropdown to keep in sync here. */
-  renderFilterOptions(categories, filters) {
-    this._fillSelect(this.refs.filterCategory, categories, 'All categories', filters.category);
+  /** Populates the Category / Position Type / Warehouse Area <select> filters,
+   * preserving each one's current selection. Warehouse *site* has its own,
+   * separate filter control — the side tab bar (see renderWarehouseFilterButton)
+   * — so there's no dropdown to keep in sync here for that one. */
+  renderFilterOptions(categories, positionTypes, warehouseAreas, filters) {
+    this._fillSelect(this.refs.filterCategory, categories, 'All Categories', filters.category);
+    this._fillSelect(this.refs.filterPosition, positionTypes, 'Position Type', filters.position);
+    this._fillSelect(this.refs.filterWarehouse, warehouseAreas, 'Warehouse Area', filters.warehouseArea);
   }
 
   /**
@@ -177,7 +184,7 @@ export class ManageView {
             : (g.positionType ? esc(g.positionType) : '<span style="color:var(--ink-faint);">Unassigned</span>')
         }</div></td>
         <td data-label="Warehouse"><div>${g.warehouse ? `<span class="pill pill-warehouse">${esc(g.warehouse)}</span>` : '<span style="color:var(--ink-faint);">Unassigned</span>'}</div></td>
-        <td data-label="Owner" class="owner-col" style="font-family:var(--font-mono); font-size:12px;"><div>${g.owner ? esc(g.owner) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
+        <!-- <td data-label="Owner" class="owner-col" style="font-family:var(--font-mono); font-size:12px;"><div>${g.owner ? esc(g.owner) : '<span style="color:var(--ink-faint);">—</span>'}</div></td> -->
         <td data-label="Created" class="created-col"><div><small>${fmtDate(g.createdAt)}</small></div></td>
         <td data-label="Updated" class="updated-col"><div><small>${fmtDate(g.updatedAt)}</small></div></td>
         <td data-label="Actions">

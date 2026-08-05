@@ -41,6 +41,8 @@ function collectRefs() {
   return {
     // Filter bar
     filterKeyword: document.getElementById('filterKeyword'),
+    filterPosition: document.getElementById('filterPosition'),
+    filterWarehouse: document.getElementById('filterWarehouse'),
     filterCategory: document.getElementById('filterCategory'),
     warehouseFilterBtn: document.getElementById('warehouseFilterBtn'),
     searchBtn: document.getElementById('searchBtn'),

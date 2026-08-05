@@ -1,4 +1,4 @@
-import { temporaryPositionLabel } from '../../models/Gadget.js';
+import { effectivePositionLabel } from '../../models/Gadget.js';
 import { openDropdownMenu } from '../../components/DropdownMenu.js';
 import { Modal } from '../../components/Modal.js';
 import { toCsv, downloadCsv } from '../../utils/csv.js';
@@ -150,8 +150,7 @@ export class ReportsController {
   }
 
   _positionLabel(g) {
-    if (g.temporaryPosition) return temporaryPositionLabel(g.temporaryPosition);
-    return g.positionType || 'Unassigned';
+    return effectivePositionLabel(g);
   }
 
   _stats(gadgets) {

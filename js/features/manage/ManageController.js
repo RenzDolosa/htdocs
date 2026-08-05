@@ -6,7 +6,7 @@ import { openLogModal } from '../../components/LogModal.js';
 import { openManifestModal as showManifestModal } from '../../components/ManifestModal.js';
 import { openDropdownMenu } from '../../components/DropdownMenu.js';
 import { enhanceSelect } from '../../components/SelectField.js';
-import { Gadget, TEMP_POSITION_TYPES, temporaryPositionLabel } from '../../models/Gadget.js';
+import { Gadget, TEMP_POSITION_TYPES, temporaryPositionLabel, effectivePositionLabel } from '../../models/Gadget.js';
 import { buildManageForm } from './ManageForm.js';
 import { toCsv, parseCsv, downloadCsv, readCsvFile } from '../../utils/csv.js';
 import { processInChunks } from '../../utils/asyncBatch.js';
@@ -51,7 +51,7 @@ export class ManageController {
     this.locationStore = locationStore;
 
     this.state = {
-      filters: { keyword: '', category: 'all', owner: 'all', pendingOnly: false },
+      filters: { keyword: '', category: 'all', position: 'all', warehouseArea: 'all', owner: 'all', pendingOnly: false },
       sortBy: 'user',
       sortDir: 'asc',
       page: 1,
@@ -87,6 +87,26 @@ export class ManageController {
   // ---------- Derived data ----------
   _knownCategories() {
     return [...new Set(this.store.list().map((g) => g.category).filter(Boolean))].sort();
+  }
+
+  /** Position Type filter options — every label a gadget could actually
+   * show in its own Position Type column (see models/Gadget.js's
+   * effectivePositionLabel), including "Unassigned" as a real,
+   * selectable value since that's the state most assets are in before
+   * ever being placed (see the Manage grid's own Position Type column). */
+  _knownPositionTypes() {
+    return [...new Set(this.store.list().map((g) => effectivePositionLabel(g)))].sort();
+  }
+
+  /** Warehouse Area filter options — every value the Manage grid's own
+   * Warehouse column can show (`g.warehouse`, the zone/area a position
+   * resolved to — see utils/merchantPlacement.js), not the warehouse
+   * *site* names the separate "Warehouse" scope filter button already
+   * covers (that one filters by `g.owner`; this is a different column
+   * entirely). "Unassigned" is included for the same reason as
+   * _knownPositionTypes() above. */
+  _knownWarehouseAreas() {
+    return [...new Set(this.store.list().map((g) => g.warehouse || 'Unassigned'))].sort();
   }
 
   /**
@@ -268,6 +288,8 @@ export class ManageController {
 
     let gadgets = this.store.list().filter((g) => {
       if (f.category !== 'all' && g.category !== f.category) return false;
+      if (f.position !== 'all' && effectivePositionLabel(g) !== f.position) return false;
+      if (f.warehouseArea !== 'all' && (g.warehouse || 'Unassigned') !== f.warehouseArea) return false;
       if (f.pendingOnly && (!g.pendingTransfer || !this._canActOnPendingTransfer(g))) return false;
       const ownerKey = g.owner || 'Unassigned';
       const pendingToOwner = g.pendingTransfer?.toOwner;
@@ -326,7 +348,7 @@ export class ManageController {
     const start = (this.state.page - 1) * this.state.pageSize;
     const pageGadgets = filtered.slice(start, start + this.state.pageSize);
 
-    this.view.renderFilterOptions(this._knownCategories(), this.state.filters);
+    this.view.renderFilterOptions(this._knownCategories(), this._knownPositionTypes(), this._knownWarehouseAreas(), this.state.filters);
     this.view.renderWarehouseFilterButton(this._knownOwners().length > 0, this._effectiveOwnerFilter());
     this._updatePendingTransfersButton();
     this.view.renderTable(pageGadgets, this.selected, {
@@ -469,6 +491,8 @@ export class ManageController {
     // Dropdowns apply immediately on selection — there's no "typing in progress"
     // state to wait out, so requiring a separate Search click just makes them
     // look broken.
+    this.refs.filterPosition.addEventListener('change', () => this._applyFilters());
+    this.refs.filterWarehouse.addEventListener('change', () => this._applyFilters());
     this.refs.filterCategory.addEventListener('change', () => this._applyFilters());
 
     this.refs.searchBtn.addEventListener('click', () => this._applyFilters());
@@ -485,6 +509,8 @@ export class ManageController {
     this.state.filters = {
       keyword: this.refs.filterKeyword.value,
       category: this.refs.filterCategory.value,
+      position: this.refs.filterPosition.value,
+      warehouseArea: this.refs.filterWarehouse.value,
       owner: this.state.filters.owner,
       pendingOnly: this.state.filters.pendingOnly
     };
@@ -494,7 +520,7 @@ export class ManageController {
 
   _resetFilters() {
     this.refs.filterKeyword.value = '';
-    this.state.filters = { keyword: '', category: 'all', owner: 'all', pendingOnly: false };
+    this.state.filters = { keyword: '', category: 'all', position: 'all', warehouseArea: 'all', owner: 'all', pendingOnly: false };
     this.state.page = 1;
     this.render();
   }
