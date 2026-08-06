@@ -71,9 +71,17 @@ export class InventoryAssetController {
     const dir = this.state.sortDir === 'asc' ? 1 : -1;
     assets = assets.slice().sort((a, b) => {
       let va, vb;
+      // Every case here must match a real `data-sort` value from
+      // index.html's Inventory Assets table header — anything missing
+      // here used to silently fall through to the default (sort by
+      // Created) instead of sorting by whatever column was actually
+      // clicked.
       switch (this.state.sortBy) {
-        case 'category': va = a.category.toLowerCase(); vb = b.category.toLowerCase(); break;
+        case 'category': va = (a.category || '').toLowerCase(); vb = (b.category || '').toLowerCase(); break;
         case 'serialNumber': va = (a.serialNumber || '').toLowerCase(); vb = (b.serialNumber || '').toLowerCase(); break;
+        case 'assetTag': va = (a.assetTag || '').toLowerCase(); vb = (b.assetTag || '').toLowerCase(); break;
+        case 'macAddress': va = (a.macAddress || '').toLowerCase(); vb = (b.macAddress || '').toLowerCase(); break;
+        case 'imei': va = (a.imei1 || a.imei2 || '').toLowerCase(); vb = (b.imei1 || b.imei2 || '').toLowerCase(); break;
         default: va = a.createdAt; vb = b.createdAt;
       }
       if (va < vb) return -1 * dir;
