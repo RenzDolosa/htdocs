@@ -318,9 +318,25 @@ export class ManageController {
     const dir = this.state.sortDir === 'asc' ? 1 : -1;
     gadgets = gadgets.slice().sort((a, b) => {
       let va, vb;
+      // Every case here must match a real `data-sort` value from
+      // index.html's Manage table header — anything missing here used to
+      // silently fall through to the default (sort by User) instead of
+      // sorting by whatever column was actually clicked, which is exactly
+      // what made most of this table's column headers look clickable but
+      // not actually work.
       switch (this.state.sortBy) {
-        case 'role': va = a.role.toLowerCase(); vb = b.role.toLowerCase(); break;
-        case 'category': va = a.category.toLowerCase(); vb = b.category.toLowerCase(); break;
+        case 'user': va = (a.user || '').toLowerCase(); vb = (b.user || '').toLowerCase(); break;
+        case 'role': va = (a.role || '').toLowerCase(); vb = (b.role || '').toLowerCase(); break;
+        case 'category': va = (a.category || '').toLowerCase(); vb = (b.category || '').toLowerCase(); break;
+        case 'serialNumber': va = (a.serialNumber || '').toLowerCase(); vb = (b.serialNumber || '').toLowerCase(); break;
+        case 'warehouseAssetTag': va = (a.warehouseAssetTag || '').toLowerCase(); vb = (b.warehouseAssetTag || '').toLowerCase(); break;
+        case 'assetTagDefault': va = (a.assetTagDefault || '').toLowerCase(); vb = (b.assetTagDefault || '').toLowerCase(); break;
+        case 'macAddress': va = (a.macAddress || '').toLowerCase(); vb = (b.macAddress || '').toLowerCase(); break;
+        case 'password': va = (a.password || '').toLowerCase(); vb = (b.password || '').toLowerCase(); break;
+        case 'merchant': va = (a.merchant || '').toLowerCase(); vb = (b.merchant || '').toLowerCase(); break;
+        case 'remarks': va = (a.remarks || '').toLowerCase(); vb = (b.remarks || '').toLowerCase(); break;
+        case 'description': va = (a.description || '').toLowerCase(); vb = (b.description || '').toLowerCase(); break;
+        case 'positionType': va = (a.positionType || '').toLowerCase(); vb = (b.positionType || '').toLowerCase(); break;
         case 'warehouse': va = (a.warehouse || '').toLowerCase(); vb = (b.warehouse || '').toLowerCase(); break;
         case 'createdAt': va = a.createdAt; vb = b.createdAt; break;
         case 'updatedAt': va = a.updatedAt; vb = b.updatedAt; break;
