@@ -153,7 +153,15 @@ export class ColumnConfigPanel {
   }
 
   _handleDocClick(e) {
-    if (!this.panelEl.contains(e.target) && e.target !== this.anchor && !this.anchor.contains(e.target)) this.close();
+    // composedPath() is captured once at dispatch time and still lists the
+    // original ancestor chain even if an element along it — like the move
+    // button just clicked — gets removed from the DOM before this bubbles
+    // here. contains() would instead check against the *current* DOM,
+    // where a just-removed node always reads as "not contained", which is
+    // exactly what happens on every up/down click: _move() rebuilds the
+    // row list synchronously, detaching the very button mid-click.
+    const path = e.composedPath ? e.composedPath() : [e.target];
+    if (!path.includes(this.panelEl) && !path.includes(this.anchor)) this.close();
   }
 
   _handleKeydown(e) {
