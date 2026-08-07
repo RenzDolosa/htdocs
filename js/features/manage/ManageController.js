@@ -17,6 +17,34 @@ import { can } from '../../core/Permissions.js';
 import { isWarehouseAllowed, isWarehouseScoped } from '../../core/WarehouseScope.js';
 import { fmtLocalDateTime, fmtLocalDateStamp } from '../../utils/format.js';
 import { resolveMerchantPlacement, destinationWarehouseId } from '../../utils/merchantPlacement.js';
+import { ColumnConfig } from '../../core/ColumnConfig.js';
+import { openColumnConfigPanel } from '../../components/ColumnConfigPanel.js';
+import { applyColumnLayout } from '../../utils/columnLayout.js';
+
+/** Manage's configurable columns — everything in the grid except the
+ * leading row-number/select columns and the trailing Actions column,
+ * neither of which the column-configuration panel lets you touch (see
+ * core/ColumnConfig.js's own doc comment for why). Order here is the
+ * default order; width is the starting pixel width. Persisted per
+ * browser under 'gadget-tracker:columns:manage' — see ColumnConfig. */
+const MANAGE_DEFAULT_COLUMNS = [
+  { key: 'user', label: 'User', width: 140 },
+  { key: 'role', label: 'Role', width: 100 },
+  { key: 'category', label: 'Category', width: 130 },
+  { key: 'serialNumber', label: 'Serial Number', width: 160 },
+  { key: 'warehouseAssetTag', label: 'Warehouse Asset Tag', width: 160 },
+  { key: 'assetTagDefault', label: 'Asset Tag (Default)', width: 160 },
+  { key: 'macAddress', label: 'Mac Address', width: 150 },
+  { key: 'password', label: 'Password', width: 120 },
+  { key: 'merchant', label: 'Merchant', width: 140 },
+  { key: 'remarks', label: 'Remarks', width: 160 },
+  { key: 'description', label: 'Description', width: 180 },
+  { key: 'positionType', label: 'Position Type', width: 140 },
+  { key: 'warehouse', label: 'Warehouse', width: 140 },
+  { key: 'owner', label: 'Owner', width: 100 },
+  { key: 'createdAt', label: 'Created', width: 150 },
+  { key: 'updatedAt', label: 'Updated', width: 150 }
+];
 
 /** Column order/labels shared by the CSV export, the import template, and the importer. */
 const IMPORT_HEADERS = ['User', 'Role', 'Category', 'Serial Number', 'Warehouse Asset Tag', 'Asset Tag (Default)', 'MAC Address', 'Merchant', 'Owner', 'Remarks', 'Description'];
@@ -49,6 +77,11 @@ export class ManageController {
     // Warehouse / Owner are derived from where that location lives (see
     // utils/merchantPlacement.js) instead of being typed by hand.
     this.locationStore = locationStore;
+
+    // Column visibility/width/order/pin state for this grid — see
+    // core/ColumnConfig.js. A client-side display preference, not
+    // warehouse data, so it lives in localStorage rather than Supabase.
+    this.columnConfig = new ColumnConfig('gadget-tracker:columns:manage', MANAGE_DEFAULT_COLUMNS);
 
     this.state = {
       filters: { keyword: '', category: 'all', position: 'all', warehouseArea: 'all', owner: 'all', pendingOnly: false },
@@ -395,6 +428,31 @@ export class ManageController {
     );
     this._updateBulkDeleteVisibility();
     this._applyActionBarPermissions();
+    this._applyColumnLayout();
+  }
+
+  /** Moves each column's already-rendered <th>/<td data-col> nodes into
+   * the configured order, applying width/visibility/pin — see
+   * utils/columnLayout.js's own doc comment for why this reorders
+   * existing DOM nodes instead of re-deriving cell content. Called after
+   * every render() (renderTable() just rebuilt tableBody's rows fresh),
+   * and again immediately after Save in the config panel. */
+  _applyColumnLayout() {
+    const headerRow = this.refs.tableHead?.querySelector('tr');
+    if (!headerRow) return;
+    applyColumnLayout(headerRow, this.refs.tableBody.querySelectorAll('tr'), this.columnConfig.get());
+  }
+
+  _openColumnConfig() {
+    openColumnConfigPanel({
+      anchor: this.refs.columnBtn,
+      columns: this.columnConfig.get(),
+      onReset: () => this.columnConfig.reset(),
+      onSave: (columns) => {
+        this.columnConfig.save(columns);
+        this._applyColumnLayout();
+      }
+    });
   }
 
   _goToPage(page) {
@@ -545,6 +603,7 @@ export class ManageController {
     this.refs.addItemBtn.addEventListener('click', () => this._openAddOptionsMenu());
     this.refs.emptyAddBtn.addEventListener('click', () => this.openAddModal());
     this.refs.exportBtn.addEventListener('click', () => this._openExportMenu());
+    this.refs.columnBtn?.addEventListener('click', () => this._openColumnConfig());
     this.refs.clearAllBtn.addEventListener('click', () => this.clearAll());
     this.refs.bulkDeleteBtn.addEventListener('click', () => this._deleteSelected());
     this.refs.manifestBtn.addEventListener('click', () => this.openManifestModal());

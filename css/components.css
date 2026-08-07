@@ -87,6 +87,22 @@ thead th.checkbox-col{ box-shadow: 2px 0 4px -2px rgba(28, 29, 33, 0.15); }
 tbody tr:hover td.sn-col, tbody tr:hover td.checkbox-col{ background: var(--surface-sunk); }
 tbody tr.row-selected td.sn-col, tbody tr.row-selected td.checkbox-col{ background: var(--accent-soft); }
 
+/* "Fixed" (pinned) columns from the column-configuration panel — see
+   utils/columnLayout.js, which sets position/left inline per column
+   since the offset is dynamic (depends on which columns are pinned and
+   how wide). This only supplies what can't be inline: the background
+   (so scrolling content underneath doesn't show through) and z-index
+   (above regular scrolling cells, below the always-pinned sn-col/
+   checkbox-col — see those rules just above). The boundary shadow
+   marks where pinned columns end and normal scrolling ones begin —
+   applied only to the rightmost pinned column, same reasoning as the
+   checkbox-col boundary shadow above it. */
+thead th.col-fixed{ z-index: 3; background: var(--surface-sunk); }
+tbody td.col-fixed{ z-index: 1; background: var(--surface); }
+tbody tr:hover td.col-fixed{ background: var(--surface-sunk); }
+tbody tr.row-selected td.col-fixed{ background: var(--accent-soft); }
+th.col-fixed-boundary, td.col-fixed-boundary{ box-shadow: 2px 0 4px -2px rgba(28, 29, 33, 0.15); }
+
 .item-name,
 .um-username-cell{ font-weight: 600; color: var(--steel); }
 
@@ -222,6 +238,60 @@ td.cell-catalog-invalid{
 .dropdown-menu-item:hover{ background: var(--surface-sunk); }
 .dropdown-menu-item.is-active{ background: var(--surface-sunk); }
 .dropdown-menu-item.is-selected{ color: var(--accent); font-weight: 600; }
+
+/* Column configuration panel — see components/ColumnConfigPanel.js.
+   Same anchored-popover shell as .dropdown-menu above, wider and with a
+   fixed-height scrolling body since a table can have a dozen-plus
+   configurable columns (spec calls for "no header" — no title bar, just
+   straight into the body — and a scrolling body with a footer pinned
+   below it, not scrolling away with the rows). */
+.column-config-panel{
+  position: absolute; z-index: 120; width: 440px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); display: flex; flex-direction: column;
+  opacity: 0; transform: translateY(-4px); pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.column-config-panel.open{ opacity: 1; transform: translateY(0); pointer-events: auto; }
+.column-config-body{ max-height: 340px; overflow-y: auto; overflow-x: auto; padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+.column-config-row{
+  display: flex; align-items: center; gap: 8px; padding: 6px 6px; border-radius: 4px;
+}
+.column-config-row:hover{ background: var(--surface-sunk); }
+.column-config-row-locked{ color: var(--ink-faint); }
+.column-config-row-locked .checkbox-inline{ margin: 0; }
+.column-config-name{ flex: 1 1 auto; min-width: 130px; margin: 0; font-size: 13px; }
+.column-config-name span, .column-config-name{ white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.column-config-width-label{ font-size: 11px; color: var(--ink-faint); flex-shrink: 0; }
+.column-config-width{
+  width: 52px; flex-shrink: 0; padding: 4px 6px; border-radius: 4px; border: 1px solid var(--border);
+  font-size: 12px; text-align: center; font-family: inherit;
+}
+.column-config-fixed-toggle{ display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--ink-soft); flex-shrink: 0; }
+.column-config-move{ display: flex; gap: 2px; flex-shrink: 0; }
+.column-config-move .icon-btn{ width: 22px; height: 22px; }
+.column-config-move .icon-btn:disabled{ opacity: 0.3; cursor: default; }
+.column-config-footer{
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 12px; border-top: 1px solid var(--border); flex-shrink: 0;
+}
+.column-config-footer-right{ display: flex; gap: 8px; }
+
+/* Small on/off switch, used here for the "Fixed" (pin column) toggle —
+   the app has plenty of checkboxes already but no switch yet, and
+   "fixed or not" reads more like a mode toggle than a checklist item. */
+.switch{ position: relative; display: inline-block; width: 30px; height: 17px; flex-shrink: 0; }
+.switch input{ position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.switch-track{
+  position: absolute; inset: 0; background: var(--border); border-radius: 999px; transition: background 0.15s ease;
+}
+.switch-track::before{
+  content: ''; position: absolute; left: 2px; top: 2px; width: 13px; height: 13px; border-radius: 50%;
+  background: var(--surface); transition: transform 0.15s ease; box-shadow: 0 1px 2px rgba(28,29,33,0.25);
+}
+.switch input:checked + .switch-track{ background: var(--accent); }
+.switch input:checked + .switch-track::before{ transform: translateX(13px); }
+.switch input:focus-visible + .switch-track{ outline: 2px solid var(--steel); outline-offset: 2px; }
 .dropdown-menu-item.is-selected::after{ content: '✓'; font-weight: 700; margin-left: 10px; }
 
 /* Import modal body (ManageController import-via-CSV flow) */

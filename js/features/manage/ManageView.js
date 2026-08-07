@@ -160,14 +160,14 @@ export class ManageView {
       <tr data-id="${g.id}" class="${selected ? 'row-selected' : ''}">
         <td data-label="SN" class="sn-col"><div style="display: flex; justify-content: end; padding: 0;">${index + 1}</div></td>
         <td class="checkbox-col"><div><input type="checkbox" tabindex="-1" data-action="select-row" ${selected ? 'checked' : ''} aria-label="Select asset" style="height: 15px; width: 15px;"></div></td>
-        <td data-label="User"><div class="item-name">${g.user ? esc(g.user) : '<span style="color:var(--ink-faint);">Unassigned</span>'}</div></td>
-        <td data-label="Role"><div>${g.role ? esc(g.role) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
-        <td data-label="Category"${catIssue ? ' class="cell-catalog-invalid"' : ''}><div><span class="pill pill-cat">${esc(g.category)}</span> ${badge(catIssue)}</div></td>
-        <td data-label="Serial Number"${serialCellClass}${serialCellTitle}><div>${g.serialNumber ? `<span class="code-tag"><span class="bars"></span>${esc(g.serialNumber)}</span>` : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
-        <td data-label="Warehouse Asset Tag" style="font-family:var(--font-mono); font-size:12px;"><div>${g.warehouseAssetTag ? esc(g.warehouseAssetTag) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
-        <td data-label="Asset Tag (Default)" style="font-family:var(--font-mono); font-size:12px;"${tagIssue ? ' class="cell-catalog-invalid"' : ''}><div>${g.assetTagDefault ? `<span class="code-tag"><span class="bars"></span>${esc(g.assetTagDefault)}</span>` : '<span style="color:var(--ink-faint);">—</span>'} ${badge(tagIssue)}</div></td>
-        <td data-label="Mac Address" style="font-family:var(--font-mono); font-size:12px;"${macIssue ? ' class="cell-catalog-invalid"' : ''}><div>${g.macAddress ? esc(g.macAddress) : '<span style="color:var(--ink-faint);">—</span>'} ${badge(macIssue)}</div></td>
-        <td data-label="Password">
+        <td data-col="user" data-label="User"><div class="item-name">${g.user ? esc(g.user) : '<span style="color:var(--ink-faint);">Unassigned</span>'}</div></td>
+        <td data-col="role" data-label="Role"><div>${g.role ? esc(g.role) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
+        <td data-col="category" data-label="Category"${catIssue ? ' class="cell-catalog-invalid"' : ''}><div><span class="pill pill-cat">${esc(g.category)}</span> ${badge(catIssue)}</div></td>
+        <td data-col="serialNumber" data-label="Serial Number"${serialCellClass}${serialCellTitle}><div>${g.serialNumber ? `<span class="code-tag"><span class="bars"></span>${esc(g.serialNumber)}</span>` : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
+        <td data-col="warehouseAssetTag" data-label="Warehouse Asset Tag" style="font-family:var(--font-mono); font-size:12px;"><div>${g.warehouseAssetTag ? esc(g.warehouseAssetTag) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
+        <td data-col="assetTagDefault" data-label="Asset Tag (Default)" style="font-family:var(--font-mono); font-size:12px;"${tagIssue ? ' class="cell-catalog-invalid"' : ''}><div>${g.assetTagDefault ? `<span class="code-tag"><span class="bars"></span>${esc(g.assetTagDefault)}</span>` : '<span style="color:var(--ink-faint);">—</span>'} ${badge(tagIssue)}</div></td>
+        <td data-col="macAddress" data-label="Mac Address" style="font-family:var(--font-mono); font-size:12px;"${macIssue ? ' class="cell-catalog-invalid"' : ''}><div>${g.macAddress ? esc(g.macAddress) : '<span style="color:var(--ink-faint);">—</span>'} ${badge(macIssue)}</div></td>
+        <td data-col="password" data-label="Password">
           <div class="password-cell">
             <span class="password-value">${passwordDisplay}</span>
             ${g.password ? `<button tabindex="-1" class="icon-btn password-reveal-btn" data-action="reveal-password" aria-label="${revealed ? 'Hide password' : 'Reveal password'}" title="${revealed ? 'Hide' : 'Reveal'}">
@@ -175,19 +175,19 @@ export class ManageView {
             </button>` : ''}
           </div>
         </td>
-        <td data-label="Merchant" style="font-family:var(--font-mono); font-size:12px;"><div>${g.merchant ? esc(g.merchant) : '<span style="color:var(--ink-faint);">—</span>'}${pendingNote}</div></td>
-        <td data-label="Remarks"><div class="clamp-text" title="${esc(g.remarks)}">${g.remarks ? esc(g.remarks) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
-        <td data-label="Description"><div class="clamp-text" title="${esc(g.description)}">${g.description ? esc(g.description) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
-        <td data-label="PositionType"><div>${
+        <td data-col="merchant" data-label="Merchant" style="font-family:var(--font-mono); font-size:12px;"><div>${g.merchant ? esc(g.merchant) : '<span style="color:var(--ink-faint);">—</span>'}${pendingNote}</div></td>
+        <td data-col="remarks" data-label="Remarks"><div class="clamp-text" title="${esc(g.remarks)}">${g.remarks ? esc(g.remarks) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
+        <td data-col="description" data-label="Description"><div class="clamp-text" title="${esc(g.description)}">${g.description ? esc(g.description) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
+        <td data-col="positionType" data-label="PositionType"><div>${
           g.temporaryPosition
             ? `<span title="Temporarily parked in a holding bin, not its normal warehouse">${esc(temporaryPositionLabel(g.temporaryPosition))}</span>`
             : (g.positionType ? esc(g.positionType) : '<span style="color:var(--ink-faint);">Unassigned</span>')
         }</div></td>
-        <td data-label="Warehouse"><div>${g.warehouse ? `<span class="pill pill-warehouse">${esc(g.warehouse)}</span>` : '<span style="color:var(--ink-faint);">Unassigned</span>'}</div></td>
-        <!-- <td data-label="Owner" class="owner-col" style="font-family:var(--font-mono); font-size:12px;"><div>${g.owner ? esc(g.owner) : '<span style="color:var(--ink-faint);">—</span>'}</div></td> -->
-        <td data-label="Created" class="created-col"><div><small>${fmtDate(g.createdAt)}</small></div></td>
-        <td data-label="Updated" class="updated-col"><div><small>${fmtDate(g.updatedAt)}</small></div></td>
-        <td data-label="Actions">
+        <td data-col="warehouse" data-label="Warehouse"><div>${g.warehouse ? `<span class="pill pill-warehouse">${esc(g.warehouse)}</span>` : '<span style="color:var(--ink-faint);">Unassigned</span>'}</div></td>
+        <td data-col="owner" data-label="Owner" class="owner-col" style="font-family:var(--font-mono); font-size:12px;"><div>${g.owner ? esc(g.owner) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
+        <td data-col="createdAt" data-label="Created" class="created-col"><div><small>${fmtDate(g.createdAt)}</small></div></td>
+        <td data-col="updatedAt" data-label="Updated" class="updated-col"><div><small>${fmtDate(g.updatedAt)}</small></div></td>
+        <td data-col="actions" data-label="Actions">
           <div class="row-actions">
             ${p ? `<button tabindex="-1" class="icon-btn success" data-action="confirm-transfer" aria-label="Confirm receipt" title="${canActOnTransfer ? `Confirm receipt at '${esc(p.toMerchant)}'` : 'You do not have Confirm transfers access.'}" ${canActOnTransfer ? '' : 'disabled'}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>

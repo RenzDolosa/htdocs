@@ -139,7 +139,7 @@
             <button tabindex="-1" type="button" style="display: flex; background: transparent; border: none; cursor: pointer; width: 20px; height: 20px; justify-content: center;" id="exportBtn">
               <img src="/public/assets/icon/excel.svg" alt="Export">
             </button>
-            <button tabindex="-1" type="button" style="display: flex; background: transparent; border: none; cursor: pointer; width: 20px; height: 20px; justify-content: center;" id="iaColumnBtn" title="Column configuration">
+            <button tabindex="-1" type="button" style="display: flex; background: transparent; border: none; cursor: pointer; width: 20px; height: 20px; justify-content: center;" id="manageColumnBtn" title="Column configuration">
               <img src="public/assets/icon/columns.svg" alt="Column configuration">
             </button>
           </div>
@@ -157,23 +157,23 @@
                   <tr>
                     <th class="sn-col"><div></div></th>
                     <th class="checkbox-col"><div><input type="checkbox" tabindex="-1" id="selectAllCheckbox" aria-label="Select all on this page" style="height: 15px; width: 15px;"></div></th>
-                    <th data-sort="user"><div>User <span class="arrow">↕</span></div></th>
-                    <th data-sort="role"><div>Role <span class="arrow">↕</span></div></th>
-                    <th data-sort="category"><div>Category <span class="arrow">↕</span></div></th>
-                    <th data-sort="serialNumber"><div>Serial Number <span class="arrow">↕</span></div></th>
-                    <th data-sort="warehouseAssetTag"><div>Warehouse Asset Tag <span class="arrow">↕</span></div></th>
-                    <th data-sort="assetTagDefault"><div>Asset Tag (Default) <span class="arrow">↕</span></div></th>
-                    <th data-sort="macAddress"><div>Mac Address <span class="arrow">↕</span></div></th>
-                    <th data-sort="password"><div>Password <span class="arrow">↕</span></div></th>
-                    <th data-sort="merchant"><div>Merchant <span class="arrow">↕</span></div></th>
-                    <th data-sort="remarks"><div>Remarks <span class="arrow">↕</span></div></th>
-                    <th data-sort="description"><div>Description <span class="arrow">↕</span></div></th>
-                    <th data-sort="positionType"><div>Position Type <span class="arrow">↕</span></div></th>
-                    <th data-sort="warehouse"><div>Warehouse <span class="arrow">↕</span></div></th>
-                    <!-- <th data-sort="owner"><div>Owner <span class="arrow">↕</span></div></th> -->
-                    <th data-sort="createdAt"><div>Created <span class="arrow">↕</span></div></th>
-                    <th data-sort="updatedAt"><div>Updated <span class="arrow">↕</span></div></th>
-                    <th style="text-align:right;"><div>Actions</div></th>
+                    <th data-col="user" data-sort="user"><div>User <span class="arrow">↕</span></div></th>
+                    <th data-col="role" data-sort="role"><div>Role <span class="arrow">↕</span></div></th>
+                    <th data-col="category" data-sort="category"><div>Category <span class="arrow">↕</span></div></th>
+                    <th data-col="serialNumber" data-sort="serialNumber"><div>Serial Number <span class="arrow">↕</span></div></th>
+                    <th data-col="warehouseAssetTag" data-sort="warehouseAssetTag"><div>Warehouse Asset Tag <span class="arrow">↕</span></div></th>
+                    <th data-col="assetTagDefault" data-sort="assetTagDefault"><div>Asset Tag (Default) <span class="arrow">↕</span></div></th>
+                    <th data-col="macAddress" data-sort="macAddress"><div>Mac Address <span class="arrow">↕</span></div></th>
+                    <th data-col="password" data-sort="password"><div>Password <span class="arrow">↕</span></div></th>
+                    <th data-col="merchant" data-sort="merchant"><div>Merchant <span class="arrow">↕</span></div></th>
+                    <th data-col="remarks" data-sort="remarks"><div>Remarks <span class="arrow">↕</span></div></th>
+                    <th data-col="description" data-sort="description"><div>Description <span class="arrow">↕</span></div></th>
+                    <th data-col="positionType" data-sort="positionType"><div>Position Type <span class="arrow">↕</span></div></th>
+                    <th data-col="warehouse" data-sort="warehouse"><div>Warehouse <span class="arrow">↕</span></div></th>
+                    <th data-col="owner" data-sort="owner"><div>Owner <span class="arrow">↕</span></div></th>
+                    <th data-col="createdAt" data-sort="createdAt"><div>Created <span class="arrow">↕</span></div></th>
+                    <th data-col="updatedAt" data-sort="updatedAt"><div>Updated <span class="arrow">↕</span></div></th>
+                    <th data-col="actions" style="text-align:right;"><div>Actions</div></th>
                   </tr>
                 </thead>
                 <tbody id="tableBody"></tbody>
@@ -263,13 +263,13 @@
                   <tr>
                     <th class="sn-col"><div></div></th>
                     <th class="checkbox-col"><div><input type="checkbox" tabindex="-1" id="iaSelectAllCheckbox" aria-label="Select all on this page" style="height: 15px; width: 15px;"></div></th>
-                    <th data-sort="category"><div>Category <span class="arrow">↕</span></div></th>
-                    <th data-sort="serialNumber"><div>Serial Number <span class="arrow">↕</span></div></th>
-                    <th data-sort="assetTag"><div>Asset Tag <span class="arrow">↕</span></div></th>
-                    <th data-sort="macAddress"><div>Mac Address <span class="arrow">↕</span></div></th>
-                    <th data-sort="imei"><div>IMEI <span class="arrow">↕</span></div></th>
-                    <th data-sort="createdAt"><div>Created <span class="arrow">↕</span></div></th>
-                    <th style="text-align:right;"><div>Actions</div></th>
+                    <th data-col="category" data-sort="category"><div>Category <span class="arrow">↕</span></div></th>
+                    <th data-col="serialNumber" data-sort="serialNumber"><div>Serial Number <span class="arrow">↕</span></div></th>
+                    <th data-col="assetTag" data-sort="assetTag"><div>Asset Tag <span class="arrow">↕</span></div></th>
+                    <th data-col="macAddress" data-sort="macAddress"><div>Mac Address <span class="arrow">↕</span></div></th>
+                    <th data-col="imei" data-sort="imei"><div>IMEI <span class="arrow">↕</span></div></th>
+                    <th data-col="createdAt" data-sort="createdAt"><div>Created <span class="arrow">↕</span></div></th>
+                    <th data-col="actions" style="text-align:right;"><div>Actions</div></th>
                   </tr>
                 </thead>
                 <tbody id="iaTableBody"></tbody>

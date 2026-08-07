@@ -89,13 +89,13 @@ export class InventoryAssetView {
       <tr data-id="${a.id}" class="${selected ? 'row-selected' : ''}">
         <td data-label="SN" class="sn-col"><div style="display: flex; justify-content: end; padding: 0;">${index + 1}</div></td>
         <td class="checkbox-col"><div><input type="checkbox" tabindex="-1" data-action="select-row" ${selected ? 'checked' : ''} aria-label="Select asset" style="height: 15px; width: 15px;"></div></td>
-        <td data-label="Category"><div><span class="pill pill-cat">${esc(a.category)}</span></div></td>
-        <td data-label="Serial Number"${serialCellClass}${serialCellTitle}><div>${a.serialNumber ? `<span class="code-tag"><span class="bars"></span>${esc(a.serialNumber)}</span>` : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
-        <td data-label="Asset Tag" style="font-family:var(--font-mono); font-size:12px;"><div>${a.assetTag ? `<span class="code-tag"><span class="bars"></span>${esc(a.assetTag)}</span>` : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
-        <td data-label="Mac Address" style="font-family:var(--font-mono); font-size:12px;"><div>${a.macAddress ? esc(a.macAddress) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
-        <td data-label="IMEI" style="font-family:var(--font-mono); font-size:12px;">${(a.imei1 || a.imei2) ? `<div>${esc(a.imei1) ? `<span style="color:var(--ink-faint);">IMEI1: </span>${esc(a.imei1)}` : ''}</div><div>${esc(a.imei2) ? `<span style="color:var(--ink-faint);">IMEI2: </span>${esc(a.imei2)}` : ''}</div>` : '<div><span style="color:var(--ink-faint);">—</span></div>'}</td>
-        <td data-label="Created" class="created-col"><div><small>${fmtDate(a.createdAt)}</small></div></td>
-        <td data-label="Actions">
+        <td data-label="Category" data-col="category"><div><span class="pill pill-cat">${esc(a.category)}</span></div></td>
+        <td data-label="Serial Number" data-col="serialNumber"${serialCellClass}${serialCellTitle}><div>${a.serialNumber ? `<span class="code-tag"><span class="bars"></span>${esc(a.serialNumber)}</span>` : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
+        <td data-label="Asset Tag" data-col="assetTag" style="font-family:var(--font-mono); font-size:12px;"><div>${a.assetTag ? `<span class="code-tag"><span class="bars"></span>${esc(a.assetTag)}</span>` : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
+        <td data-label="Mac Address" data-col="macAddress" style="font-family:var(--font-mono); font-size:12px;"><div>${a.macAddress ? esc(a.macAddress) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
+        <td data-label="IMEI" data-col="imei" style="font-family:var(--font-mono); font-size:12px;">${(a.imei1 || a.imei2) ? `<div>${esc(a.imei1) ? `<span style="color:var(--ink-faint);">IMEI1: </span>${esc(a.imei1)}` : ''}</div><div>${esc(a.imei2) ? `<span style="color:var(--ink-faint);">IMEI2: </span>${esc(a.imei2)}` : ''}</div>` : '<div><span style="color:var(--ink-faint);">—</span></div>'}</td>
+        <td data-label="Created" data-col="createdAt" class="created-col"><div><small>${fmtDate(a.createdAt)}</small></div></td>
+        <td data-label="Actions" data-col="actions">
           <div class="row-actions">
             <button tabindex="-1" class="icon-btn" data-action="edit" aria-label="Edit asset" title="${canEdit ? 'Edit' : 'You do not have permission to edit inventory assets.'}" ${canEdit ? '' : 'disabled'}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>

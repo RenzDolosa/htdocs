@@ -10,15 +10,31 @@ import { buildImportProgress } from '../../components/ImportProgress.js';
 import { el } from '../../utils/dom.js';
 import { fmtLocalDateTime, fmtLocalDateStamp } from '../../utils/format.js';
 import { can } from '../../core/Permissions.js';
+import { ColumnConfig } from '../../core/ColumnConfig.js';
+import { openColumnConfigPanel } from '../../components/ColumnConfigPanel.js';
+import { applyColumnLayout } from '../../utils/columnLayout.js';
 
 /** Column order/labels shared by the export template and the importer. */
 const IMPORT_HEADERS = ['Category', 'Serial Number', 'Asset Tag', 'MAC Address', 'IMEI 1', 'IMEI 2'];
+
+/** Inventory Assets' configurable columns — see
+ * ManageController.js's MANAGE_DEFAULT_COLUMNS for the fuller
+ * explanation; same idea, this table's own column set. */
+const INVENTORY_ASSET_DEFAULT_COLUMNS = [
+  { key: 'category', label: 'Category', width: 130 },
+  { key: 'serialNumber', label: 'Serial Number', width: 170 },
+  { key: 'assetTag', label: 'Asset Tag', width: 150 },
+  { key: 'macAddress', label: 'Mac Address', width: 150 },
+  { key: 'imei', label: 'IMEI', width: 180 },
+  { key: 'createdAt', label: 'Created', width: 150 }
+];
 
 export class InventoryAssetController {
   constructor({ store, view, refs }) {
     this.store = store;
     this.view = view;
     this.refs = refs;
+    this.columnConfig = new ColumnConfig('gadget-tracker:columns:inventoryAssets', INVENTORY_ASSET_DEFAULT_COLUMNS);
 
     this.state = {
       filters: { keyword: '', category: 'all' },
@@ -128,6 +144,26 @@ export class InventoryAssetController {
     );
     this._updateBulkDeleteVisibility();
     this._applyActionBarPermissions();
+    this._applyColumnLayout();
+  }
+
+  /** See ManageController._applyColumnLayout's own doc comment — identical purpose, this table's own DOM. */
+  _applyColumnLayout() {
+    const headerRow = this.refs.tableHead?.querySelector('tr');
+    if (!headerRow) return;
+    applyColumnLayout(headerRow, this.refs.tableBody.querySelectorAll('tr'), this.columnConfig.get());
+  }
+
+  _openColumnConfig() {
+    openColumnConfigPanel({
+      anchor: this.refs.columnBtn,
+      columns: this.columnConfig.get(),
+      onReset: () => this.columnConfig.reset(),
+      onSave: (columns) => {
+        this.columnConfig.save(columns);
+        this._applyColumnLayout();
+      }
+    });
   }
 
   _goToPage(page) {
@@ -224,6 +260,7 @@ export class InventoryAssetController {
     this.refs.clearAllBtn.addEventListener('click', () => this.clearAll());
     this.refs.refreshBtn.addEventListener('click', () => this.render());
     this.refs.exportBtn.addEventListener('click', () => this._openExportMenu());
+    this.refs.columnBtn?.addEventListener('click', () => this._openColumnConfig());
     this.refs.importFileInput.addEventListener('change', (e) => this._handleImportFile(e));
   }
 
