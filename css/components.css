@@ -40,9 +40,9 @@ thead th{
 }
 thead th:hover{ color: var(--ink); }
 thead div{ display: flex; justify-content: start; padding: 0 5px; }
-thead th.checkbox-col{ cursor: default; width: 34px; }
+thead th.checkbox-col{ cursor: default; width: 34px; min-width: 34px; }
 thead th.checkbox-col input[type="checkbox"]{ cursor: pointer; }
-thead th.sn-col{ cursor: default; width: 34px; }
+thead th.sn-col{ cursor: default; width: 34px; min-width: 34px; }
 thead th.owner-col{ cursor: default; width: 110px; }
 thead th.created-col,
 thead th.updated-col{ cursor: default; width: 150px; }

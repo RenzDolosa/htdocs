@@ -589,6 +589,7 @@ async function startApp(session) {
   const inventoryAssetView = new InventoryAssetView(inventoryAssetRefs);
   const inventoryAssetController = new InventoryAssetController({
     store: inventoryAssetStore,
+    gadgetStore: store,
     view: inventoryAssetView,
     refs: inventoryAssetRefs
   });

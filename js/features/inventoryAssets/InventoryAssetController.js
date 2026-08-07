@@ -13,6 +13,7 @@ import { can } from '../../core/Permissions.js';
 import { ColumnConfig } from '../../core/ColumnConfig.js';
 import { openColumnConfigPanel } from '../../components/ColumnConfigPanel.js';
 import { applyColumnLayout } from '../../utils/columnLayout.js';
+import { createGadgetFromInventoryAsset, syncGadgetsFromInventoryAsset } from '../../core/InventoryGadgetSync.js';
 
 /** Column order/labels shared by the export template and the importer. */
 const IMPORT_HEADERS = ['Category', 'Serial Number', 'Asset Tag', 'MAC Address', 'IMEI 1', 'IMEI 2'];
@@ -30,8 +31,9 @@ const INVENTORY_ASSET_DEFAULT_COLUMNS = [
 ];
 
 export class InventoryAssetController {
-  constructor({ store, view, refs }) {
+  constructor({ store, gadgetStore, view, refs }) {
     this.store = store;
+    this.gadgetStore = gadgetStore;
     this.view = view;
     this.refs = refs;
     this.columnConfig = new ColumnConfig('gadget-tracker:columns:inventoryAssets', INVENTORY_ASSET_DEFAULT_COLUMNS);
@@ -358,11 +360,13 @@ export class InventoryAssetController {
     };
 
     if (existingAsset) {
-      this.store.update(existingAsset.id, payload);
+      const updated = this.store.update(existingAsset.id, payload);
+      if (this.gadgetStore && updated) syncGadgetsFromInventoryAsset(updated, this.gadgetStore);
       Toast.success(`Saved changes for ${payload.serialNumber || 'this asset'}.`);
     } else {
       const asset = new InventoryAsset(payload);
       this.store.create(asset);
+      if (this.gadgetStore) createGadgetFromInventoryAsset(asset, this.gadgetStore);
       Toast.success(`Added ${payload.serialNumber || 'new asset'} to inventory.`);
     }
   }
@@ -525,6 +529,9 @@ export class InventoryAssetController {
    * forEach — a large file would otherwise block the tab for however
    * long the whole loop takes, and `progress` would only ever jump
    * straight to 100% once the browser got a chance to repaint at all.
+   *
+   * Each created row also gets a matching Gadget via
+   * core/InventoryGadgetSync.js — see that module for the field mapping.
    */
   async _importCsvText(text, progress = null) {
     const rows = parseCsv(text);
@@ -577,7 +584,9 @@ export class InventoryAssetController {
       }
       if (serialKey) seenSerials.add(serialKey);
 
-      this.store.create(new InventoryAsset({ category, serialNumber, assetTag, macAddress, imei1, imei2 }));
+      const asset = new InventoryAsset({ category, serialNumber, assetTag, macAddress, imei1, imei2 });
+      this.store.create(asset);
+      if (this.gadgetStore) createGadgetFromInventoryAsset(asset, this.gadgetStore);
       created++;
     }, {
       chunkSize: 25,
