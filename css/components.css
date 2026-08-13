@@ -277,6 +277,63 @@ td.cell-catalog-invalid{
 }
 .column-config-footer-right{ display: flex; gap: 8px; }
 
+/* Date range picker — see components/DateRangePicker.js. Same anchored-
+   popover shell as .dropdown-menu/.column-config-panel above, laid out as
+   a presets sidebar next to a two-month calendar, modeled on the
+   reference platform's Shipping Management date filter. */
+.date-range-picker{
+  position: absolute; z-index: 120; width: 620px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); display: flex; flex-direction: column;
+  opacity: 0; transform: translateY(-4px); pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.date-range-picker.open{ opacity: 1; transform: translateY(0); pointer-events: auto; }
+.drp-body{ display: flex; }
+.drp-presets{
+  flex-shrink: 0; width: 128px; padding: 10px 6px; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.drp-preset{
+  text-align: left; background: none; border: none; border-radius: 4px; cursor: pointer;
+  padding: 8px 10px; font-size: 12.5px; font-weight: 500; color: var(--ink); font-family: inherit;
+}
+.drp-preset:hover{ background: var(--surface-sunk); }
+.drp-main{ flex: 1; min-width: 0; padding: 12px 14px; }
+.drp-fields{ display: flex; align-items: flex-end; gap: 10px; margin-bottom: 12px; }
+.drp-fields-sep{ color: var(--ink-faint); padding-bottom: 8px; }
+.drp-field{ flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.drp-field label{ font-size: 11px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; }
+.drp-field input{
+  padding: 6px 9px; border-radius: 4px; border: 1px solid var(--border);
+  font-size: 12.5px; font-family: inherit; color: var(--ink); background: var(--surface-sunk);
+}
+.drp-months{ display: flex; gap: 20px; }
+.drp-month{ flex: 1; min-width: 0; }
+.drp-month-head{ display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.drp-month-title{ flex: 1; text-align: center; font-size: 12.5px; font-weight: 700; color: var(--ink); }
+.drp-nav{
+  width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; border-radius: 4px; cursor: pointer; color: var(--ink-soft); font-size: 12px;
+}
+.drp-nav:hover{ background: var(--surface-sunk); color: var(--ink); }
+.drp-weekdays{ display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 2px; }
+.drp-weekdays span{ text-align: center; font-size: 10.5px; color: var(--ink-faint); font-weight: 700; }
+.drp-week{ display: grid; grid-template-columns: repeat(7, 1fr); }
+.drp-day, .drp-day-empty{
+  width: 100%; aspect-ratio: 1; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; border: none; background: none; cursor: pointer; color: var(--ink); font-family: inherit;
+  border-radius: 50%;
+}
+.drp-day:hover{ background: var(--surface-sunk); }
+.drp-day.is-today{ font-weight: 700; color: var(--accent); }
+.drp-day.is-in-range{ border-radius: 0; background: var(--accent-soft); }
+.drp-day.is-range-start, .drp-day.is-range-end{ background: var(--accent); color: #fff; font-weight: 700; }
+.drp-footer{
+  display: flex; align-items: center; justify-content: flex-end; gap: 14px;
+  padding: 10px 14px; border-top: 1px solid var(--border);
+}
+
 /* Small on/off switch, used here for the "Fixed" (pin column) toggle —
    the app has plenty of checkboxes already but no switch yet, and
    "fixed or not" reads more like a mode toggle than a checklist item. */

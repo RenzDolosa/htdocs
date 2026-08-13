@@ -1,7 +1,6 @@
 import { Modal } from '../../components/Modal.js';
 import { Toast } from '../../components/Toast.js';
 import { confirmDialog } from '../../components/ConfirmDialog.js';
-import { buildTransferForm } from '../../components/TransferForm.js';
 import { openLogModal } from '../../components/LogModal.js';
 import { openManifestModal as showManifestModal } from '../../components/ManifestModal.js';
 import { openDropdownMenu } from '../../components/DropdownMenu.js';
@@ -16,7 +15,7 @@ import { getOperatorName } from '../../core/Operator.js';
 import { can } from '../../core/Permissions.js';
 import { isWarehouseAllowed, isWarehouseScoped } from '../../core/WarehouseScope.js';
 import { fmtLocalDateTime, fmtLocalDateStamp } from '../../utils/format.js';
-import { resolveMerchantPlacement, destinationWarehouseId } from '../../utils/merchantPlacement.js';
+import { resolveMerchantPlacement } from '../../utils/merchantPlacement.js';
 import { ColumnConfig } from '../../core/ColumnConfig.js';
 import { openColumnConfigPanel } from '../../components/ColumnConfigPanel.js';
 import { applyColumnLayout } from '../../utils/columnLayout.js';
@@ -53,7 +52,7 @@ const IMPORT_HEADERS = ['User', 'Role', 'Category', 'Serial Number', 'Warehouse 
  * ManageController is the feature's entry point: it owns UI state
  * (filters/sort/pagination/selection), talks to the Store for CRUD, and
  * delegates all rendering to ManageView. Modal/Toast/ConfirmDialog/
- * TransferForm/LogModal/DropdownMenu are generic components reused as-is.
+ * LogModal/DropdownMenu are generic components reused as-is.
  */
 export class ManageController {
   constructor({ store, view, refs, inventoryAssetStore, warehouseStore, locationStore }) {
@@ -142,19 +141,6 @@ export class ManageController {
   }
 
   /**
-   * Warehouse names for the transfer-destination suggestions: every site
-   * configured in Warehouse Information, unioned with any warehouse name
-   * already sitting on an asset record (covers legacy/free-typed names
-   * from before a site was formally added there). Deduped and sorted
-   * either way.
-   */
-  _knownWarehouses() {
-    const fromSettings = this.warehouseStore?.list().map((w) => w.name) || [];
-    const fromAssets = this.store.list().map((g) => g.warehouse);
-    return [...new Set([...fromSettings, ...fromAssets].filter(Boolean))].sort();
-  }
-
-  /**
    * Pending transfers into a warehouse this session's User Group is
    * specifically bound to — the "personal inbox" count used for the
    * onload toast. Deliberately '' for an *unrestricted* session (no
@@ -228,17 +214,6 @@ export class ManageController {
     const owners = this._knownOwners();
     if (isWarehouseScoped() && owners.length === 1) return owners[0];
     return this.state.filters.owner;
-  }
-
-  /** Created, currently-*enabled* warehouse location names (e.g. "Samples",
-   * "Test Location") — the merchant values that actually resolve to a
-   * Position Type / Warehouse / Owner right now. Suggested in the Merchant
-   * field's datalist, and what Gadget.merchant is validated against on
-   * save (see _saveGadget) — a deactivated location's name is deliberately
-   * excluded from both: it's neither offered nor accepted until it's
-   * re-enabled. */
-  _locationCodes() {
-    return this.locationStore ? [...new Set(this.locationStore.list().filter((l) => l.enabled).map((l) => l.locationCode).filter(Boolean))].sort() : [];
   }
 
   /** Resolves a merchant name against created locations — see
@@ -401,7 +376,6 @@ export class ManageController {
     this._updatePendingTransfersButton();
     this.view.renderTable(pageGadgets, this.selected, {
       onEdit: (id) => this.openEditModal(id),
-      onTransfer: (id) => this.openTransferModal(id),
       onViewLog: (id) => this.viewLog(id),
       onDelete: (id) => this.deleteGadget(id),
       onConfirmTransfer: (id) => this._confirmTransferWithPrompt(id),
@@ -746,7 +720,6 @@ export class ManageController {
       serialNumber: 'manage.edit.serial-number',
       macAddress: 'manage.edit.mac-address',
       assetTagDefault: 'manage.edit.asset-tag-default',
-      merchant: 'manage.edit.merchant',
       remarks: 'manage.edit.remarks'
     };
     const lockedFields = gadget
@@ -757,8 +730,6 @@ export class ManageController {
       roleOptions: this._knownRoles(),
       inventoryAssets,
       usedSerials: this._usedSerialSet(gadget ? gadget.id : null),
-      locationCodes: this._locationCodes(),
-      resolvePlacement: (merchant) => this._resolvePlacement(merchant),
       lockedFields
     });
 
@@ -776,28 +747,13 @@ export class ManageController {
             const { valid, errors } = Gadget.validate(raw, { existingGadgets });
             const catalogIssues = this._catalogIssues(raw);
             const hasCatalogIssue = Boolean(catalogIssues.category || catalogIssues.serialNumber || catalogIssues.assetTagDefault || catalogIssues.macAddress);
-            // Merchant must be blank, or an exact match to a currently
-            // *enabled* Warehouse location — never arbitrary typed text,
-            // and never a deactivated location's name (see
-            // utils/merchantPlacement.js's resolveMerchantPlacement).
-            // Deliberately only enforced when editing an *existing* asset:
-            // a brand-new one (this modal doubles as "Add asset") can
-            // still be created with the merchant left for later, or set
-            // once the location it belongs to actually exists — see this
-            // file's header comment on the receiving workflow for why a
-            // fresh add was never gated the same way a transfer is.
-            const merchantValue = (raw.merchant || '').trim();
-            const merchantError = (gadget && merchantValue && !this._resolvePlacement(merchantValue).matched)
-              ? `"${merchantValue}" isn't a currently active merchant — pick one from the list, or clear this field to leave it unassigned.`
-              : null;
-            if (!valid || hasCatalogIssue || merchantError) {
+            if (!valid || hasCatalogIssue) {
               form.showErrors({
                 ...errors,
                 ...(catalogIssues.category ? { category: catalogIssues.category } : {}),
                 ...(catalogIssues.serialNumber ? { serialNumber: catalogIssues.serialNumber } : {}),
                 ...(catalogIssues.assetTagDefault ? { assetTagDefault: catalogIssues.assetTagDefault } : {}),
-                ...(catalogIssues.macAddress ? { macAddress: catalogIssues.macAddress } : {}),
-                ...(merchantError ? { merchant: merchantError } : {})
+                ...(catalogIssues.macAddress ? { macAddress: catalogIssues.macAddress } : {})
               });
               return;
             }
@@ -820,6 +776,14 @@ export class ManageController {
     // re-deriving the relationship at validation/render time.
     const matchedAsset = serial ? inventoryAssets.find((a) => (a.serialNumber || '').trim() === serial) : null;
 
+    // Merchant/positionType/warehouse/owner/pendingTransfer are deliberately
+    // absent from this payload: Add/Edit asset no longer touches them at
+    // all — Store.update() only patches the keys it's given (see
+    // core/Store.js), so whatever the gadget's current placement is stays
+    // exactly as-is. The only way any of those five fields ever change now
+    // is through the Manifest / Transmittal flow (ManifestModal.js's
+    // applyMerchantTransfer) and the confirm/cancel actions that follow a
+    // pending one — this form has no say over them any more.
     const payload = {
       user: raw.user,
       role: raw.role,
@@ -829,83 +793,18 @@ export class ManageController {
       warehouseAssetTag: raw.warehouseAssetTag,
       assetTagDefault: raw.assetTagDefault,
       password: raw.password,
-      merchant: raw.merchant,
       remarks: raw.remarks,
       description: raw.description,
       inventoryAssetId: matchedAsset ? matchedAsset.id : null
     };
 
-    // Merchant is the key for Position Type / Warehouse / Owner (see
-    // utils/merchantPlacement.js): only recompute them when the merchant
-    // actually changed (a new gadget always counts as "changed"), and
-    // leave them alone otherwise so unrelated edits — e.g. just fixing a
-    // remark — don't quietly wipe out a placement set by the Transfer
-    // action. A changed merchant that no longer resolves to any created
-    // location clears the three fields to unassigned rather than leaving
-    // a stale placement from whatever the merchant used to be.
-    //
-    // Receiving (Task 1): if the *new* merchant resolves to a real
-    // created location, the change doesn't apply here at all —
-    // merchant/positionType/warehouse/owner all stay exactly as they
-    // were, and the request goes into pendingTransfer for whoever's User
-    // Group is bound to that destination warehouse (or someone with
-    // manage.confirm-transfers) to confirm via confirmTransfer() below.
-    // Only an *existing* asset can go through this — a brand-new asset
-    // has no current merchant to transfer away from, so filling in
-    // Merchant while adding one is an initial placement, not a transfer.
-    const merchantChanged = !existingGadget || existingGadget.merchant !== raw.merchant;
-    let placement = { matched: false };
-    let requiresConfirmation = false;
-    // Preserved by default — editing some *other* field shouldn't disturb
-    // a transfer this asset is already waiting on.
-    let pendingTransfer = existingGadget ? existingGadget.pendingTransfer : null;
-
-    if (merchantChanged) {
-      placement = this._resolvePlacement(raw.merchant);
-      requiresConfirmation = Boolean(existingGadget) && placement.matched;
-
-      if (requiresConfirmation) {
-        payload.merchant = existingGadget.merchant;
-        payload.positionType = existingGadget.positionType;
-        payload.warehouse = existingGadget.warehouse;
-        payload.owner = existingGadget.owner;
-        pendingTransfer = {
-          toMerchant: raw.merchant,
-          toPositionType: placement.positionType,
-          toWarehouse: placement.warehouse,
-          toOwner: placement.owner,
-          toWarehouseId: destinationWarehouseId(placement),
-          requestedAt: Date.now(),
-          requestedBy: getOperatorName()
-        };
-      } else {
-        payload.positionType = placement.matched ? placement.positionType : '';
-        payload.warehouse = placement.matched ? placement.warehouse : '';
-        payload.owner = placement.matched ? placement.owner : '';
-        // A direct, ungated merchant change (nothing resolved, or a
-        // brand-new asset) supersedes any stale pending request left
-        // over from before — the merchant is being set right now, not
-        // queued.
-        pendingTransfer = null;
-      }
-    }
-    payload.pendingTransfer = pendingTransfer;
-
     if (existingGadget) {
-      this._logFieldChanges(existingGadget, payload, merchantChanged, requiresConfirmation);
+      this._logFieldChanges(existingGadget, payload);
       this.store.update(existingGadget.id, payload);
-      Toast.success(requiresConfirmation
-        ? `Saved changes for ${payload.user || 'this asset'}. Transfer to '${raw.merchant}' is pending confirmation from anyone with access to ${pendingTransfer.toOwner}.`
-        : `Saved changes for ${payload.user || 'this asset'}.`);
+      Toast.success(`Saved changes for ${payload.user || 'this asset'}.`);
     } else {
       const gadget = new Gadget(payload);
       gadget.addLogEntry('Asset added to inventory.', 'create', null, getOperatorName());
-      if (payload.merchant) {
-        const note = placement.matched
-          ? `Merchant '${payload.merchant}' resolved to ${payload.positionType} · ${payload.warehouse} · ${payload.owner}.`
-          : `Merchant '${payload.merchant}' does not match any created warehouse location — position left unassigned.`;
-        gadget.addLogEntry(note, 'transfer', { from: '', to: payload.merchant }, getOperatorName());
-      }
       this.store.create(gadget);
       Toast.success(`Added asset for ${payload.user || 'unassigned user'}.`);
     }
@@ -914,36 +813,18 @@ export class ManageController {
   /**
    * Compares the record's current values against the incoming payload
    * *before* the store overwrites them, and writes typed log entries so
-   * LogModal's Users/Remarks tabs have something to show. Warehouse
-   * transfers made through the Transfer action are logged separately by
-   * openTransferModal/openBulkWarehouseTransferModal; `merchantChanged`
-   * covers the merchant-driven Position Type/Warehouse/Owner resolution
-   * that happens right here in _saveGadget — `requiresConfirmation`
-   * further splits that into "applied immediately" vs. "queued, awaiting
-   * the assigned receiver" (see confirmTransfer/cancelPendingTransfer for
-   * the log entries written once that's resolved either way).
+   * LogModal's Users/Remarks tabs have something to show. Merchant/
+   * warehouse transfers are logged separately, at the point they actually
+   * happen (ManifestModal.js's applyMerchantTransfer, and
+   * confirmTransfer/cancelPendingTransfer below) — Add/Edit asset no
+   * longer changes either, so there's nothing transfer-related left for
+   * this to compare.
    */
-  _logFieldChanges(gadget, payload, merchantChanged, requiresConfirmation) {
+  _logFieldChanges(gadget, payload) {
     if (gadget.user !== payload.user) {
       const from = gadget.user || 'Unassigned';
       const to = payload.user || 'Unassigned';
       gadget.addLogEntry(`Reassigned from ${from} to ${to}.`, 'user', { from, to }, getOperatorName());
-    }
-    if (merchantChanged && requiresConfirmation) {
-      const p = payload.pendingTransfer;
-      gadget.addLogEntry(
-        `Transfer requested: merchant '${gadget.merchant || 'None'}' → '${p.toMerchant}'. Resolved to ${p.toPositionType} · ${p.toWarehouse} · ${p.toOwner}. Awaiting confirmation from anyone with access to ${p.toOwner}.`,
-        'transfer',
-        { from: gadget.merchant || '', to: p.toMerchant },
-        getOperatorName()
-      );
-    } else if (merchantChanged) {
-      const from = gadget.merchant || 'None';
-      const to = payload.merchant || 'None';
-      const placementNote = payload.positionType
-        ? ` Resolved to ${payload.positionType} · ${payload.warehouse} · ${payload.owner}.`
-        : ' No matching warehouse location — position left unassigned.';
-      gadget.addLogEntry(`Transferred merchant from '${from}' to '${to}'.${placementNote}`, 'transfer', { from: gadget.merchant || '', to: payload.merchant || '' }, getOperatorName());
     }
     if (gadget.remarks !== payload.remarks) {
       gadget.addLogEntry(payload.remarks ? `Remarks updated: "${payload.remarks}"` : 'Remarks cleared.', 'remarks', null, getOperatorName());
@@ -1048,43 +929,6 @@ export class ManageController {
     if (ok) this.cancelPendingTransfer(id);
   }
 
-  openTransferModal(id) {
-    const gadget = this.store.get(id);
-    if (!gadget) return;
-    const form = buildTransferForm(gadget, this._knownWarehouses());
-
-    const modal = new Modal({
-      title: 'Transfer warehouse',
-      body: form.node,
-      footer: [
-        { label: 'Cancel', variant: 'btn-outline', onClick: (m) => m.close() },
-        {
-          label: 'Transfer',
-          variant: 'btn-accent',
-          onClick: (m) => {
-            const raw = form.getData();
-            if (!raw.toWarehouse) {
-              form.showErrors({ toWarehouse: 'Destination warehouse is required.' });
-              return;
-            }
-            if (raw.toWarehouse === gadget.warehouse) {
-              form.showErrors({ toWarehouse: 'Already in this warehouse.' });
-              return;
-            }
-            const from = gadget.warehouse || '';
-            const note = raw.note ? ` Note: ${raw.note}` : '';
-            gadget.addLogEntry(`Transferred warehouse from '${from}' to '${raw.toWarehouse}'.${note}`, 'transfer', null, getOperatorName());
-            this.store.update(gadget.id, { warehouse: raw.toWarehouse });
-            Toast.success(`Transferred to ${raw.toWarehouse}.`);
-            m.close();
-          }
-        }
-      ]
-    });
-    modal.open();
-    form.focusFirst();
-  }
-
   /**
    * Opens the Manifest / Transmittal preview for the currently checked
    * rows, in the same order they appear in the (filtered/sorted) table
@@ -1099,10 +943,12 @@ export class ManageController {
 
   /**
    * "Adjust Position" only makes sense with a selection (it acts on the
-   * checked rows), so it opens a menu rather than a single action —
-   * matching the two things you'd actually want to do with a batch of
-   * assets: park them somewhere temporary, or move them to a different
-   * warehouse outright.
+   * checked rows), so it opens a menu rather than a single action — even
+   * though it's currently down to one entry (park the batch somewhere
+   * temporary). Warehouse transfers no longer live here: they only
+   * happen through the Manifest / Transmittal flow's merchant-driven
+   * placement (ManifestModal.js), which is the one path that logs the
+   * move and makes it receivable via confirmTransfer/cancelPendingTransfer.
    */
   _openAdjustPositionMenu() {
     if (!can('manage.adjust-position')) return;
@@ -1110,8 +956,7 @@ export class ManageController {
     openDropdownMenu({
       anchor: this.refs.transferItemBtn,
       items: [
-        { label: 'Transfer to temporary bin', onClick: () => this.openTemporaryBinModal() },
-        { label: 'Transfer warehouse', onClick: () => this.openBulkWarehouseTransferModal() }
+        { label: 'Transfer to temporary bin', onClick: () => this.openTemporaryBinModal() }
       ]
     });
   }
@@ -1240,70 +1085,6 @@ export class ManageController {
     confirmBtn = modal.footEl.querySelector('.btn-accent');
     updateConfirmState();
     modal.open();
-  }
-
-  /**
-   * Bulk version of the single-asset "Transfer warehouse" action (see
-   * openTransferModal): one destination applies to every selected asset,
-   * each getting its own history entry so per-asset provenance still
-   * reads correctly afterward.
-   */
-  openBulkWarehouseTransferModal() {
-    if (this.selected.size === 0) return;
-    const gadgets = this._filteredSortedGadgets().filter((g) => this.selected.has(g.id));
-    const warehouses = this._knownWarehouses();
-
-    const node = el(`
-      <div class="bulk-transfer-form">
-        <p class="hint">Transfer ${gadgets.length} selected asset${gadgets.length === 1 ? '' : 's'} to a new warehouse.</p>
-        <div class="field">
-          <label for="bulkToWarehouse">Transfer to warehouse</label>
-          <input type="text" id="bulkToWarehouse" list="bulkTransferWarehouseOptions" placeholder="e.g. North Annex Warehouse">
-          <datalist id="bulkTransferWarehouseOptions">${warehouses.map((w) => `<option value="${esc(w)}">`).join('')}</datalist>
-          <div class="field-error" data-error-for="toWarehouse"></div>
-        </div>
-        <div class="field">
-          <label for="bulkTransferNote">Note (optional)</label>
-          <input type="text" id="bulkTransferNote" placeholder="Reason for transfer">
-        </div>
-      </div>
-    `);
-
-    const modal = new Modal({
-      title: 'Transfer warehouse',
-      body: node,
-      footer: [
-        { label: 'Cancel', variant: 'btn-outline', onClick: (m) => m.close() },
-        {
-          label: 'Transfer',
-          variant: 'btn-accent',
-          onClick: (m) => {
-            const toWarehouse = node.querySelector('#bulkToWarehouse').value.trim();
-            const errorEl = node.querySelector('[data-error-for="toWarehouse"]');
-            if (!toWarehouse) {
-              errorEl.textContent = 'Destination warehouse is required.';
-              return;
-            }
-            errorEl.textContent = '';
-
-            const note = node.querySelector('#bulkTransferNote').value.trim();
-            const noteSuffix = note ? ` Note: ${note}` : '';
-            let count = 0;
-            gadgets.forEach((gadget) => {
-              if (gadget.warehouse === toWarehouse) return; // already there, skip
-              const from = gadget.warehouse || '';
-              gadget.addLogEntry(`Transferred warehouse from '${from}' to '${toWarehouse}'.${noteSuffix}`, 'transfer', null, getOperatorName());
-              this.store.update(gadget.id, { warehouse: toWarehouse });
-              count++;
-            });
-            if (count > 0) Toast.success(`Transferred ${count} asset${count === 1 ? '' : 's'} to ${toWarehouse}.`);
-            m.close();
-          }
-        }
-      ]
-    });
-    modal.open();
-    node.querySelector('#bulkToWarehouse')?.focus();
   }
 
   viewLog(id) {

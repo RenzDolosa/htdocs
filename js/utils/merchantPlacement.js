@@ -40,16 +40,58 @@ const UNMATCHED = Object.freeze({ matched: false, positionType: '', warehouse: '
  * @param {import('../core/Store.js').Store} stores.locationStore
  * @param {import('../core/Store.js').Store} stores.warehouseStore
  */
-export function resolveMerchantPlacement(merchant, { locationStore, warehouseStore } = {}) {
+/**
+ * Every enabled WarehouseLocation across every warehouse *site* whose
+ * locationCode matches `merchant` (case-insensitive/trimmed) — the raw
+ * candidate set resolveMerchantPlacement() below collapses down to a
+ * single result from.
+ *
+ * A location's name is only unique within its own warehouse site (Krus4k
+ * and Krus5k can each have their own "Zeneya"), so more than one
+ * candidate coming back means the name alone isn't enough to say which
+ * physical site is meant. Exposed separately so callers (currently
+ * ManifestModal) can detect that case and ask a person to pick a site
+ * before a placement gets resolved, instead of silently guessing.
+ *
+ * @param {string} merchant
+ * @param {object} stores
+ * @param {import('../core/Store.js').Store} stores.locationStore
+ * @param {import('../core/Store.js').Store} stores.warehouseStore
+ * @returns {{location: object, warehouseSite: object}[]}
+ */
+export function findMatchingLocations(merchant, { locationStore, warehouseStore } = {}) {
   const key = (merchant || '').trim().toLowerCase();
-  if (!key || !locationStore || !warehouseStore) return UNMATCHED;
+  if (!key || !locationStore || !warehouseStore) return [];
 
-  const location = locationStore.list().find((l) => l.enabled && (l.locationCode || '').trim().toLowerCase() === key);
-  if (!location) return UNMATCHED;
+  return locationStore.list()
+    .filter((l) => l.enabled && (l.locationCode || '').trim().toLowerCase() === key)
+    .map((location) => ({ location, warehouseSite: warehouseStore.get(location.warehouseId) }))
+    .filter((candidate) => Boolean(candidate.warehouseSite));
+}
 
-  const warehouseSite = warehouseStore.get(location.warehouseId);
-  if (!warehouseSite) return UNMATCHED;
+/**
+ * @param {string} merchant
+ * @param {object} stores
+ * @param {import('../core/Store.js').Store} stores.locationStore
+ * @param {import('../core/Store.js').Store} stores.warehouseStore
+ * @param {string} [stores.warehouseId] - when the location name exists under
+ *   more than one warehouse site (see findMatchingLocations above), picks the
+ *   candidate belonging to this site. Ignored (and unnecessary) when there's
+ *   zero or one candidate. Left blank, the first candidate found is used —
+ *   the same "just pick one" behavior this function always had, kept as the
+ *   default for every caller that hasn't been taught about the ambiguous
+ *   case yet.
+ */
+export function resolveMerchantPlacement(merchant, { locationStore, warehouseStore, warehouseId = '' } = {}) {
+  const candidates = findMatchingLocations(merchant, { locationStore, warehouseStore });
+  if (!candidates.length) return UNMATCHED;
 
+  const chosen = warehouseId
+    ? candidates.find((c) => c.warehouseSite.id === warehouseId)
+    : candidates[0];
+  if (!chosen) return UNMATCHED;
+
+  const { location, warehouseSite } = chosen;
   return {
     matched: true,
     positionType: TYPE_LABEL[location.property] || location.property,

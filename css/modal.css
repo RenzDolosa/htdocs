@@ -37,20 +37,11 @@
 .hint{ font-size: 11px; color: var(--ink-faint); margin-top: 4px; }
 
 /* Live merchant -> location -> {position type, warehouse, owner} preview
-   (ManageForm's Merchant field, ManifestModal's Transfer to field). */
+   (ManifestModal's Transfer to field — the only place a merchant is ever
+   set now that Add/Edit asset no longer has a Merchant field of its own). */
 .placement-preview{ font-size: 11px; min-height: 14px; }
 .placement-preview-matched{ color: var(--good); }
 .placement-preview-unmatched{ color: var(--warn); }
-
-/* ManageForm's Merchant field: shown when the asset already has a
-   transfer awaiting confirmation (see models/Gadget.js's
-   pendingTransfer) — the merchant value above it is deliberately still
-   the old one, so this explains why without the form looking like it
-   silently reverted a change. */
-.pending-transfer-banner{
-  font-size: 11.5px; color: var(--warn); background: var(--warn-soft);
-  border-radius: 4px; padding: 6px 9px; margin-top: 6px;
-}
 
 /* ManifestModal only: the preview sits inline with the "+ Add row" button
    below the detail table (button flush left, preview flush right — see
@@ -74,6 +65,35 @@
   justify-content: space-between;
   gap: 16px;
   margin-top: 10px;
+}
+
+/* Groups the warehouse picker with the placement preview so the row above
+   still only has two flex children (button vs. everything else) — see
+   ManifestModal.js's findMatchingLocations-driven ambiguity handling. */
+.manifest-below-table-right{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+/* Hidden by default (see the `hidden` attribute in ManifestModal.js) —
+   only appears when "Transfer to" matches a location name that exists
+   under more than one warehouse site and needs a person to say which one. */
+.manifest-warehouse-pick{ display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.manifest-warehouse-pick[hidden]{ display: none; }
+.manifest-warehouse-pick label{
+  font-size: 11.5px; font-weight: 700; color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; margin: 0;
+}
+.manifest-warehouse-pick .filter-dropdown-trigger{
+  /* Matches .btn.btn-sm exactly (same padding/font-size/border-radius) so
+     the trigger sits flush with "+ Add row" instead of the taller default
+     .filter-dropdown-trigger sizing used elsewhere (e.g. filter bars). */
+  min-width: 150px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  border-radius: 5px;
 }
 
 input[type=text],

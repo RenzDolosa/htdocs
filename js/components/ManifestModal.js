@@ -5,7 +5,8 @@ import { fmtManifestDate } from '../utils/format.js';
 import { getOperatorName } from '../core/Operator.js';
 import { Toast } from './Toast.js';
 import { confirmDialog } from './ConfirmDialog.js';
-import { resolveMerchantPlacement, destinationWarehouseId } from '../utils/merchantPlacement.js';
+import { resolveMerchantPlacement, destinationWarehouseId, findMatchingLocations } from '../utils/merchantPlacement.js';
+import { enhanceSelect } from './SelectField.js';
 
 /**
  * ManifestModal renders a printable "Manifest / Transmittal" document for
@@ -188,7 +189,13 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
 
         <div class="manifest-below-table-row">
           <button tabindex="-1" type="button" class="btn btn-outline btn-sm no-print" data-action="add-manifest-row">+ Add row</button>
-          <div class="placement-preview placement-preview-block no-print" data-role="manifest-placement-preview"></div>
+          <div class="manifest-below-table-right no-print">
+            <div class="manifest-warehouse-pick no-print" data-role="manifest-warehouse-pick" hidden>
+              <label for="manifestWarehousePick">Select warehouse</label>
+              <select id="manifestWarehousePick" data-role="manifest-warehouse-select"></select>
+            </div>
+            <div class="placement-preview placement-preview-block no-print" data-role="manifest-placement-preview"></div>
+          </div>
         </div>
     </div>
   `);
@@ -216,20 +223,97 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
     body.querySelector('#manifestMerchantOptions').innerHTML =
       locationCodes.map((code) => `<option value="${esc(code)}">`).join('');
   }
+
+  // A location's name is only unique *within* its own warehouse site — the
+  // same "Zeneya" can exist under Krus4k, Krus5k, and Krus3k at once (see
+  // findMatchingLocations' doc comment in utils/merchantPlacement.js). When
+  // that happens, the name alone can't say which physical site the manifest
+  // means, so this picker appears to ask — and only then. It stays hidden
+  // for every ordinary (zero- or one-match) "Transfer to" value, exactly as
+  // before this existed.
+  let selectedWarehouseId = '';
+  const warehousePickWrap = body.querySelector('[data-role="manifest-warehouse-pick"]');
+  const warehousePickSelect = body.querySelector('[data-role="manifest-warehouse-select"]');
+  // Same styled trigger + popover as every other <select> in the app
+  // (e.g. Manage's "Position Type" filter) instead of a bare native
+  // control — wraps the real <select> in place, so .value/'change' below
+  // keep working exactly as if it were untouched.
+  const warehousePickField = enhanceSelect(warehousePickSelect);
+
+  function showWarehousePick(candidates) {
+    const stillValid = selectedWarehouseId && candidates.some((c) => c.warehouseSite.id === selectedWarehouseId);
+    if (!stillValid) selectedWarehouseId = '';
+    warehousePickSelect.innerHTML =
+      `<option value="" disabled ${selectedWarehouseId ? '' : 'selected'}>Select warehouse…</option>` +
+      candidates
+        .map((c) => `<option value="${esc(c.warehouseSite.id)}"${c.warehouseSite.id === selectedWarehouseId ? ' selected' : ''}>${esc(c.warehouseSite.name)}</option>`)
+        .join('');
+    // The trigger's visible label is only read at build time — re-sync it
+    // every time the options are replaced out from under it (see
+    // SelectField.js's own usage note on this).
+    warehousePickField.sync();
+    warehousePickWrap.hidden = false;
+  }
+
+  function hideWarehousePick() {
+    warehousePickWrap.hidden = true;
+    warehousePickSelect.innerHTML = '';
+    warehousePickField.sync();
+    selectedWarehouseId = '';
+  }
+
+  /** True unless "Transfer to" is a location name that exists under more
+   * than one warehouse site and no site has been picked yet — the one
+   * extra condition Transfer / Print needs beyond the required-fields
+   * check below. */
+  function isWarehouseSelectionResolved() {
+    const value = merchantMetaInput.value.trim();
+    if (!value || !locationStore || !warehouseStore) return true;
+    const candidates = findMatchingLocations(value, { locationStore, warehouseStore });
+    if (candidates.length <= 1) return true;
+    return Boolean(selectedWarehouseId) && candidates.some((c) => c.warehouseSite.id === selectedWarehouseId);
+  }
+
   function updateMerchantPreview() {
     const value = merchantMetaInput.value.trim();
     merchantPreviewEl.classList.remove('placement-preview-matched', 'placement-preview-unmatched');
-    if (!value || !locationStore || !warehouseStore) { merchantPreviewEl.textContent = ''; return; }
-    const placement = resolveMerchantPlacement(value, { locationStore, warehouseStore });
-    if (placement.matched) {
-      merchantPreviewEl.textContent = `→ Position Type: ${placement.positionType} · Warehouse: ${placement.warehouse} · Owner: ${placement.owner}`;
-      merchantPreviewEl.classList.add('placement-preview-matched');
-    } else {
-      merchantPreviewEl.textContent = 'No warehouse location named this yet — Position Type / Warehouse / Owner will stay unassigned for the assets transferred here.';
-      merchantPreviewEl.classList.add('placement-preview-unmatched');
+    if (!value || !locationStore || !warehouseStore) {
+      merchantPreviewEl.textContent = '';
+      hideWarehousePick();
+      updateTransferButtonState();
+      return;
     }
+
+    const candidates = findMatchingLocations(value, { locationStore, warehouseStore });
+
+    if (candidates.length > 1) {
+      showWarehousePick(candidates);
+      if (selectedWarehouseId) {
+        const placement = resolveMerchantPlacement(value, { locationStore, warehouseStore, warehouseId: selectedWarehouseId });
+        merchantPreviewEl.textContent = `→ Position Type: ${placement.positionType} · Warehouse: ${placement.warehouse} · Owner: ${placement.owner}`;
+        merchantPreviewEl.classList.add('placement-preview-matched');
+      } else {
+        merchantPreviewEl.textContent = `"${value}" exists in ${candidates.length} warehouses — select which one above to continue.`;
+        merchantPreviewEl.classList.add('placement-preview-unmatched');
+      }
+    } else {
+      hideWarehousePick();
+      const placement = resolveMerchantPlacement(value, { locationStore, warehouseStore });
+      if (placement.matched) {
+        merchantPreviewEl.textContent = `→ Position Type: ${placement.positionType} · Warehouse: ${placement.warehouse} · Owner: ${placement.owner}`;
+        merchantPreviewEl.classList.add('placement-preview-matched');
+      } else {
+        merchantPreviewEl.textContent = 'No warehouse location named this yet — Position Type / Warehouse / Owner will stay unassigned for the assets transferred here.';
+        merchantPreviewEl.classList.add('placement-preview-unmatched');
+      }
+    }
+    updateTransferButtonState();
   }
   merchantMetaInput.addEventListener('input', updateMerchantPreview);
+  warehousePickSelect.addEventListener('change', () => {
+    selectedWarehouseId = warehousePickSelect.value;
+    updateMerchantPreview();
+  });
 
   /** True once every required meta field (Prepared by/Department/Received
    * by/Transfer to/Date) has a non-blank value. Gates the Transfer / Print
@@ -240,9 +324,12 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
 
   function updateTransferButtonState() {
     if (!transferBtn) return;
-    const ready = isMetaComplete();
+    const metaComplete = isMetaComplete();
+    const ready = metaComplete && isWarehouseSelectionResolved();
     transferBtn.disabled = !ready;
-    transferBtn.title = ready ? '' : 'Fill in Prepared by, Department, Received by, Transfer to, and Date first.';
+    transferBtn.title = !metaComplete
+      ? 'Fill in Prepared by, Department, Received by, Transfer to, and Date first.'
+      : (ready ? '' : 'Select which warehouse to transfer to first.');
   }
 
   REQUIRED_META_KEYS.forEach((key) => {
@@ -341,7 +428,7 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
     if (!transferTo) return;
 
     const placement = (locationStore && warehouseStore)
-      ? resolveMerchantPlacement(transferTo, { locationStore, warehouseStore })
+      ? resolveMerchantPlacement(transferTo, { locationStore, warehouseStore, warehouseId: selectedWarehouseId })
       : { matched: false };
     const placementPatch = placement.matched
       ? { positionType: placement.positionType, warehouse: placement.warehouse, owner: placement.owner }
@@ -429,9 +516,15 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
           // name. A manifest transfer is still a transfer, so it gets the
           // same gate rather than being a way around it.
           const transferTo = body.querySelector('[data-meta="merchant"]').value.trim();
-          if (transferTo && locationStore && warehouseStore && !resolveMerchantPlacement(transferTo, { locationStore, warehouseStore }).matched) {
-            Toast.error(`"${transferTo}" isn't a currently active merchant — pick one from the list, or clear "Transfer to" to leave it unassigned.`);
-            return;
+          if (transferTo && locationStore && warehouseStore) {
+            if (!isWarehouseSelectionResolved()) {
+              Toast.error(`"${transferTo}" exists in more than one warehouse — select which one before transferring.`);
+              return;
+            }
+            if (!resolveMerchantPlacement(transferTo, { locationStore, warehouseStore, warehouseId: selectedWarehouseId }).matched) {
+              Toast.error(`"${transferTo}" isn't a currently active merchant — pick one from the list, or clear "Transfer to" to leave it unassigned.`);
+              return;
+            }
           }
           addPrintPadding();
           document.body.classList.add('printing-manifest');

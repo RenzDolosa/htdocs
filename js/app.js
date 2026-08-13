@@ -205,9 +205,11 @@ function collectReportsRefs() {
     reportByPosition: document.getElementById('reportByPosition'),
     reportByAssetCategory: document.getElementById('reportByAssetCategory'),
     reportByLocationType: document.getElementById('reportByLocationType'),
+    reportByLocation: document.getElementById('reportByLocation'),
     reportActivityFeed: document.getElementById('reportActivityFeed'),
     warehouseFilterBtn: document.getElementById('reportsWarehouseFilterBtn'),
-    exportBtn: document.getElementById('reportsExportBtn')
+    exportBtn: document.getElementById('reportsExportBtn'),
+    monthlyReportBtn: document.getElementById('reportsMonthlyReportBtn')
   };
 }
 

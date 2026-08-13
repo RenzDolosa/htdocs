@@ -137,7 +137,7 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
             </button>
             <button tabindex="-1" type="button" style="display: flex; background: transparent; border: none; cursor: pointer; width: 20px; height: 20px; justify-content: center;" id="exportBtn">
-              <img src="/public/assets/icon/excel.svg" alt="Export">
+              <img src="public/assets/icon/excel.svg" alt="Export">
             </button>
             <button tabindex="-1" type="button" style="display: flex; background: transparent; border: none; cursor: pointer; width: 20px; height: 20px; justify-content: center;" id="manageColumnBtn" title="Column configuration">
               <img src="public/assets/icon/columns.svg" alt="Column configuration">
@@ -243,7 +243,7 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
             </button>
             <button tabindex="-1" type="button" style="display: flex; background: transparent; border: none; cursor: pointer; width: 20px; height: 20px; justify-content: center;" id="iaExportBtn" title="Export">
-              <img src="/public/assets/icon/excel.svg" alt="Export">
+              <img src="public/assets/icon/excel.svg" alt="Export">
             </button>
             <button tabindex="-1" type="button" style="display: flex; background: transparent; border: none; cursor: pointer; width: 20px; height: 20px; justify-content: center;" id="iaColumnBtn" title="Column configuration">
               <img src="public/assets/icon/columns.svg" alt="Column configuration">
@@ -316,6 +316,7 @@
 
             <div class="reports-toolbar">
               <button tabindex="-1" type="button" class="btn btn-outline btn-sm" id="reportsExportBtn">Export summary</button>
+              <button tabindex="-1" type="button" class="btn btn-outline btn-sm" id="reportsMonthlyReportBtn">Monthly report…</button>
             </div>
 
             <div class="report-stats" id="reportStats"></div>
@@ -340,6 +341,10 @@
               <div class="report-card">
                 <h3>Warehouse Locations by Type</h3>
                 <div tabindex="-1" class="report-bars" id="reportByLocationType"></div>
+              </div>
+              <div class="report-card">
+                <h3>Warehouse Locations</h3>
+                <div tabindex="-1" class="report-bars" id="reportByLocation"></div>
               </div>
             </div>
 

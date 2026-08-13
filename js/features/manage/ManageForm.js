@@ -23,14 +23,14 @@ function distinctOptions(values) {
  * Picking (or typing) a serial number that matches a catalog entry
  * auto-fills MAC address and Asset tag (default) from that entry.
  *
- * Merchant is a bit different from the fields above: it's not just free
- * text, it's the *key* that Position Type / Warehouse / Owner are derived
- * from (see utils/merchantPlacement.js) — typing or picking a merchant
- * name that matches a created warehouse location resolves those three
- * columns automatically on save. `locationCodes` suggests the names that
- * actually resolve to something; `resolvePlacement` powers the live
- * preview under the field so that resolution is visible before saving,
- * not just after.
+ * Merchant is intentionally NOT editable here either, for the same reason
+ * as Warehouse above: it's not just free text, it's the *key* that
+ * Position Type / Warehouse / Owner are derived from (see
+ * utils/merchantPlacement.js), so changing it is a transfer and only
+ * happens through the Manifest / Transmittal flow (ManifestModal.js),
+ * where it's captured as a logged, receivable transfer event exactly
+ * like Warehouse always was. This form only ever shows the gadget's
+ * current merchant value on the Manage grid — it has no say over it.
  *
  * @param {object} [gadget] - existing Gadget to prefill, or omit for a blank form.
  * @param {object} [source]
@@ -38,11 +38,9 @@ function distinctOptions(values) {
  * @param {string[]} [source.roleOptions] - known roles from Manage's own records.
  * @param {object[]} [source.inventoryAssets] - InventoryAsset records (category, serialNumber, assetTag, macAddress).
  * @param {Set<string>} [source.usedSerials] - serial numbers (lowercased, trimmed) already assigned to some other Manage record, excluded from suggestions so the dropdown doesn't offer a serial that would just fail the duplicate-serial check.
- * @param {string[]} [source.locationCodes] - created warehouse location names (e.g. "Samples", "Test Location"), suggested for the Merchant field.
- * @param {(merchant: string) => object} [source.resolvePlacement] - merchantPlacement.resolveMerchantPlacement bound to the app's stores; called on every Merchant keystroke to drive the live preview.
  * @param {string[]} [source.lockedFields] - field `name`s to render disabled (grayed out, unfocusable, current value shown but not editable). Driven by ManageController from the signed-in group's Manage → Edit field permissions (see models/UserGroup.js's PERMISSION_TREE) when editing an existing asset; left empty for Add (unrestricted either way — nothing yet for a wrong value to disagree with) and for anyone with every Edit field permission allowed.
  */
-export function buildManageForm(gadget = null, { userOptions = [], roleOptions = [], inventoryAssets = [], usedSerials = new Set(), locationCodes = [], resolvePlacement = () => ({ matched: false }), lockedFields = [] } = {}) {
+export function buildManageForm(gadget = null, { userOptions = [], roleOptions = [], inventoryAssets = [], usedSerials = new Set(), lockedFields = [] } = {}) {
   const node = el(`
     <form class="gadget-form" novalidate>
       <div class="field-row">
@@ -100,14 +98,6 @@ export function buildManageForm(gadget = null, { userOptions = [], roleOptions =
         </div>
       </div>
       <div class="field">
-        <label for="gMerchant">Merchant</label>
-        <input type="text" id="gMerchant" name="merchant" list="gadgetMerchantOptions" placeholder="e.g. Samples">
-        <datalist id="gadgetMerchantOptions"></datalist>
-        <div class="field-error" data-error-for="merchant"></div>
-        <div class="pending-transfer-banner" data-role="pending-transfer-banner" hidden></div>
-        <div class="placement-preview" data-role="placement-preview"></div>
-      </div>
-      <div class="field">
         <label for="gRemarks">Remarks</label>
         <input type="text" id="gRemarks" name="remarks" placeholder="Any notes worth flagging">
       </div>
@@ -128,12 +118,6 @@ export function buildManageForm(gadget = null, { userOptions = [], roleOptions =
 
   node.querySelector('#gadgetRoleOptions').innerHTML =
     distinctOptions(roleOptions).map((v) => `<option value="${esc(v)}">`).join('');
-
-  // Settings → Warehouse Information's created locations are the source of
-  // truth for which merchant names actually resolve to a Position Type /
-  // Warehouse / Owner — see the placement preview wired below.
-  node.querySelector('#gadgetMerchantOptions').innerHTML =
-    distinctOptions(locationCodes).map((v) => `<option value="${esc(v)}">`).join('');
 
   const categoryInput = node.querySelector('#gCategory');
   const serialOptionsEl = node.querySelector('#gadgetSerialOptions');
@@ -188,50 +172,6 @@ export function buildManageForm(gadget = null, { userOptions = [], roleOptions =
     assetTagInput.value = match.assetTag || '';
   });
 
-  // Live placement preview: shows what Position Type / Warehouse / Owner
-  // will resolve to *before* Save is clicked, so the merchant -> location
-  // -> {position type, warehouse, owner} chain is visible while editing,
-  // not just discoverable afterward in the Manage grid.
-  //
-  // When the resolved location is matched and this is an existing asset
-  // (not a fresh Add), saving this merchant change won't apply it right
-  // away — it goes into Gadget.pendingTransfer until someone whose User
-  // Group is bound to that destination warehouse confirms it (see
-  // ManageController._saveGadget / confirmTransfer). The preview says so
-  // up front rather than letting Save quietly behave differently than
-  // the last field on this form did.
-  const merchantInput = node.querySelector('#gMerchant');
-  const previewEl = node.querySelector('[data-role="placement-preview"]');
-  function updatePlacementPreview() {
-    const value = merchantInput.value.trim();
-    previewEl.classList.remove('placement-preview-matched', 'placement-preview-unmatched');
-    if (!value) { previewEl.textContent = ''; return; }
-    const placement = resolvePlacement(value);
-    const merchantIsChanging = !gadget || (gadget.merchant || '') !== value;
-    if (placement.matched) {
-      const willPend = merchantIsChanging && Boolean(gadget);
-      previewEl.textContent = willPend
-        ? `→ Position Type: ${placement.positionType} · Warehouse: ${placement.warehouse} · Owner: ${placement.owner} — will stay pending until someone with access to ${placement.owner} confirms receiving it.`
-        : `→ Position Type: ${placement.positionType} · Warehouse: ${placement.warehouse} · Owner: ${placement.owner}`;
-      previewEl.classList.add('placement-preview-matched');
-    } else {
-      previewEl.textContent = 'No warehouse location named this yet — Position Type / Warehouse / Owner will stay unassigned until one is created under this name.';
-      previewEl.classList.add('placement-preview-unmatched');
-    }
-  }
-  merchantInput.addEventListener('input', updatePlacementPreview);
-
-  // A transfer already awaiting confirmation stays visible on the form so
-  // reopening this asset doesn't look like the merchant field silently
-  // reverted — gadget.merchant genuinely hasn't changed yet; it's the
-  // pendingTransfer sitting alongside it that's new.
-  const pendingBannerEl = node.querySelector('[data-role="pending-transfer-banner"]');
-  if (gadget?.pendingTransfer) {
-    const p = gadget.pendingTransfer;
-    pendingBannerEl.hidden = false;
-    pendingBannerEl.textContent = `A transfer to '${p.toMerchant}' is pending — awaiting confirmation from anyone with access to ${p.toOwner || 'the destination warehouse'}. The merchant above stays as-is until then.`;
-  }
-
   node.querySelector('[data-action="toggle-password"]').addEventListener('click', (e) => {
     const input = node.querySelector('#gPassword');
     const showing = input.type === 'text';
@@ -248,7 +188,6 @@ export function buildManageForm(gadget = null, { userOptions = [], roleOptions =
     node.querySelector('#gWhTag').value = gadget.warehouseAssetTag;
     node.querySelector('#gDefTag').value = gadget.assetTagDefault;
     node.querySelector('#gPassword').value = gadget.password;
-    node.querySelector('#gMerchant').value = gadget.merchant;
     node.querySelector('#gRemarks').value = gadget.remarks;
     node.querySelector('#gDescription').value = gadget.description;
   }
@@ -256,7 +195,6 @@ export function buildManageForm(gadget = null, { userOptions = [], roleOptions =
   // Populate suggestions once up front — either narrowed to the prefilled
   // edit-mode category, or the full catalog for a blank add-mode form.
   refreshCatalogSuggestions();
-  updatePlacementPreview();
 
   lockedFields.forEach((name) => {
     const input = node.querySelector(`[name="${name}"]`);
@@ -275,7 +213,6 @@ export function buildManageForm(gadget = null, { userOptions = [], roleOptions =
       warehouseAssetTag: node.querySelector('#gWhTag').value.trim(),
       assetTagDefault: node.querySelector('#gDefTag').value.trim(),
       password: node.querySelector('#gPassword').value,
-      merchant: node.querySelector('#gMerchant').value.trim(),
       remarks: node.querySelector('#gRemarks').value.trim(),
       description: node.querySelector('#gDescription').value.trim()
     };
