@@ -1,6 +1,13 @@
 *{ box-sizing: border-box; }
 html, body{ margin: 0; padding: 0; }
 
+/* App-wide default for every print job (Requisition, and anything else
+   that calls window.print() without its own @page override) — portrait
+   is what "Print" should mean unless a feature explicitly needs
+   otherwise, the way Manifest's wide table does (see css/modal.css's own
+   comment on how that one opts into landscape just for itself). */
+@page{ size: portrait; margin: 12mm; }
+
 body{
   background: var(--bg);
   background-image:

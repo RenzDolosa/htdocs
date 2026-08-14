@@ -395,6 +395,26 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
   }
 
   /**
+   * @page can't be scoped by a body class the way @media print can (see
+   * css/modal.css's own comment on this), so the landscape override this
+   * table's 12 columns need is applied as its own <style> tag instead —
+   * added right before window.print(), removed right after — so it never
+   * leaks into any other feature's print job (e.g. Requisition, which
+   * should stay portrait).
+   */
+  function addLandscapePage() {
+    removeLandscapePage();
+    const style = document.createElement('style');
+    style.id = 'manifestLandscapePage';
+    style.textContent = '@page{ size: landscape; margin: 12mm; }';
+    document.head.appendChild(style);
+  }
+
+  function removeLandscapePage() {
+    document.getElementById('manifestLandscapePage')?.remove();
+  }
+
+  /**
    * Applies the manifest's "Transfer to" value as the new merchant for
    * every row that maps back to a real Gadget (rows added by hand via
    * "+ Add row" have no matching id and are skipped — there's nothing in
@@ -527,6 +547,7 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
             }
           }
           addPrintPadding();
+          addLandscapePage();
           document.body.classList.add('printing-manifest');
           // Registered fresh on every click and always removes itself, so
           // padding gets cleaned up whether the user prints or cancels —
@@ -534,6 +555,7 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
           window.addEventListener('afterprint', async () => {
             document.body.classList.remove('printing-manifest');
             removePrintPadding();
+            removeLandscapePage();
 
             // Browsers give no signal distinguishing "printed/saved" from
             // "hit Cancel" — afterprint fires either way. An explicit
@@ -552,7 +574,7 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
         }
       }
     ],
-    onClose: () => removePrintPadding()
+    onClose: () => { removePrintPadding(); removeLandscapePage(); }
   });
 
   transferBtn = modal.footEl.querySelector('.btn-accent');

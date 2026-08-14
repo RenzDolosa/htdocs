@@ -1,5 +1,6 @@
 import { Requisition, REQUISITION_APPROVERS } from '../../models/Requisition.js';
 import { Toast } from '../../components/Toast.js';
+import { confirmDialog } from '../../components/ConfirmDialog.js';
 import { getOperatorName } from '../../core/Operator.js';
 import { esc } from '../../utils/dom.js';
 import { fmtLocalDateTime } from '../../utils/format.js';
@@ -24,11 +25,14 @@ import { fmtLocalDateTime } from '../../utils/format.js';
  * the printed page only ever shows what's actually filled in, same as
  * the reference's own Print Preview.
  *
- * Unlike a Manifest transfer, submitting a requisition doesn't change any
- * other record's state, so — unlike ManifestModal's afterprint
- * confirmation dialog — this saves the record immediately on Submit and
- * prints as a courtesy alongside that, rather than gating the save on
- * whether printing actually went through.
+ * Submitting also mirrors ManifestModal's own print-then-confirm shape:
+ * browsers give no signal distinguishing "printed/saved" from "hit
+ * Cancel" in the print dialog, so nothing is saved to the store until
+ * the person confirms, in a dialog shown right after the print dialog
+ * closes either way, that it actually went through. Declining leaves the
+ * form exactly as filled in — nothing persisted, nothing cleared — so a
+ * Submit clicked by mistake, or one more typo to fix, is always
+ * recoverable rather than already being a saved (and reset) record.
  */
 export class RequisitionController {
   constructor({ store, inventoryAssetStore, view, refs }) {
@@ -54,7 +58,7 @@ export class RequisitionController {
       const btn = e.target.closest('[data-action="reprint"]');
       if (!btn) return;
       const requisition = this.store.get(btn.dataset.id);
-      if (requisition) this._print(requisition);
+      if (requisition) this._reprint(requisition);
     });
 
     this.store.on('change', () => this._renderHistory());
@@ -146,16 +150,30 @@ export class RequisitionController {
     }
     this._showErrors({});
 
+    // Not saved yet — a preview copy, so the printed page and the
+    // eventual store record end up with identical values (same id,
+    // same createdAt) once confirmed, without persisting anything a
+    // person might still want to back out of and keep editing.
     const requisition = new Requisition({
       ...raw,
       items: raw.items.filter((i) => i.category && i.qty > 0),
       submittedBy: getOperatorName()
     });
-    this.store.create(requisition);
-    Toast.success(`Requisition submitted for ${requisition.requesterName}.`);
 
-    this._print(requisition);
-    this._resetForm();
+    this._renderPrintArea(requisition);
+    this._runPrint(async () => {
+      const confirmed = await confirmDialog({
+        title: 'Confirm requisition',
+        message: `Did the requisition for ${requisition.requesterName || 'this request'} finish printing or saving? Confirming will submit it and clear the form for a new request.`,
+        confirmLabel: 'Yes, submit',
+        cancelLabel: 'No, keep editing'
+      });
+      if (!confirmed) return;
+
+      this.store.create(requisition);
+      Toast.success(`Requisition submitted for ${requisition.requesterName}.`);
+      this._resetForm();
+    });
   }
 
   _resetForm() {
@@ -165,14 +183,21 @@ export class RequisitionController {
     this._showErrors({});
   }
 
+  /** Reprints an already-submitted entry from Recent Requisitions — no
+   * confirm-to-submit step, since there's nothing left to confirm: it
+   * was already saved when the original Submit went through. */
+  _reprint(requisition) {
+    this._renderPrintArea(requisition);
+    this._runPrint();
+  }
+
   /**
    * Builds the print-only summary into #requisitionPrintArea — same
    * "only what's filled in shows up" shape as the reference's own Print
-   * Preview (no Email-checkbox instructional text, no blank/unused rows)
-   * — then runs it through window.print(). Reusable for both a fresh
-   * Submit and reprinting an older entry from Recent Requisitions.
+   * Preview (no Email-checkbox instructional text, no blank/unused rows).
+   * Content only — see _runPrint() for actually triggering the dialog.
    */
-  _print(requisition) {
+  _renderPrintArea(requisition) {
     const printArea = document.getElementById('requisitionPrintArea');
     if (!printArea) return;
 
@@ -207,11 +232,22 @@ export class RequisitionController {
         <p class="req-print-footer">Submitted ${esc(fmtLocalDateTime(requisition.createdAt))}${requisition.submittedBy ? ` · By ${esc(requisition.submittedBy)}` : ''}</p>
       </div>
     `;
+  }
 
+  /**
+   * Adds the print-only body class, runs window.print(), and once the
+   * dialog closes (print or cancel — afterprint fires either way)
+   * removes the class, clears the print area, then runs `onAfterPrint`
+   * if given. Same body-class technique as ManifestModal's
+   * `.printing-manifest` (see css/modal.css / css/requisition.css).
+   */
+  _runPrint(onAfterPrint) {
+    const printArea = document.getElementById('requisitionPrintArea');
     document.body.classList.add('printing-requisition');
-    window.addEventListener('afterprint', () => {
+    window.addEventListener('afterprint', async () => {
       document.body.classList.remove('printing-requisition');
-      printArea.innerHTML = '';
+      if (printArea) printArea.innerHTML = '';
+      await onAfterPrint?.();
     }, { once: true });
     window.print();
   }

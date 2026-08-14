@@ -268,11 +268,13 @@ textarea.invalid:focus{ box-shadow: 0 0 0 3px var(--bad-soft); }
 .manifest-detail-table th:nth-child(12), .manifest-detail-table td:nth-child(12){ width: 32px; }
 
 
-@page {
-  size: landscape;
-  margin: 12mm;
-}
-
+/* Manifest prints landscape (its table has 12 columns — see the width
+   rules above) — but @page can't be scoped by a body class the way
+   @media print can, so that override is injected as its own <style> tag
+   right before window.print() and removed right after (see
+   ManifestModal.js's print handler), rather than living here unscoped
+   and silently landscaping every other print job in the app. The
+   portrait default every *other* print job gets lives in css/base.css. */
 @media print {
   body.printing-manifest > *:not(.overlay){ visibility: hidden; }
   body.printing-manifest .overlay{
