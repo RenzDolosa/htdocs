@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="css/toast.css">
 <link rel="stylesheet" href="css/settings.css">
 <link rel="stylesheet" href="css/reports.css">
+<link rel="stylesheet" href="css/requisition.css">
 <link rel="stylesheet" href="css/responsive.css">
 <link rel="stylesheet" href="css/auth.css">
 </head>
@@ -70,6 +71,9 @@
     </button>
     <button tabindex="-1" type="button" class="rail-icon" data-open-tab="reports" title="Reports">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V11"/><path d="M12 20V4"/><path d="M20 20v-6"/></svg>
+    </button>
+    <button tabindex="-1" type="button" class="rail-icon" data-open-tab="requisition" title="Requisition">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 3v2.2a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V3"/><path d="M8.5 12.5 10.5 14.5 15.5 9.5"/></svg>
     </button>
 
     <div class="rail-spacer"></div>
@@ -316,7 +320,6 @@
 
             <div class="reports-toolbar">
               <button tabindex="-1" type="button" class="btn btn-outline btn-sm" id="reportsExportBtn">Export summary</button>
-              <button tabindex="-1" type="button" class="btn btn-outline btn-sm" id="reportsMonthlyReportBtn">Monthly report…</button>
             </div>
 
             <div class="report-stats" id="reportStats"></div>
@@ -348,10 +351,70 @@
               </div>
             </div>
 
-            <div class="report-card report-activity">
-              <h3>Recent Activity</h3>
-              <div tabindex="-1" class="log-list-wrap" id="reportActivityFeed"></div>
+            <div class="report-columns">
+              <div class="report-card report-activity">
+                <h3>Recent Activity</h3>
+                <div tabindex="-1" class="log-list-wrap" id="reportActivityFeed"></div>
+              </div>
+  
+              <div class="report-card report-activity">
+                <h3>Recent Requisitions</h3>
+                <div tabindex="-1" class="log-list-wrap" id="requisitionHistoryList"></div>
+              </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-view requisition-panel" data-tab-panel="requisition" hidden>
+        <div class="requisition-scroll">
+          <div class="requisition-layout">
+            <div class="requisition-card">
+              <div class="requisition-card-bar"></div>
+              <div class="requisition-card-body">
+                <h1 class="requisition-title">Requisition Form</h1>
+                <p class="requisition-subtitle">Operation Gadget Request Form</p>
+              </div>
+            </div>
+
+            <form class="requisition-card requisition-field-card" id="requisitionForm" novalidate>
+              <div class="field">
+                <label for="reqEmail">Email <span class="req-star">*</span></label>
+                <input type="email" id="reqEmail" name="email" placeholder="you@company.com">
+                <div class="field-error" data-error-for="email"></div>
+              </div>
+
+              <div class="field">
+                <label for="reqRequesterName">Requester Name <span class="req-star">*</span></label>
+                <input type="text" id="reqRequesterName" name="requesterName" placeholder="Your answer">
+                <div class="field-error" data-error-for="requesterName"></div>
+              </div>
+
+              <div class="field">
+                <label>Gadget Type <span class="req-star">*</span></label>
+                <datalist id="requisitionCategoryOptions"></datalist>
+                <div class="requisition-items" id="requisitionItems"><!-- rows added by RequisitionController --></div>
+                <button tabindex="-1" type="button" class="btn btn-outline btn-sm" id="requisitionAddRowBtn">+ Add row</button>
+                <div class="field-error" data-error-for="items"></div>
+              </div>
+
+              <div class="field">
+                <label for="reqPurpose">Purpose <span class="req-star">*</span></label>
+                <textarea id="reqPurpose" name="purpose" rows="3" placeholder="Your answer"></textarea>
+                <div class="field-error" data-error-for="purpose"></div>
+              </div>
+
+              <div class="field">
+                <label>Approved by</label>
+                <p class="requisition-hint">Signature below…</p>
+                <div class="requisition-approvers" id="requisitionApprovers"><!-- rendered by RequisitionView --></div>
+              </div>
+
+              <div class="requisition-form-footer">
+                <button tabindex="-1" type="submit" class="btn btn-accent" id="requisitionSubmitBtn">Submit and Print</button>
+                <button tabindex="-1" type="button" class="link-btn" id="requisitionClearBtn">Clear form</button>
+              </div>
+            </form>
           </div>
         </div>
       </section>
@@ -613,6 +676,11 @@
   </div>
 
 </div>
+
+<!-- Direct child of <body> so it's unaffected by which tab panel is
+     currently hidden — see RequisitionController._print()'s doc comment
+     and css/requisition.css's .printing-requisition rules. -->
+<div class="requisition-print-area" id="requisitionPrintArea"></div>
 
 <!-- Modal and toast containers are created dynamically by js/components/Modal.js and Toast.js -->
 

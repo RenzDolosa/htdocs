@@ -34,9 +34,29 @@ function endOfDay(d) { const x = new Date(d); x.setHours(23, 59, 59, 999); retur
 function isoDate(d) { const pad = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 function sameDay(a, b) { return Boolean(a) && Boolean(b) && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
 
+/** Same calendar day, `months` back — e.g. Aug 13 minus 1 = Jul 13, not
+ * "the 1st of last month". Naively calling `setMonth(m - n)` on a date
+ * whose day-of-month doesn't exist in the target month overflows into the
+ * month *after* the intended one (Aug 31 minus 1 naively lands on Sep 2,
+ * not Jul 31 or Jul 31's nearest valid day) — clamping to the target
+ * month's actual last day avoids that, matching how "Last week" already
+ * subtracts 6 *days* rather than jumping to the 1st of some week. */
+function subtractMonths(date, months) {
+  const day = date.getDate();
+  const d = new Date(date);
+  d.setDate(1); // parked on the 1st while the month rolls back, so the overflow above can't happen mid-adjustment
+  d.setMonth(d.getMonth() - months);
+  const lastDayOfTargetMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, lastDayOfTargetMonth));
+  return d;
+}
+
 /** The three presets shown in the reference image, in the same order. Each
  * returns [start, end] as plain Dates (any time-of-day — the picker only
- * ever reads the calendar-day part of them). */
+ * ever reads the calendar-day part of them). All three are trailing
+ * windows ending today — "Last month" is "the past 30-ish days", not
+ * "the previous calendar month" — same shape as "Last week" so the three
+ * presets read consistently rather than one of them jumping to the 1st. */
 export const DATE_RANGE_PRESETS = [
   {
     label: 'Last week',
@@ -50,17 +70,15 @@ export const DATE_RANGE_PRESETS = [
   {
     label: 'Last month',
     range: () => {
-      const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      return [start, now];
+      const end = new Date();
+      return [subtractMonths(end, 1), end];
     }
   },
   {
     label: 'Last three months',
     range: () => {
-      const now = new Date();
-      const start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-      return [start, now];
+      const end = new Date();
+      return [subtractMonths(end, 3), end];
     }
   }
 ];

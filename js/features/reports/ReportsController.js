@@ -10,9 +10,10 @@ import { esc, el } from '../../utils/dom.js';
 import { isWarehouseAllowed, isWarehouseScoped } from '../../core/WarehouseScope.js';
 
 /** Labels for Gadget.addLogEntry's `type` values, for the "Activity by
- * Type" breakdown in the monthly report — same categories LogModal's own
- * tabs use, plus the two types LogModal lumps into "All" (create/update)
- * spelled out here since a standalone report has no tab to fall back on. */
+ * Type" breakdown shown in a date-ranged export — same categories
+ * LogModal's own tabs use, plus the two types LogModal lumps into "All"
+ * (create/update) spelled out here since a standalone report has no tab
+ * to fall back on. */
 const ACTIVITY_TYPE_LABELS = {
   create: 'Asset Added',
   transfer: 'Transfer',
@@ -26,43 +27,49 @@ function activityTypeLabel(type) {
 
 /** The checkbox list "Export summary" opens before downloading — one entry
  * per breakdown card on the dashboard (Warehouse Locations bundles both
- * location cards, "by Type" and "by Warehouse", since they're one topic
- * to a reader deciding what to include). `rows(ctrl, gadgets)` returns
- * this category's own CSV rows so _exportSummary can just concatenate
- * whichever categories came back checked. */
+ * location cards — "by Type" is a count of location records, "by
+ * Merchant" is a count of gadgets currently placed at each merchant/
+ * location — since they're one topic to a reader deciding what to
+ * include). `rows(ctrl, scope)` returns this category's own CSV rows,
+ * where `scope` is whichever gadgets/inventory assets/locations
+ * _exportSummary already narrowed down — to "everything right now" when
+ * no date range is set, or to "created within the picked range" when one
+ * is, so every category (not just Recent Activity) can answer either
+ * "what does this look like today" or "what got added this period"
+ * depending on that one shared setting. */
 const EXPORT_CATEGORIES = [
   {
     key: 'category',
     label: 'Gadgets by Category',
-    rows: (ctrl, gadgets) => ctrl._categoryBreakdownWithAssigned(gadgets)
+    rows: (ctrl, { gadgets }) => ctrl._categoryBreakdownWithAssigned(gadgets)
       .map((r) => ['Gadgets by Category', r.label, r.count, r.assigned])
   },
   {
     key: 'warehouse',
     label: 'Gadgets by Warehouse',
-    rows: (ctrl, gadgets) => ctrl._countBy(gadgets, (g) => g.warehouse || 'Unassigned')
+    rows: (ctrl, { gadgets }) => ctrl._countBy(gadgets, (g) => g.warehouse || 'Unassigned')
       .map((r) => ['Gadgets by Warehouse', r.label, r.count, ''])
   },
   {
     key: 'position',
     label: 'Gadgets by Position Type',
-    rows: (ctrl, gadgets) => ctrl._countBy(gadgets, (g) => ctrl._positionLabel(g))
+    rows: (ctrl, { gadgets }) => ctrl._countBy(gadgets, (g) => ctrl._positionLabel(g))
       .map((r) => ['Gadgets by Position Type', r.label, r.count, ''])
   },
   {
     key: 'inventoryAssets',
     label: 'Inventory Assets',
-    rows: (ctrl) => ctrl._countBy(ctrl._inventoryAssets(), (a) => a.category || 'Uncategorized')
+    rows: (ctrl, { inventoryAssets }) => ctrl._countBy(inventoryAssets, (a) => a.category || 'Uncategorized')
       .map((r) => ['Inventory Assets by Category', r.label, r.count, ''])
   },
   {
     key: 'locations',
     label: 'Warehouse Locations',
-    rows: (ctrl) => [
-      ...ctrl._countBy(ctrl._locations(), (loc) => TYPE_LABEL[loc.property] || loc.property || 'Unspecified')
+    rows: (ctrl, { gadgets, locations }) => [
+      ...ctrl._countBy(locations, (loc) => TYPE_LABEL[loc.property] || loc.property || 'Unspecified')
         .map((r) => ['Warehouse Locations by Type', r.label, r.count, '']),
-      ...ctrl._countBy(ctrl._locations(), (loc) => ctrl._warehouseName(loc.warehouseId))
-        .map((r) => ['Warehouse Locations by Warehouse', r.label, r.count, ''])
+      ...ctrl._countBy(gadgets, (g) => g.merchant || 'Unassigned')
+        .map((r) => ['Warehouse Locations by Merchant', r.label, r.count, ''])
     ]
   }
 ];
@@ -108,7 +115,14 @@ export class ReportsController {
       exportSelection: new Set([
         ...EXPORT_CATEGORIES.map((c) => c.key),
         ...ACTIVITY_EXPORT_TYPES.map((t) => t.key)
-      ])
+      ]),
+      // { startMs, endMs } | null — the picker's optional date range,
+      // same shape _exportMonthlyReport used to take as arguments back
+      // when this was a separate "Monthly report…" button. null means
+      // "everything, right now" (a point-in-time snapshot); set means
+      // every category narrows to records created in that window,
+      // Activity narrows to entries logged in that window.
+      exportDateRange: null
     };
   }
 
@@ -119,7 +133,6 @@ export class ReportsController {
     this.locationStore?.on('change', () => this.render());
     this.refs?.warehouseFilterBtn?.addEventListener('click', () => this._openWarehouseFilterMenu());
     this.refs?.exportBtn?.addEventListener('click', () => this._openExportPicker());
-    this.refs?.monthlyReportBtn?.addEventListener('click', () => this._openMonthlyReportPicker());
     this.render();
   }
 
@@ -135,7 +148,7 @@ export class ReportsController {
     this.view.renderBreakdown('reportByPosition', this._countBy(gadgets, (g) => this._positionLabel(g)));
     this.view.renderBreakdown('reportByAssetCategory', this._countBy(this._inventoryAssets(), (a) => a.category || 'Uncategorized'));
     this.view.renderBreakdown('reportByLocationType', this._countBy(this._locations(), (loc) => TYPE_LABEL[loc.property] || loc.property || 'Unspecified'));
-    this.view.renderBreakdown('reportByLocation', this._countBy(this._locations(), (loc) => this._warehouseName(loc.warehouseId)));
+    this.view.renderBreakdown('reportByLocation', this._countBy(gadgets, (g) => g.merchant || 'Unassigned'));
     this.view.renderActivity(this._recentActivity(gadgets, 25));
   }
 
@@ -169,18 +182,6 @@ export class ReportsController {
       this.warehouseStore.list().filter((w) => w.name === owner).map((w) => w.id)
     );
     return filtered.filter((loc) => matchingSiteIds.has(loc.warehouseId));
-  }
-
-  /** Resolves a WarehouseLocation's warehouseId back to its site name, for
-   * the "Warehouse Locations" breakdown card (reportByLocation) — the
-   * per-site counterpart to "Warehouse Locations by Type" above, so a
-   * reader can see where those 12 locations actually live, not just what
-   * kind they are. Falls back to 'Unassigned' the same way an orphaned
-   * gadget.warehouse would, rather than silently dropping the row. */
-  _warehouseName(warehouseId) {
-    if (!warehouseId || !this.warehouseStore) return 'Unassigned';
-    const site = this.warehouseStore.list().find((w) => w.id === warehouseId);
-    return site?.name || 'Unassigned';
   }
 
   /** Every gadget, or just the ones owned by the selected warehouse when a
@@ -360,14 +361,26 @@ export class ReportsController {
     }).open();
   }
 
-  /** Opens the "Select what to export" checklist — one group of checkboxes
-   * per breakdown card, plus a Recent Activity group broken down by log
-   * type, so a reader who only wants (say) Warehouse Locations and
-   * Transfer activity isn't stuck with the whole dashboard in one CSV.
-   * Selections persist on `this.state.exportSelection` between opens. */
+  /** Opens the "Select what to export" checklist — an optional date range
+   * at the top (same DateRangePicker "Monthly report…" used to open on
+   * its own button — see module doc), then one group of checkboxes per
+   * breakdown card, plus a Recent Activity group broken down by log type.
+   * Leaving the range as "All time" exports today's point-in-time
+   * snapshot exactly like before; picking a range narrows every checked
+   * category to records *created* in that window and Activity to entries
+   * *logged* in it — one shared setting instead of a separate button and
+   * a separate export format to keep in sync. Selections (and the range)
+   * persist on `this.state` between opens. */
   _openExportPicker() {
     const body = el(`
       <div class="export-picker">
+        <div class="export-picker-group">
+          <h4>Date Range</h4>
+          <div class="export-picker-daterange">
+            <button tabindex="-1" type="button" class="btn btn-outline btn-sm" data-role="export-range-btn"></button>
+            <button tabindex="-1" type="button" class="link-btn" data-role="export-range-clear" hidden>Clear</button>
+          </div>
+        </div>
         <div class="export-picker-group">
           <h4>Categories</h4>
           ${EXPORT_CATEGORIES.map((c) => `
@@ -388,6 +401,34 @@ export class ReportsController {
         </div>
       </div>
     `);
+
+    const rangeBtn = body.querySelector('[data-role="export-range-btn"]');
+    const rangeClearBtn = body.querySelector('[data-role="export-range-clear"]');
+    const renderRangeLabel = () => {
+      const range = this.state.exportDateRange;
+      rangeBtn.textContent = range
+        ? `${fmtLocalDateStamp(new Date(range.startMs))} – ${fmtLocalDateStamp(new Date(range.endMs))}`
+        : 'All time';
+      rangeClearBtn.hidden = !range;
+    };
+    renderRangeLabel();
+
+    rangeBtn.addEventListener('click', () => {
+      const range = this.state.exportDateRange;
+      openDateRangePicker({
+        anchor: rangeBtn,
+        initialStart: range?.startMs ?? null,
+        initialEnd: range?.endMs ?? null,
+        onApply: (startMs, endMs) => {
+          this.state.exportDateRange = { startMs, endMs };
+          renderRangeLabel();
+        }
+      });
+    });
+    rangeClearBtn.addEventListener('click', () => {
+      this.state.exportDateRange = null;
+      renderRangeLabel();
+    });
 
     const readSelection = () => new Set(
       [...body.querySelectorAll('[data-export-key]')]
@@ -410,8 +451,8 @@ export class ReportsController {
               return;
             }
             this.state.exportSelection = selected;
-            this._exportSummary(selected);
-            m.close();
+            const exported = this._exportSummary(selected, this.state.exportDateRange);
+            if (exported) m.close();
           }
         }
       ]
@@ -419,87 +460,71 @@ export class ReportsController {
     modal.open();
   }
 
-  /** Downloads a CSV snapshot of the dashboard, limited to whichever
-   * category and Recent Activity checkboxes came back checked from
-   * _openExportPicker — stats stay in every export since they're the
-   * headline counts, not one more optional breakdown to opt out of. */
-  _exportSummary(selected) {
-    const gadgets = this._filteredGadgets();
-    const rows = [];
+  /** Downloads a CSV built from whichever category and Recent Activity
+   * checkboxes came back checked from _openExportPicker, either as a
+   * point-in-time snapshot (range === null — every category reflects the
+   * current state, same as before this picker gained a date range) or
+   * scoped to `range` (every category narrows to records whose createdAt
+   * falls inside it, Activity to entries logged inside it — the same
+   * semantics the standalone "Monthly report…" button used to apply, just
+   * generalized to every category instead of only the activity feed).
+   * Returns false (and shows a Toast instead of downloading anything)
+   * when a chosen range has nothing in it to report, so the caller knows
+   * not to close the picker out from under an empty export. */
+  _exportSummary(selected, range) {
+    const allGadgets = this._filteredGadgets();
+    const allInventoryAssets = this._inventoryAssets();
+    const allLocations = this._locations();
 
-    this._stats(gadgets).forEach((s) => rows.push(['Stat', s.label, s.value, '']));
-    EXPORT_CATEGORIES
-      .filter((c) => selected.has(c.key))
-      .forEach((c) => rows.push(...c.rows(this, gadgets)));
+    const inRange = (record) => !range || (record.createdAt >= range.startMs && record.createdAt <= range.endMs);
+    const scope = {
+      gadgets: range ? allGadgets.filter(inRange) : allGadgets,
+      inventoryAssets: range ? allInventoryAssets.filter(inRange) : allInventoryAssets,
+      locations: range ? allLocations.filter(inRange) : allLocations
+    };
 
     const activityTypeKeys = new Set(ACTIVITY_EXPORT_TYPES.map((t) => t.key));
     const selectedActivityTypes = new Set([...selected].filter((k) => activityTypeKeys.has(k)));
+    const activityEntries = this._recentActivity(allGadgets, Infinity)
+      .filter((e) => selectedActivityTypes.has(e.type || 'update'))
+      .filter((e) => !range || (e.timestamp >= range.startMs && e.timestamp <= range.endMs));
+
+    const selectedCategories = EXPORT_CATEGORIES.filter((c) => selected.has(c.key));
+    if (range) {
+      const nothingToReport = selectedCategories.every((c) => c.rows(this, scope).length === 0) && activityEntries.length === 0;
+      if (nothingToReport) {
+        Toast.show('Nothing happened in that date range — no report to export.');
+        return false;
+      }
+    }
+
+    const rows = [];
+    if (range) {
+      rows.push(['Report Period', 'Start', fmtLocalDateStamp(new Date(range.startMs)), '']);
+      rows.push(['Report Period', 'End', fmtLocalDateStamp(new Date(range.endMs)), '']);
+      rows.push(['Report Period', 'Warehouse Filter', this._effectiveOwnerFilter() === 'all' ? 'All' : this._effectiveOwnerFilter(), '']);
+    } else {
+      this._stats(allGadgets).forEach((s) => rows.push(['Stat', s.label, s.value, '']));
+    }
+
+    selectedCategories.forEach((c) => rows.push(...c.rows(this, scope)));
+
     if (selectedActivityTypes.size > 0) {
-      this._recentActivity(gadgets, Infinity)
-        .filter((e) => selectedActivityTypes.has(e.type || 'update'))
+      if (range) {
+        this._countBy(activityEntries, (e) => activityTypeLabel(e.type))
+          .forEach((r) => rows.push(['Activity by Type', r.label, r.count, '']));
+      }
+      [...activityEntries]
+        .sort((a, b) => (range ? a.timestamp - b.timestamp : b.timestamp - a.timestamp)) // ranged: oldest-first timeline; snapshot: newest-first, same as the dashboard feed
         .forEach((e) => rows.push(['Recent Activity', e.message, fmtLocalDateTime(e.timestamp), `${e.assetLabel} — by ${e.performedBy || 'Unknown'}`]));
     }
 
+    const filename = range
+      ? `stockroom-report-${fmtLocalDateStamp(new Date(range.startMs))}-to-${fmtLocalDateStamp(new Date(range.endMs))}.csv`
+      : `stockroom-report-${fmtLocalDateStamp()}.csv`;
     const csv = toCsv(['Section', 'Label', 'Count', 'Assigned'], rows);
-    downloadCsv(csv, `stockroom-report-${fmtLocalDateStamp()}.csv`);
-    Toast.success(`Exported ${EXPORT_CATEGORIES.filter((c) => selected.has(c.key)).length} categor${EXPORT_CATEGORIES.filter((c) => selected.has(c.key)).length === 1 ? 'y' : 'ies'} to CSV.`);
-  }
-
-  /**
-   * "Monthly report" is really "date-scoped report" — the button opens a
-   * DateRangePicker (presets + two-month calendar, modeled on the
-   * reference platform's own Shipping Management date filter) rather than
-   * hard-locking to a calendar month, since "the last 30 days" or "last
-   * quarter" are just as reasonable a stretch to want a report for. The
-   * "Last month" preset covers the literal calendar-month case for anyone
-   * who does just want that.
-   */
-  _openMonthlyReportPicker() {
-    if (!this.refs?.monthlyReportBtn) return;
-    openDateRangePicker({
-      anchor: this.refs.monthlyReportBtn,
-      onApply: (startMs, endMs) => this._exportMonthlyReport(startMs, endMs)
-    });
-  }
-
-  /**
-   * Downloads a CSV scoped to one date range: assets added in that window,
-   * how much activity happened (and of what kind), and the activity log
-   * itself — same Warehouse filter as _exportSummary respects, so a
-   * scoped report for one site only ever counts that site's own gadgets.
-   * Deliberately a *separate* export from _exportSummary rather than a
-   * date filter bolted onto it: that one is a point-in-time inventory
-   * snapshot (nothing here has a "when" to filter by beyond right now),
-   * this one is inherently about a span of time — mixing the two would
-   * make "Total Gadgets" or "Warehouse Locations" look like they're also
-   * scoped to the range, when a location or a still-owned gadget has no
-   * created/updated timestamp that would even make sense to filter on.
-   */
-  _exportMonthlyReport(startMs, endMs) {
-    const gadgets = this._filteredGadgets();
-    const addedInRange = gadgets.filter((g) => g.createdAt >= startMs && g.createdAt <= endMs);
-    const activityInRange = this._recentActivity(gadgets, Infinity)
-      .filter((e) => e.timestamp >= startMs && e.timestamp <= endMs)
-      .sort((a, b) => a.timestamp - b.timestamp); // oldest first reads like a timeline in the exported file
-
-    if (activityInRange.length === 0 && addedInRange.length === 0) {
-      Toast.show('Nothing happened in that date range — no report to export.');
-      return;
-    }
-
-    const activityByType = this._countBy(activityInRange, (e) => activityTypeLabel(e.type));
-
-    const rows = [];
-    rows.push(['Report Period', 'Start', fmtLocalDateStamp(new Date(startMs)), '']);
-    rows.push(['Report Period', 'End', fmtLocalDateStamp(new Date(endMs)), '']);
-    rows.push(['Report Period', 'Warehouse Filter', this._effectiveOwnerFilter() === 'all' ? 'All' : this._effectiveOwnerFilter(), '']);
-    rows.push(['Summary', 'Assets Added in Period', addedInRange.length, '']);
-    rows.push(['Summary', 'Activity Entries in Period', activityInRange.length, '']);
-    activityByType.forEach((r) => rows.push(['Activity by Type', r.label, r.count, '']));
-    activityInRange.forEach((e) => rows.push(['Activity', e.message, fmtLocalDateTime(e.timestamp), `${e.assetLabel} — by ${e.performedBy || 'Unknown'}`]));
-
-    const csv = toCsv(['Section', 'Label', 'Count', 'Assigned'], rows);
-    downloadCsv(csv, `stockroom-monthly-report-${fmtLocalDateStamp(new Date(startMs))}-to-${fmtLocalDateStamp(new Date(endMs))}.csv`);
-    Toast.success(`Exported ${activityInRange.length} activity entr${activityInRange.length === 1 ? 'y' : 'ies'} and ${addedInRange.length} new asset${addedInRange.length === 1 ? '' : 's'} for ${fmtLocalDateStamp(new Date(startMs))} to ${fmtLocalDateStamp(new Date(endMs))}.`);
+    downloadCsv(csv, filename);
+    Toast.success(`Exported ${selectedCategories.length} categor${selectedCategories.length === 1 ? 'y' : 'ies'}${range ? ` for ${fmtLocalDateStamp(new Date(range.startMs))} to ${fmtLocalDateStamp(new Date(range.endMs))}` : ''} to CSV.`);
+    return true;
   }
 }

@@ -168,6 +168,23 @@ where trim(g."serialNumber") <> ''
   and g."inventoryAssetId" is distinct from ia.id;
 
 -- ----------------------------------------------------------------------------
+-- requisitions  (Requisition Form tab — in-app clone of the reference
+-- "Operation Gadget Request Form" Google Form; see js/models/Requisition.js)
+-- ----------------------------------------------------------------------------
+create table if not exists public.requisitions (
+  id               text primary key,
+  email            text default '',
+  "requesterName"  text default '',
+  -- [{ category: 'KAICOM', qty: 12 }, ...] — one row per Gadget Type
+  -- selected in the form's own "+ Add row" pattern; see the reference
+  -- FORM vs Print Preview screenshots this feature was built from.
+  items            jsonb default '[]'::jsonb,
+  purpose          text default '',
+  "submittedBy"    text default '',
+  "createdAt"      bigint not null
+);
+
+-- ----------------------------------------------------------------------------
 -- Receiving / pending transfers (Task 1)
 -- ----------------------------------------------------------------------------
 -- A merchant transfer requested on an existing asset, when it resolves to
@@ -639,6 +656,7 @@ alter table public.gadgets              enable row level security;
 alter table public.inventory_assets     enable row level security;
 alter table public.user_accounts        enable row level security;
 alter table public.user_groups          enable row level security;
+alter table public.requisitions         enable row level security;
 
 -- Now that the app has real Supabase Auth (see js/features/auth/), require
 -- a signed-in session for every operation on every table. This replaces an
@@ -654,7 +672,7 @@ do $$
 declare
   t text;
 begin
-  foreach t in array array['warehouses','warehouse_locations','gadgets','inventory_assets','user_accounts','user_groups']
+  foreach t in array array['warehouses','warehouse_locations','gadgets','inventory_assets','user_accounts','user_groups','requisitions']
   loop
     execute format('drop policy if exists "allow_all_anon" on public.%I;', t);
     execute format('drop policy if exists "authenticated_read_write" on public.%I;', t);
@@ -674,7 +692,7 @@ do $$
 declare
   t text;
 begin
-  foreach t in array array['warehouses','warehouse_locations','gadgets','inventory_assets','user_accounts','user_groups']
+  foreach t in array array['warehouses','warehouse_locations','gadgets','inventory_assets','user_accounts','user_groups','requisitions']
   loop
     begin
       execute format('alter publication supabase_realtime add table public.%I;', t);

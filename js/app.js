@@ -13,6 +13,9 @@ import { WarehouseLocation } from './models/WarehouseLocation.js';
 import { SettingsController } from './features/settings/SettingsController.js';
 import { ReportsController } from './features/reports/ReportsController.js';
 import { ReportsView } from './features/reports/ReportsView.js';
+import { RequisitionController } from './features/requisition/RequisitionController.js';
+import { RequisitionView } from './features/requisition/RequisitionView.js';
+import { Requisition } from './models/Requisition.js';
 import { UserAccount } from './models/UserAccount.js';
 import { UserAccountView } from './features/userManagement/UserAccountView.js';
 import { UserAccountController } from './features/userManagement/UserAccountController.js';
@@ -208,8 +211,22 @@ function collectReportsRefs() {
     reportByLocation: document.getElementById('reportByLocation'),
     reportActivityFeed: document.getElementById('reportActivityFeed'),
     warehouseFilterBtn: document.getElementById('reportsWarehouseFilterBtn'),
-    exportBtn: document.getElementById('reportsExportBtn'),
-    monthlyReportBtn: document.getElementById('reportsMonthlyReportBtn')
+    exportBtn: document.getElementById('reportsExportBtn')
+  };
+}
+
+function collectRequisitionRefs() {
+  return {
+    formEl: document.getElementById('requisitionForm'),
+    emailInput: document.getElementById('reqEmail'),
+    requesterNameInput: document.getElementById('reqRequesterName'),
+    purposeInput: document.getElementById('reqPurpose'),
+    itemsEl: document.getElementById('requisitionItems'),
+    addRowBtn: document.getElementById('requisitionAddRowBtn'),
+    clearBtn: document.getElementById('requisitionClearBtn'),
+    categoryOptionsEl: document.getElementById('requisitionCategoryOptions'),
+    approversEl: document.getElementById('requisitionApprovers'),
+    historyListEl: document.getElementById('requisitionHistoryList')
   };
 }
 
@@ -236,6 +253,7 @@ const TAB_PERMISSION_KEYS = {
   assets: 'manage',
   'inventory-assets': 'inventory-assets',
   reports: 'reports',
+  requisition: 'requisition',
   settings: 'settings'
 };
 
@@ -245,6 +263,7 @@ function initTabs() {
     { id: 'assets', title: 'Manage', closable: true },
     { id: 'inventory-assets', title: 'Inventory Assets', closable: true },
     { id: 'reports', title: 'Reports', closable: true },
+    { id: 'requisition', title: 'Requisition', closable: true },
     { id: 'settings', title: 'Settings', closable: true }
   ];
   const allowedTabs = allTabs.filter((t) => can(TAB_PERMISSION_KEYS[t.id]));
@@ -555,11 +574,16 @@ async function startApp(session) {
     factory: (raw) => new UserGroup(raw)
   });
 
+  const requisitionStore = new SupabaseStore({
+    table: 'requisitions',
+    factory: (raw) => new Requisition(raw)
+  });
+
   // Every optimistic write (create/update/delete) can now fail for reasons
   // that never existed with localStorage — offline, RLS denial, a dropped
   // connection. SupabaseStore already rolls the local cache back and
   // re-renders; this just tells the person it happened.
-  [store, inventoryAssetStore, warehouseStore, warehouseLocationStore, userAccountStore, userGroupStore]
+  [store, inventoryAssetStore, warehouseStore, warehouseLocationStore, userAccountStore, userGroupStore, requisitionStore]
     .forEach((s) => s.on('error', ({ type }) => {
       if (type === 'init' || type === 'load') return; // already logged + toasted above
       Toast.error('Could not save that change — please check your connection and try again.');
@@ -577,7 +601,8 @@ async function startApp(session) {
     warehouseStore.init(),
     warehouseLocationStore.init(),
     userAccountStore.init(),
-    userGroupStore.init()
+    userGroupStore.init(),
+    requisitionStore.init()
   ]);
 
   applyCurrentUserPermissions(session, userAccountStore, userGroupStore);
@@ -637,6 +662,16 @@ async function startApp(session) {
     refs: reportsRefs
   });
   reportsController.init();
+
+  const requisitionRefs = collectRequisitionRefs();
+  const requisitionView = new RequisitionView(requisitionRefs);
+  const requisitionController = new RequisitionController({
+    store: requisitionStore,
+    inventoryAssetStore,
+    view: requisitionView,
+    refs: requisitionRefs
+  });
+  requisitionController.init();
 
   initTabs();
   bindAdvancedFilterToggle();
