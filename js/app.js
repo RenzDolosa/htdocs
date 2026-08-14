@@ -224,7 +224,6 @@ function collectRequisitionRefs() {
     itemsEl: document.getElementById('requisitionItems'),
     addRowBtn: document.getElementById('requisitionAddRowBtn'),
     clearBtn: document.getElementById('requisitionClearBtn'),
-    categoryOptionsEl: document.getElementById('requisitionCategoryOptions'),
     approversEl: document.getElementById('requisitionApprovers'),
     historyListEl: document.getElementById('requisitionHistoryList')
   };
@@ -668,6 +667,8 @@ async function startApp(session) {
   const requisitionController = new RequisitionController({
     store: requisitionStore,
     inventoryAssetStore,
+    gadgetStore: store,
+    locationStore: warehouseLocationStore,
     view: requisitionView,
     refs: requisitionRefs
   });

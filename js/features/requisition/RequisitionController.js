@@ -1,6 +1,7 @@
 import { Requisition, REQUISITION_APPROVERS } from '../../models/Requisition.js';
 import { Toast } from '../../components/Toast.js';
 import { confirmDialog } from '../../components/ConfirmDialog.js';
+import { SuggestList } from '../../components/SuggestList.js';
 import { getOperatorName } from '../../core/Operator.js';
 import { esc } from '../../utils/dom.js';
 import { fmtLocalDateTime } from '../../utils/format.js';
@@ -35,17 +36,26 @@ import { fmtLocalDateTime } from '../../utils/format.js';
  * recoverable rather than already being a saved (and reset) record.
  */
 export class RequisitionController {
-  constructor({ store, inventoryAssetStore, view, refs }) {
+  constructor({ store, inventoryAssetStore, gadgetStore, locationStore, view, refs }) {
     this.store = store;
     this.inventoryAssetStore = inventoryAssetStore;
+    // Only used to compute Gadget Type's "N available" suggestion hint —
+    // see _computeAvailableByCategory(). Optional: if either is missing
+    // (e.g. a future caller that doesn't wire them up), suggestions just
+    // fall back to plain category names with no count, same as before
+    // this feature existed.
+    this.gadgetStore = gadgetStore;
+    this.locationStore = locationStore;
     this.view = view;
     this.refs = refs;
     this._rowSeq = 0;
+    this._categories = [];
+    this._availableByCategory = {};
   }
 
   init() {
     this.view.renderApprovers();
-    this._refreshCategoryOptions();
+    this._refreshSuggestions();
     this._addItemRow();
 
     this.refs.addRowBtn?.addEventListener('click', () => this._addItemRow());
@@ -65,17 +75,63 @@ export class RequisitionController {
     // Inventory Assets is the "suggest from Inventory" source for Gadget
     // Type — its own catalog changing (an asset added/edited/imported
     // under a new category) should widen the suggestion list without
-    // needing this tab to be reopened.
-    this.inventoryAssetStore?.on('change', () => this._refreshCategoryOptions());
+    // needing this tab to be reopened. Gadgets and Warehouse Locations
+    // feed the "N available" count next to each suggestion (see
+    // _computeAvailableByCategory) — a transfer in/out of the default
+    // stock room, or the default itself moving to a different location,
+    // should update that count live too.
+    this.inventoryAssetStore?.on('change', () => this._refreshSuggestions());
+    this.gadgetStore?.on('change', () => this._refreshSuggestions());
+    this.locationStore?.on('change', () => this._refreshSuggestions());
 
     this._renderHistory();
   }
 
-  _refreshCategoryOptions() {
-    const categories = this.inventoryAssetStore
+  /** Rebuilds the suggestion data (category list + available counts) and
+   * refreshes any "N available" text already showing on a row — doesn't
+   * touch what's typed into a category input, only the hint below it. */
+  _refreshSuggestions() {
+    this._categories = this.inventoryAssetStore
       ? [...new Set(this.inventoryAssetStore.list().map((a) => a.category).filter(Boolean))].sort()
       : [];
-    this.view.renderCategoryOptions(categories);
+    this._availableByCategory = this._computeAvailableByCategory();
+    this._syncAvailableBadges();
+  }
+
+  /** Counts gadgets currently sitting at whichever WarehouseLocation(s)
+   * are flagged isDefaultStockRoom (see WarehouseLocationModal's "Stock
+   * Room" column — Settings → Warehouse Information), grouped by
+   * category. A gadget "sits at" a location when its `merchant` field
+   * matches that location's `locationCode` — the same field the transfer
+   * flow itself writes (see utils/merchantPlacement.js). If more than one
+   * warehouse has its own default (each warehouse can have one), this
+   * sums across all of them — a requester picking a Gadget Type isn't
+   * choosing a warehouse first, so "available" means available anywhere
+   * it'd normally be pulled from. */
+  _computeAvailableByCategory() {
+    if (!this.gadgetStore || !this.locationStore) return {};
+    const defaultCodes = new Set(
+      this.locationStore.list().filter((l) => l.isDefaultStockRoom && l.locationCode).map((l) => l.locationCode)
+    );
+    if (defaultCodes.size === 0) return {};
+    const counts = {};
+    this.gadgetStore.list().forEach((g) => {
+      if (!defaultCodes.has(g.merchant)) return;
+      const category = g.category || 'Uncategorized';
+      counts[category] = (counts[category] || 0) + 1;
+    });
+    return counts;
+  }
+
+  /** "Zeneya" for a single default, "3 default stock rooms" for several,
+   * or a generic fallback if none is set yet — used in the available-
+   * count hint so it reads as "N available at Zeneya" rather than just a
+   * bare number with no source. */
+  _defaultStockRoomLabel() {
+    const defaults = this.locationStore ? this.locationStore.list().filter((l) => l.isDefaultStockRoom) : [];
+    if (defaults.length === 0) return 'the default stock room';
+    if (defaults.length === 1) return defaults[0].locationCode || 'the default stock room';
+    return `${defaults.length} default stock rooms`;
   }
 
   _renderHistory() {
@@ -84,11 +140,15 @@ export class RequisitionController {
   }
 
   /**
-   * Appends one Gadget Type + Qty row, suggested from Inventory Assets'
-   * categories via the shared `#requisitionCategoryOptions` datalist
-   * (RequisitionView.renderCategoryOptions) — a row shows only the one
-   * category picked for it, and "+ Add row" is how another gets added,
-   * matching the reference's own FORM view.
+   * Appends one Gadget Type + Qty row. Typing or focusing the category
+   * input opens a suggestion dropdown built fresh from _categories/
+   * _availableByCategory (see _openCategorySuggestions) — a row shows
+   * only the one category picked for it, and "+ Add row" is how another
+   * gets added, matching the reference's own FORM view. Below the input,
+   * a small hint line shows how many of that category are sitting at the
+   * default stock room right now (_updateAvailableBadge) — nothing shows
+   * there for a category that isn't a recognized Inventory Assets
+   * category, since there'd be no meaningful count to report.
    *
    * `rowId` only keys the DOM node while rows are being added/removed —
    * it's never read back out or persisted.
@@ -100,22 +160,99 @@ export class RequisitionController {
     row.className = 'requisition-item-row';
     row.dataset.rowId = rowId;
     row.innerHTML = `
-      <input type="text" class="req-item-category" list="requisitionCategoryOptions" placeholder="Gadget type" data-role="category" autocomplete="off">
+      <div class="req-item-category-wrap">
+        <input type="text" class="req-item-category" placeholder="Gadget type" data-role="category" autocomplete="off">
+        <div class="req-item-available" data-role="available"></div>
+      </div>
       <input type="number" class="req-item-qty" min="1" step="1" placeholder="Qty" data-role="qty">
       <button tabindex="-1" type="button" class="req-item-remove" data-action="remove-row" aria-label="Remove row">&times;</button>
     `;
+    const categoryInput = row.querySelector('[data-role="category"]');
+    categoryInput.addEventListener('focus', () => this._openCategorySuggestions(row, categoryInput));
+    categoryInput.addEventListener('input', () => {
+      this._openCategorySuggestions(row, categoryInput);
+      this._updateAvailableBadge(row, categoryInput.value);
+    });
     row.querySelector('[data-action="remove-row"]').addEventListener('click', () => {
       // Always leave at least one row on screen — a form with zero rows
       // reads as broken, not as "nothing selected yet"; clearing the one
       // remaining row's values is the equivalent action.
       if (this.refs.itemsEl.children.length <= 1) {
-        row.querySelector('[data-role="category"]').value = '';
+        categoryInput.value = '';
         row.querySelector('[data-role="qty"]').value = '';
+        this._updateAvailableBadge(row, '');
         return;
       }
       row.remove();
     });
     this.refs.itemsEl.appendChild(row);
+  }
+
+  /** Opens (or, called again on the same anchor while typing, replaces)
+   * the Gadget Type suggestion popover for one row — every known category
+   * whose name contains what's currently typed (case-insensitive,
+   * matches on empty text too), laid out as a fixed "Category / Available"
+   * header over an independently scrolling list (see components/
+   * SuggestList.js) so the column headers stay put no matter how far
+   * down a long catalog someone scrolls, rather than DropdownMenu's
+   * single label-per-row shape.
+   *
+   * Built via `new SuggestList().open()` directly rather than a toggle-
+   * style wrapper: every keystroke needs a *freshly filtered* list on the
+   * same anchor, not for it to disappear the way a second click on a
+   * toggle trigger would. SuggestList's own singleton rule still enforces
+   * "only one open app-wide", so this doesn't reintroduce the multiple-
+   * popovers-stacking problem that rule exists to prevent.
+   */
+  _openCategorySuggestions(row, inputEl) {
+    const query = inputEl.value.trim().toLowerCase();
+    const matches = this._categories.filter((c) => !query || c.toLowerCase().includes(query));
+    if (matches.length === 0) return;
+    new SuggestList({
+      anchor: inputEl,
+      columns: ['Category', 'Available'],
+      rows: matches.map((category) => {
+        const available = this._availableByCategory[category];
+        return {
+          cells: [category, available === undefined ? 'No stock' : String(available)],
+          className: available === undefined || available === 0 ? 'is-zero' : '',
+          onClick: () => {
+            inputEl.value = category;
+            this._updateAvailableBadge(row, category);
+          }
+        };
+      })
+    }).open();
+  }
+
+  /** Sets (or clears) the "N available at <location>" hint under one
+   * row's category input. Only shows anything for a category that's
+   * actually in _categories — free-typed text that doesn't match a real
+   * Inventory Assets category has no count to report, so the hint just
+   * stays blank rather than implying zero means "none exist". */
+  _updateAvailableBadge(row, categoryRaw) {
+    const badge = row.querySelector('[data-role="available"]');
+    if (!badge) return;
+    const category = (categoryRaw || '').trim();
+    if (!category || !this._categories.includes(category)) {
+      badge.textContent = '';
+      badge.classList.remove('is-zero');
+      return;
+    }
+    const available = this._availableByCategory[category] || 0;
+    badge.textContent = `${available} available at ${this._defaultStockRoomLabel()}`;
+    badge.classList.toggle('is-zero', available === 0);
+  }
+
+  /** Re-runs _updateAvailableBadge for every row currently on screen —
+   * called after _refreshSuggestions() so a row already showing a count
+   * doesn't go stale while the form is still open. */
+  _syncAvailableBadges() {
+    if (!this.refs.itemsEl) return;
+    this.refs.itemsEl.querySelectorAll('.requisition-item-row').forEach((row) => {
+      const input = row.querySelector('[data-role="category"]');
+      this._updateAvailableBadge(row, input?.value || '');
+    });
   }
 
   _collectItems() {

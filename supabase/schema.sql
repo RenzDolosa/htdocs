@@ -94,6 +94,7 @@ create table if not exists public.warehouse_locations (
   height            text default '',
   property          text default 'goods',
   enabled           boolean default true,
+  "isDefaultStockRoom" boolean default false,
   "createdAt"       bigint not null
 );
 
@@ -209,6 +210,11 @@ create table if not exists public.requisitions (
 -- group) instead.
 alter table public.gadgets add column if not exists "pendingTransfer" jsonb;
 alter table public.warehouse_locations drop column if exists "assignedUsername";
+
+-- Stock Room default — WarehouseLocationModal's "Stock Room" column lets
+-- one location per warehouse (across all its zones) be flagged as the
+-- default; see models/WarehouseLocation.js's isDefaultStockRoom doc.
+alter table public.warehouse_locations add column if not exists "isDefaultStockRoom" boolean default false;
 
 -- ----------------------------------------------------------------------------
 -- user_accounts  (Settings → User management → User)

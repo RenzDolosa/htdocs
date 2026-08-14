@@ -239,6 +239,36 @@ td.cell-catalog-invalid{
 .dropdown-menu-item.is-active{ background: var(--surface-sunk); }
 .dropdown-menu-item.is-selected{ color: var(--accent); font-weight: 600; }
 
+/* Two-column suggestion popover (SuggestList.js) — fixed "Category /
+   Available" header row over an independently scrolling body, unlike
+   .dropdown-menu's single flat scrolling list above. Used by the
+   Requisition Form's Gadget Type field. */
+.suggest-list{
+  position: absolute; z-index: 120; min-width: 260px; max-width: 360px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); overflow: hidden;
+  opacity: 0; transform: translateY(-4px); pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.suggest-list.open{ opacity: 1; transform: translateY(0); pointer-events: auto; }
+.suggest-list-head{
+  display: flex; align-items: center; flex-shrink: 0;
+  padding: 8px 10px; border-bottom: 1px solid var(--border);
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft);
+}
+.suggest-list-head span:first-child{ flex: 1; }
+.suggest-list-head span:last-child{ flex-shrink: 0; width: 70px; text-align: right; }
+.suggest-list-body{ overflow-y: auto; max-height: 240px; }
+.suggest-list-row{
+  display: flex; align-items: center; width: 100%; text-align: left;
+  background: none; border: none; cursor: pointer;
+  padding: 8px 10px; font-size: 13px; font-weight: 500; color: var(--ink);
+}
+.suggest-list-row span:first-child{ flex: 1; }
+.suggest-list-row span:last-child{ flex-shrink: 0; width: 70px; text-align: right; }
+.suggest-list-row:hover, .suggest-list-row.is-active{ background: var(--surface-sunk); }
+.suggest-list-row.is-zero span:last-child{ color: var(--ink-faint); }
+
 /* Column configuration panel — see components/ColumnConfigPanel.js.
    Same anchored-popover shell as .dropdown-menu above, wider and with a
    fixed-height scrolling body since a table can have a dozen-plus

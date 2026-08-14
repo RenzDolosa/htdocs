@@ -5,12 +5,12 @@ import { REQUISITION_APPROVERS } from '../../models/Requisition.js';
 /**
  * RequisitionView owns only the parts of the Requisition Form panel that
  * are safe to fully re-render from data: the fixed "Approved by"
- * signatory block, the Gadget Type suggestion list (sourced from
- * Inventory Assets), and the Recent Requisitions history.
+ * signatory block and the Recent Requisitions history.
  *
- * The interactive "+ Add row" Gadget Type/Qty rows are deliberately NOT
- * rendered here — RequisitionController manages those directly (see its
- * own header comment) — re-rendering an in-progress row from state on
+ * The interactive "+ Add row" Gadget Type/Qty rows — including the Gadget
+ * Type suggestion dropdown and its "N available" hint — are deliberately
+ * NOT rendered here — RequisitionController manages those directly (see
+ * its own header comment) — re-rendering an in-progress row from state on
  * every keystroke would drop focus/cursor position mid-type, the same
  * reason ManifestModal builds its own row table imperatively instead of
  * through a generic re-render.
@@ -29,12 +29,6 @@ export class RequisitionView {
         <span class="requisition-approver-line"></span>
       </div>
     `).join('');
-  }
-
-  /** @param {string[]} categories - distinct Inventory Assets category names, sorted. */
-  renderCategoryOptions(categories) {
-    if (!this.refs.categoryOptionsEl) return;
-    this.refs.categoryOptionsEl.innerHTML = categories.map((c) => `<option value="${esc(c)}">`).join('');
   }
 
   /** @param {import('../../models/Requisition.js').Requisition[]} requisitions - newest first. */

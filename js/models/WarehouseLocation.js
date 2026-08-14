@@ -49,6 +49,10 @@ export class WarehouseLocation {
     const rawProperty = data.property || 'goods';
     this.property = LEGACY_PROPERTY_MAP[rawProperty] || rawProperty;
     this.enabled = data.enabled !== false;
+    // True for at most one location per warehouse (across all zones) — see
+    // WarehouseLocationModal's "Stock Room" column, which enforces the
+    // one-at-a-time rule when this is set via _setDefaultStockRoom().
+    this.isDefaultStockRoom = data.isDefaultStockRoom === true;
     this.createdAt = data.createdAt || Date.now();
   }
 }

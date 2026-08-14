@@ -173,6 +173,7 @@ export function openWarehouseLocationModal({ warehouse, zone, locationStore }) {
                 <th data-label="Location"><div>Location</div></th>
                 <th data-label="Enable" style="width:80px;"><div>Enable</div></th>
                 <th data-label="Types of"><div>Types of</div></th>
+                <th data-label="Stock Room"><div>Stock Room</div></th>
                 <th data-label="Position Number"><div>Position Number</div></th>
               </tr>
             </thead>
@@ -226,6 +227,20 @@ export function openWarehouseLocationModal({ warehouse, zone, locationStore }) {
   const changeTypeBtn = body.querySelector('.loc-changetype-btn');
   const changeTypeSep = body.querySelector('.loc-changetype-sep');
 
+  /** Flips `locationId` to the warehouse's default Stock Room and clears
+   * the flag on whichever location (in any zone of this same warehouse)
+   * held it before — same "only one at a time" rule as the reference
+   * printer table's default-printer column. Un-setting the current
+   * default's own link (clicking it again) isn't exposed; the reference
+   * table doesn't offer that either — pick a new default to move it. */
+  function setDefaultStockRoom(warehouseId, locationId) {
+    locationStore.list()
+      .filter((l) => l.warehouseId === warehouseId && l.isDefaultStockRoom && l.id !== locationId)
+      .forEach((l) => locationStore.update(l.id, { isDefaultStockRoom: false }));
+    locationStore.update(locationId, { isDefaultStockRoom: true });
+    Toast.success('Default stock room updated.');
+  }
+
   function filteredLocations() {
     return locationStore.list().filter((l) => {
       if (l.warehouseId !== warehouse.id) return false;
@@ -270,7 +285,7 @@ export function openWarehouseLocationModal({ warehouse, zone, locationStore }) {
 
     tbody.innerHTML = '';
     if (pageItems.length === 0) {
-      tbody.appendChild(el(`<tr><td colspan="6" class="genpos-empty-row">No positions match here. Use "Generate a new position" to create some.</td></tr>`));
+      tbody.appendChild(el(`<tr><td colspan="7" class="genpos-empty-row">No positions match here. Use "Generate a new position" to create some.</td></tr>`));
     } else {
       pageItems.forEach((loc, index) => {
         const row = el(`
@@ -280,9 +295,15 @@ export function openWarehouseLocationModal({ warehouse, zone, locationStore }) {
             <td data-label="Location"><div><span class="code-tag"><span class="bars"></span>${esc(loc.locationCode)}</span></div></td>
             <td data-label="Enable"><div><input type="checkbox" tabindex="-1" class="loc-enable-toggle" ${loc.enabled ? 'checked' : ''} aria-label="Enabled" style="height: 15px; width: 15px;"></div></td>
             <td data-label="Types of"><div><span class="pill pill-cat">${esc(TYPE_LABEL[loc.property] || loc.property)}</span></div></td>
+            <td data-label="Stock Room"><div>${loc.isDefaultStockRoom
+              ? `<span class="pill pill-linked">default</span>`
+              : `<button tabindex="-1" type="button" class="link-btn stock-room-set-default">set as default</button>`}</div></td>
             <td data-label="Position Number"><div class="genpos-position-number">${esc(loc.positionNumber)}</div></td>
           </tr>
         `);
+        row.querySelector('.stock-room-set-default')?.addEventListener('click', () => {
+          setDefaultStockRoom(warehouse.id, loc.id);
+        });
         row.querySelector('.loc-enable-toggle').addEventListener('change', (e) => {
           locationStore.update(loc.id, { enabled: e.target.checked });
         });
@@ -412,8 +433,8 @@ export function openWarehouseLocationModal({ warehouse, zone, locationStore }) {
     // silently becomes scientific notation the instant the file is
     // opened in Excel. No date/time column here to leave plain.
     const csv = toCsv(
-      ['Location', 'Enable', 'Types of', 'Position Number'],
-      rows.map((l) => [l.locationCode, l.enabled ? 'Enabled' : 'Disabled', TYPE_LABEL[l.property] || l.property, l.positionNumber])
+      ['Location', 'Enable', 'Types of', 'Stock Room', 'Position Number'],
+      rows.map((l) => [l.locationCode, l.enabled ? 'Enabled' : 'Disabled', TYPE_LABEL[l.property] || l.property, l.isDefaultStockRoom ? 'Default' : '', l.positionNumber])
     );
     downloadCsv(csv, `warehouse-locations-${fmtLocalDateStamp()}.csv`);
     Toast.success(`Exported ${rows.length} position${rows.length === 1 ? '' : 's'} to CSV.`);
