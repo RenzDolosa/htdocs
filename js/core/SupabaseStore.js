@@ -103,20 +103,50 @@ export class SupabaseStore extends EventBus {
   }
 
   create(data) {
+    const { record } = this.createAndWait(data);
+    return record;
+  }
+
+  /**
+   * Same as create(), but also returns `ready` — a Promise resolving to
+   * the record once its insert has actually committed on Supabase, or
+   * `null` if the insert failed (in which case the optimistic local copy
+   * has already been rolled back by the time `ready` resolves, same as
+   * plain create()'s existing rollback behavior).
+   *
+   * Exists for callers sequencing a *second* write that has a foreign
+   * key back to this one — e.g. InventoryGadgetSync.js's
+   * createGadgetFromInventoryAsset(), which creates a Gadget whose
+   * `inventoryAssetId` references this row. Both create() calls used to
+   * fire their inserts back-to-back with no ordering guarantee between
+   * two independent HTTP requests; when the Gadget's insert reached
+   * Postgres before the InventoryAsset's had committed, the FK
+   * constraint (`gadgets."inventoryAssetId" references
+   * inventory_assets(id)`, see schema.sql) rejected it — and because
+   * that failure is indistinguishable from any other create() failure,
+   * the optimistic Gadget just silently rolled back off the local list a
+   * moment after appearing, with nothing in the UI explaining why it was
+   * never actually there. Awaiting `ready` here before firing the
+   * dependent insert closes that race instead of hoping the two happen
+   * to land in the right order.
+   */
+  createAndWait(data) {
     const record = this.factory(data);
     this.records.push(record);
     this.emit('change', { type: 'create', record });
 
-    supabase.from(this.table).insert(this._toRow(record)).then(({ error }) => {
+    const ready = supabase.from(this.table).insert(this._toRow(record)).then(({ error }) => {
       if (error) {
         console.error(`SupabaseStore(${this.table}): create failed`, error);
         this.records = this.records.filter((r) => r.id !== record.id);
         this.emit('change', { type: 'create-failed', record });
         this.emit('error', { type: 'create', error, record });
+        return null;
       }
+      return record;
     });
 
-    return record;
+    return { record, ready };
   }
 
   update(id, patch) {

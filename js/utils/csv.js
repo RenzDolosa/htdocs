@@ -158,11 +158,25 @@ export function parseCsv(text) {
 
 /**
  * Downloads a CSV string as a file via a throwaway anchor click.
+ *
+ * Prepended with a UTF-8 byte-order-mark (U+FEFF): without it, Excel has
+ * no reliable way to tell a UTF-8 file apart from the legacy ANSI/
+ * Windows-1252 codepage it defaults to for local .csv files (unlike a
+ * server response, the Blob's `charset=utf-8` MIME type here is not
+ * consulted for that — it only matters for actual HTTP responses). Any
+ * non-ASCII byte this app writes — the em dash/arrow in Recent Activity's
+ * own log messages, the middot separator, a person's name with an
+ * accent — gets misread one byte at a time as Windows-1252 without the
+ * BOM, which is exactly the "â€"" / "â†'" mangling this fixes. Every
+ * reader that matters still works correctly with it present: modern
+ * Excel, Google Sheets, and this app's own readCsvFile() (TextDecoder
+ * strips a leading BOM by default, so re-importing an export round-trips
+ * cleanly).
  * @param {string} csv
  * @param {string} filename
  */
 export function downloadCsv(csv, filename) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

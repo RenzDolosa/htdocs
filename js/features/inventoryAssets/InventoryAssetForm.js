@@ -7,12 +7,33 @@ function toDateInputValue(ms) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** Parses a yyyy-mm-dd <input type="date"> value back into epoch-ms (local midnight). Falls back to now if blank/invalid. */
-function fromDateInputValue(value) {
-  if (!value) return Date.now();
+/**
+ * Turns the Created field's yyyy-mm-dd value back into a stored
+ * timestamp, given `baseCreatedAt` — the value the field started at when
+ * the form was built (today's exact moment for a new asset, or the
+ * existing record's own createdAt for an edit).
+ *
+ * Only overrides `baseCreatedAt` with a *midnight* timestamp when the
+ * chosen date is actually a different calendar day than baseCreatedAt's
+ * own — i.e. the person deliberately backdated/corrected it, the one
+ * thing a plain <input type="date"> can express. Left as `baseCreatedAt`
+ * itself otherwise (same day still selected, or the field is blank/
+ * invalid), so the original time-of-day survives.
+ *
+ * This used to unconditionally reparse the field into local midnight on
+ * every save, whether or not the date had actually been touched — every
+ * new asset's Created column showed exactly 12:00:00 AM, since the field
+ * always starts pre-filled with today's date but a date-only input has
+ * no way to carry today's actual time back out.
+ */
+function resolveCreatedAt(value, baseCreatedAt) {
+  if (!value) return baseCreatedAt;
   const [y, m, d] = value.split('-').map(Number);
-  const parsed = new Date(y, (m || 1) - 1, d || 1).getTime();
-  return Number.isNaN(parsed) ? Date.now() : parsed;
+  const chosen = new Date(y, (m || 1) - 1, d || 1);
+  if (Number.isNaN(chosen.getTime())) return baseCreatedAt;
+  const base = new Date(baseCreatedAt);
+  const sameDay = chosen.getFullYear() === base.getFullYear() && chosen.getMonth() === base.getMonth() && chosen.getDate() === base.getDate();
+  return sameDay ? baseCreatedAt : chosen.getTime();
 }
 
 /**
@@ -31,6 +52,10 @@ function fromDateInputValue(value) {
  * @param {string[]} [lockedFields] - field `name`s to render disabled (grayed out, unfocusable, current value shown but not editable). Driven by InventoryAssetController from the signed-in group's Inventory Assets → Edit field permissions (see models/UserGroup.js's PERMISSION_TREE) when editing an existing asset; left empty for Add.
  */
 export function buildInventoryAssetForm(asset = null, categoryOptions = [], lockedFields = []) {
+  // Captured once, at build time — see resolveCreatedAt's doc comment
+  // for why getData() needs this exact value rather than recomputing
+  // Date.now() at save time or re-deriving it from the date field alone.
+  const baseCreatedAt = asset ? asset.createdAt : Date.now();
   const node = el(`
     <form class="gadget-form" novalidate>
       <div class="field">
@@ -77,7 +102,7 @@ export function buildInventoryAssetForm(asset = null, categoryOptions = [], lock
   const categoryList = node.querySelector('#inventoryAssetCategoryOptions');
   categoryList.innerHTML = categoryOptions.map((c) => `<option value="${esc(c)}">`).join('');
 
-  node.querySelector('#iaCreatedAt').value = toDateInputValue(asset ? asset.createdAt : Date.now());
+  node.querySelector('#iaCreatedAt').value = toDateInputValue(baseCreatedAt);
 
   if (asset) {
     node.querySelector('#iaCategory').value = asset.category;
@@ -103,7 +128,7 @@ export function buildInventoryAssetForm(asset = null, categoryOptions = [], lock
       imei1: node.querySelector('#iaImei1').value.trim(),
       macAddress: node.querySelector('#iaMac').value.trim(),
       imei2: node.querySelector('#iaImei2').value.trim(),
-      createdAt: fromDateInputValue(node.querySelector('#iaCreatedAt').value)
+      createdAt: resolveCreatedAt(node.querySelector('#iaCreatedAt').value, baseCreatedAt)
     };
   }
 

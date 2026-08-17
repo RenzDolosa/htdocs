@@ -13,7 +13,7 @@ import { can } from '../../core/Permissions.js';
 import { ColumnConfig } from '../../core/ColumnConfig.js';
 import { openColumnConfigPanel } from '../../components/ColumnConfigPanel.js';
 import { applyColumnLayout } from '../../utils/columnLayout.js';
-import { createGadgetFromInventoryAsset, syncGadgetsFromInventoryAsset } from '../../core/InventoryGadgetSync.js';
+import { createGadgetFromInventoryAsset, syncGadgetsFromInventoryAsset, deleteGadgetsLinkedToInventoryAssets } from '../../core/InventoryGadgetSync.js';
 
 /** Column order/labels shared by the export template and the importer. */
 const IMPORT_HEADERS = ['Category', 'Serial Number', 'Asset Tag', 'MAC Address', 'IMEI 1', 'IMEI 2'];
@@ -220,14 +220,16 @@ export class InventoryAssetController {
     if (count === 0) return;
     const ok = await confirmDialog({
       title: 'Remove selected assets',
-      message: `Remove ${count} selected ${count === 1 ? 'asset' : 'assets'} from inventory? This cannot be undone.`,
+      message: `Remove ${count} selected ${count === 1 ? 'asset' : 'assets'} from inventory? Their matching entries in Manage will be removed too. This cannot be undone.`,
       confirmLabel: 'Remove',
       danger: true
     });
     if (!ok) return;
-    this.selected.forEach((id) => this.store.delete(id));
+    const ids = [...this.selected];
+    ids.forEach((id) => this.store.delete(id));
     this.selected.clear();
-    Toast.show(`Removed ${count} ${count === 1 ? 'asset' : 'assets'}.`);
+    const gadgetsRemoved = deleteGadgetsLinkedToInventoryAssets(ids, this.gadgetStore);
+    Toast.show(`Removed ${count} ${count === 1 ? 'asset' : 'assets'}${gadgetsRemoved > 0 ? ` (${gadgetsRemoved} matching Manage ${gadgetsRemoved === 1 ? 'entry' : 'entries'} removed).` : '.'}`);
   }
 
   // ---------- Filter bar bindings ----------
@@ -365,8 +367,12 @@ export class InventoryAssetController {
       Toast.success(`Saved changes for ${payload.serialNumber || 'this asset'}.`);
     } else {
       const asset = new InventoryAsset(payload);
-      this.store.create(asset);
-      if (this.gadgetStore) createGadgetFromInventoryAsset(asset, this.gadgetStore);
+      // createAndWait (not plain create) so the linked Gadget's insert —
+      // which has a real FK back to this row — never fires before this
+      // one has actually committed; see InventoryGadgetSync.js's doc
+      // comment for what went wrong when it did.
+      const { record, ready } = this.store.createAndWait(asset);
+      if (this.gadgetStore) createGadgetFromInventoryAsset(record, this.gadgetStore, ready);
       Toast.success(`Added ${payload.serialNumber || 'new asset'} to inventory.`);
     }
   }
@@ -377,32 +383,35 @@ export class InventoryAssetController {
     if (!asset) return;
     const ok = await confirmDialog({
       title: 'Remove asset',
-      message: `Remove "${asset.serialNumber || asset.category}" from inventory? This cannot be undone.`,
+      message: `Remove "${asset.serialNumber || asset.category}" from inventory? Its matching entry in Manage will be removed too. This cannot be undone.`,
       confirmLabel: 'Remove',
       danger: true
     });
     if (!ok) return;
     this.store.delete(id);
     this.selected.delete(id);
-    Toast.show(`Removed ${asset.serialNumber || 'asset'}.`);
+    const gadgetsRemoved = deleteGadgetsLinkedToInventoryAssets([id], this.gadgetStore);
+    Toast.show(`Removed ${asset.serialNumber || 'asset'}${gadgetsRemoved > 0 ? ' and its matching Manage entry' : ''}.`);
   }
 
   async clearAll() {
     if (!can('inventory-assets.clear-all')) return;
-    if (this.store.list().length === 0) {
+    const allIds = this.store.list().map((a) => a.id);
+    if (allIds.length === 0) {
       Toast.show('There is nothing to clear.');
       return;
     }
     const ok = await confirmDialog({
       title: 'Clear all data',
-      message: 'Delete all inventory asset records from this browser? This cannot be undone.',
+      message: 'Delete all inventory asset records from this browser? Their matching entries in Manage will be cleared too. This cannot be undone.',
       confirmLabel: 'Clear all',
       danger: true
     });
     if (!ok) return;
     this.store.clear();
     this.selected.clear();
-    Toast.show('All inventory asset data cleared.');
+    const gadgetsRemoved = deleteGadgetsLinkedToInventoryAssets(allIds, this.gadgetStore);
+    Toast.show(`All inventory asset data cleared${gadgetsRemoved > 0 ? ` (${gadgetsRemoved} matching Manage ${gadgetsRemoved === 1 ? 'entry' : 'entries'} removed).` : '.'}`);
   }
 
   // ---------- Export (full data, mirrors Manage's exportCsv) ----------
@@ -585,8 +594,8 @@ export class InventoryAssetController {
       if (serialKey) seenSerials.add(serialKey);
 
       const asset = new InventoryAsset({ category, serialNumber, assetTag, macAddress, imei1, imei2 });
-      this.store.create(asset);
-      if (this.gadgetStore) createGadgetFromInventoryAsset(asset, this.gadgetStore);
+      const { record, ready } = this.store.createAndWait(asset);
+      if (this.gadgetStore) createGadgetFromInventoryAsset(record, this.gadgetStore, ready);
       created++;
     }, {
       chunkSize: 25,

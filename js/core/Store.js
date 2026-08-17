@@ -56,11 +56,30 @@ export class Store extends EventBus {
   }
 
   create(data) {
+    const { record } = this.createAndWait(data);
+    return record;
+  }
+
+  /**
+   * Same as create(), but also returns `ready` — a Promise resolving to
+   * the record once it's actually persisted, or `null` if persisting it
+   * failed (matching Store's counterpart in localStorage-land, where
+   * persistence is synchronous and `ready` always resolves immediately).
+   * Exists for callers that need to sequence a second write which
+   * *depends* on this one having actually landed — e.g.
+   * InventoryGadgetSync.js creating a Gadget with a foreign key back to
+   * a just-created InventoryAsset; see that module's own doc comment for
+   * why firing both inserts back-to-back without this caused the linked
+   * Gadget to silently vanish. Plain create() still exists and still
+   * returns synchronously for every caller that doesn't have that
+   * problem — most callers don't.
+   */
+  createAndWait(data) {
     const record = this.factory(data);
     this.records.push(record);
     this._persist();
     this.emit('change', { type: 'create', record });
-    return record;
+    return { record, ready: Promise.resolve(record) };
   }
 
   update(id, patch) {

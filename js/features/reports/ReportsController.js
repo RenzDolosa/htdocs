@@ -86,6 +86,16 @@ const ACTIVITY_EXPORT_TYPES = [
   { key: 'update', label: 'Other Updates' }
 ];
 
+/** The one Requisition export toggle — kept as a {key,label} array (not a
+ * single boolean) so the export picker's rendering code is identical to
+ * ACTIVITY_EXPORT_TYPES's `.map()` above it, even though there's only one
+ * entry: a Requisition submission has no "type" the way a Gadget history
+ * entry does (create/transfer/user/remarks/update), so there's nothing
+ * else to split it into. */
+const REQUISITION_EXPORT_TYPES = [
+  { key: 'requisitions', label: 'Requisitions Submitted' }
+];
+
 /**
  * ReportsController drives the read-only Reports tab: summary stat cards,
  * breakdown bars (by category / warehouse / position type), and a
@@ -96,11 +106,15 @@ const ACTIVITY_EXPORT_TYPES = [
  * same reactive pattern the other controllers use, just one-directional.
  */
 export class ReportsController {
-  constructor({ store, inventoryAssetStore, warehouseStore, locationStore, view, refs }) {
+  constructor({ store, inventoryAssetStore, warehouseStore, locationStore, requisitionStore, view, refs }) {
     this.store = store; // Gadgets — the primary source for every card/breakdown here
     this.inventoryAssetStore = inventoryAssetStore;
     this.warehouseStore = warehouseStore;
     this.locationStore = locationStore;
+    // Only read from at export time (see _exportSummary) — Requisitions
+    // have no dashboard card of their own, so render() never touches
+    // this the way it does the other stores above.
+    this.requisitionStore = requisitionStore;
     this.view = view;
     this.refs = refs;
     // Same "Warehouse" side-tab filter as Manage: everything on this
@@ -114,7 +128,8 @@ export class ReportsController {
       // same subset) doesn't reset back to "everything" every time.
       exportSelection: new Set([
         ...EXPORT_CATEGORIES.map((c) => c.key),
-        ...ACTIVITY_EXPORT_TYPES.map((t) => t.key)
+        ...ACTIVITY_EXPORT_TYPES.map((t) => t.key),
+        ...REQUISITION_EXPORT_TYPES.map((r) => r.key)
       ]),
       // { startMs, endMs } | null — the picker's optional date range,
       // same shape _exportMonthlyReport used to take as arguments back
@@ -399,6 +414,15 @@ export class ReportsController {
             </label>
           `).join('')}
         </div>
+        <div class="export-picker-group">
+          <h4>Recent Requisitions</h4>
+          ${REQUISITION_EXPORT_TYPES.map((r) => `
+            <label class="checkbox-inline export-picker-row">
+              <input type="checkbox" data-export-key="${r.key}" ${this.state.exportSelection.has(r.key) ? 'checked' : ''}>
+              <span>${esc(r.label)}</span>
+            </label>
+          `).join('')}
+        </div>
       </div>
     `);
 
@@ -460,6 +484,15 @@ export class ReportsController {
     modal.open();
   }
 
+  /** Every submitted Requisition, newest-first — mirrors _recentActivity's
+   * own "read straight from the store, let the caller filter/sort" shape.
+   * Requisitions aren't Warehouse-scoped (nothing on the form ties a
+   * request to one site), so — unlike gadgets/inventory assets/locations
+   * — the current Warehouse filter never narrows this list. */
+  _requisitions() {
+    return this.requisitionStore ? [...this.requisitionStore.list()].sort((a, b) => b.createdAt - a.createdAt) : [];
+  }
+
   /** Downloads a CSV built from whichever category and Recent Activity
    * checkboxes came back checked from _openExportPicker, either as a
    * point-in-time snapshot (range === null — every category reflects the
@@ -489,9 +522,16 @@ export class ReportsController {
       .filter((e) => selectedActivityTypes.has(e.type || 'update'))
       .filter((e) => !range || (e.timestamp >= range.startMs && e.timestamp <= range.endMs));
 
+    const includeRequisitions = selected.has('requisitions');
+    const requisitionEntries = includeRequisitions
+      ? this._requisitions().filter((r) => !range || (r.createdAt >= range.startMs && r.createdAt <= range.endMs))
+      : [];
+
     const selectedCategories = EXPORT_CATEGORIES.filter((c) => selected.has(c.key));
     if (range) {
-      const nothingToReport = selectedCategories.every((c) => c.rows(this, scope).length === 0) && activityEntries.length === 0;
+      const nothingToReport = selectedCategories.every((c) => c.rows(this, scope).length === 0)
+        && activityEntries.length === 0
+        && requisitionEntries.length === 0;
       if (nothingToReport) {
         Toast.show('Nothing happened in that date range — no report to export.');
         return false;
@@ -517,6 +557,20 @@ export class ReportsController {
       [...activityEntries]
         .sort((a, b) => (range ? a.timestamp - b.timestamp : b.timestamp - a.timestamp)) // ranged: oldest-first timeline; snapshot: newest-first, same as the dashboard feed
         .forEach((e) => rows.push(['Recent Activity', e.message, fmtLocalDateTime(e.timestamp), `${e.assetLabel} — by ${e.performedBy || 'Unknown'}`]));
+    }
+
+    if (includeRequisitions) {
+      [...requisitionEntries]
+        .sort((a, b) => (range ? a.createdAt - b.createdAt : b.createdAt - a.createdAt)) // same ranged-vs-snapshot ordering as Recent Activity above
+        .forEach((r) => {
+          const itemsSummary = r.items.map((i) => `${i.category} × ${i.qty}`).join(', ') || 'No items';
+          rows.push([
+            'Recent Requisitions',
+            r.requesterName || 'Unnamed requester',
+            itemsSummary,
+            `${r.purpose || 'No purpose given'} — by ${r.submittedBy || 'Unknown'} on ${fmtLocalDateTime(r.createdAt)}`
+          ]);
+        });
     }
 
     const filename = range

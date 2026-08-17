@@ -127,12 +127,12 @@ export class RequisitionController {
    * or a generic fallback if none is set yet — used in the available-
    * count hint so it reads as "N available at Zeneya" rather than just a
    * bare number with no source. */
-  _defaultStockRoomLabel() {
-    const defaults = this.locationStore ? this.locationStore.list().filter((l) => l.isDefaultStockRoom) : [];
-    if (defaults.length === 0) return 'the default stock room';
-    if (defaults.length === 1) return defaults[0].locationCode || 'the default stock room';
-    return `${defaults.length} default stock rooms`;
-  }
+  // _defaultStockRoomLabel() {
+  //   const defaults = this.locationStore ? this.locationStore.list().filter((l) => l.isDefaultStockRoom) : [];
+  //   if (defaults.length === 0) return 'the default stock room';
+  //   if (defaults.length === 1) return defaults[0].locationCode || 'the default stock room';
+  //   return `${defaults.length} default stock rooms`;
+  // }
 
   _renderHistory() {
     const requisitions = [...this.store.list()].sort((a, b) => b.createdAt - a.createdAt);
@@ -162,7 +162,7 @@ export class RequisitionController {
     row.innerHTML = `
       <div class="req-item-category-wrap">
         <input type="text" class="req-item-category" placeholder="Gadget type" data-role="category" autocomplete="off">
-        <div class="req-item-available" data-role="available"></div>
+        <!-- <div class="req-item-available" data-role="available"></div> -->
       </div>
       <input type="number" class="req-item-qty" min="1" step="1" placeholder="Qty" data-role="qty">
       <button tabindex="-1" type="button" class="req-item-remove" data-action="remove-row" aria-label="Remove row">&times;</button>

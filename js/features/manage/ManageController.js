@@ -7,9 +7,7 @@ import { openDropdownMenu } from '../../components/DropdownMenu.js';
 import { enhanceSelect } from '../../components/SelectField.js';
 import { Gadget, TEMP_POSITION_TYPES, temporaryPositionLabel, effectivePositionLabel } from '../../models/Gadget.js';
 import { buildManageForm } from './ManageForm.js';
-import { toCsv, parseCsv, downloadCsv, readCsvFile } from '../../utils/csv.js';
-import { processInChunks } from '../../utils/asyncBatch.js';
-import { buildImportProgress } from '../../components/ImportProgress.js';
+import { toCsv, downloadCsv } from '../../utils/csv.js';
 import { el, esc } from '../../utils/dom.js';
 import { getOperatorName } from '../../core/Operator.js';
 import { can } from '../../core/Permissions.js';
@@ -176,7 +174,7 @@ export class ManageController {
     const show = count > 0 || active;
     this.refs.pendingTransfersBtn.style.display = show ? '' : 'none';
     if (this.refs.pendingTransfersSep) this.refs.pendingTransfersSep.style.display = show ? '' : 'none';
-    this.refs.pendingTransfersBtn.textContent = `Pending transfers (${count})`;
+    this.refs.pendingTransfersBtn.textContent = `Pending Transfers (${count})`;
     this.refs.pendingTransfersBtn.classList.toggle('active', active);
   }
 
@@ -401,7 +399,6 @@ export class ManageController {
       }
     );
     this._updateBulkDeleteVisibility();
-    this._applyActionBarPermissions();
     this._applyColumnLayout();
   }
 
@@ -482,52 +479,11 @@ export class ManageController {
 
   _updateBulkDeleteVisibility() {
     const show = this.selected.size > 0;
-    const showDelete = show && can('manage.delete-selected');
     const showManifest = show && can('manage.preview-manifest');
     const showAdjust = show && can('manage.adjust-position');
-    this.refs.bulkDeleteBtn.style.display = showDelete ? '' : 'none';
-    this.refs.bulkDeleteSep.style.display = showDelete ? '' : 'none';
     this.refs.manifestBtn.style.display = showManifest ? '' : 'none';
-    this.refs.manifestSep.style.display = showManifest ? '' : 'none';
     this.refs.transferItemBtn.style.display = showAdjust ? '' : 'none';
     this.refs.transferItemSep.style.display = showAdjust ? '' : 'none';
-  }
-
-  /** Add/Import/Clear-all are always visible (unlike the selection-triggered
-   * trio above) — denied ones stay visible but disabled, same reasoning as
-   * the row-action buttons: it's clear the option exists, just not to this
-   * group. */
-  _applyActionBarPermissions() {
-    const canAdd = can('manage.add');
-    const canImport = can('manage.import');
-    const canClear = can('manage.clear-all');
-
-    // addItemBtn's menu offers both Add and Import (see _openAddOptionsMenu) —
-    // only disable the trigger itself if neither is allowed.
-    this.refs.addItemBtn.disabled = !canAdd && !canImport;
-    this.refs.addItemBtn.title = this.refs.addItemBtn.disabled ? 'You do not have permission to add or import assets.' : '';
-    if (this.refs.emptyAddBtn) {
-      this.refs.emptyAddBtn.disabled = !canAdd;
-      this.refs.emptyAddBtn.title = canAdd ? '' : 'You do not have permission to add assets.';
-    }
-    this.refs.clearAllBtn.disabled = !canClear;
-    this.refs.clearAllBtn.title = canClear ? '' : 'You do not have permission to clear all data.';
-  }
-
-  async _deleteSelected() {
-    if (!can('manage.delete-selected')) return;
-    const count = this.selected.size;
-    if (count === 0) return;
-    const ok = await confirmDialog({
-      title: 'Remove selected assets',
-      message: `Remove ${count} selected ${count === 1 ? 'asset' : 'assets'} from inventory? This cannot be undone.`,
-      confirmLabel: 'Remove',
-      danger: true
-    });
-    if (!ok) return;
-    this.selected.forEach((id) => this.store.delete(id));
-    this.selected.clear();
-    Toast.show(`Removed ${count} ${count === 1 ? 'asset' : 'assets'}.`);
   }
 
   // ---------- Filter bar bindings ----------
@@ -574,26 +530,11 @@ export class ManageController {
 
   // ---------- Action bar / table head bindings ----------
   _bindActionBar() {
-    this.refs.addItemBtn.addEventListener('click', () => this._openAddOptionsMenu());
-    this.refs.emptyAddBtn.addEventListener('click', () => this.openAddModal());
     this.refs.exportBtn.addEventListener('click', () => this._openExportMenu());
     this.refs.columnBtn?.addEventListener('click', () => this._openColumnConfig());
-    this.refs.clearAllBtn.addEventListener('click', () => this.clearAll());
-    this.refs.bulkDeleteBtn.addEventListener('click', () => this._deleteSelected());
     this.refs.manifestBtn.addEventListener('click', () => this.openManifestModal());
     this.refs.transferItemBtn.addEventListener('click', () => this._openAdjustPositionMenu());
     this.refs.refreshBtn.addEventListener('click', () => this.render());
-    this.refs.importFileInput.addEventListener('change', (e) => this._handleImportFile(e));
-  }
-
-  /** "+ Add asset" now branches into two paths: a manual entry (Add Manage,
-   * same modal/logic as before) or a bulk CSV Import. */
-  _openAddOptionsMenu() {
-    const items = [];
-    if (can('manage.add')) items.push({ label: 'Add Manage', onClick: () => this.openAddModal() });
-    if (can('manage.import')) items.push({ label: 'Import', onClick: () => this.openImportModal() });
-    if (items.length === 0) return;
-    openDropdownMenu({ anchor: this.refs.addItemBtn, items });
   }
 
   _bindTableHead() {
@@ -617,11 +558,6 @@ export class ManageController {
   }
 
   // ---------- CRUD orchestration ----------
-  openAddModal() {
-    if (!can('manage.add')) return;
-    this._openGadgetModal(null);
-  }
-
   openEditModal(id) {
     if (!can('manage.edit')) return;
     const gadget = this.store.get(id);
@@ -1113,24 +1049,6 @@ export class ManageController {
     Toast.show(`Removed asset for ${gadget.user || 'Unassigned'}.`);
   }
 
-  async clearAll() {
-    if (!can('manage.clear-all')) return;
-    if (this.store.list().length === 0) {
-      Toast.show('There is nothing to clear.');
-      return;
-    }
-    const ok = await confirmDialog({
-      title: 'Clear all data',
-      message: 'Delete all asset data from this browser? This cannot be undone.',
-      confirmLabel: 'Clear all',
-      danger: true
-    });
-    if (!ok) return;
-    this.store.clear();
-    this.selected.clear();
-    Toast.show('All asset data cleared.');
-  }
-
   /** Plain export when nothing's selected (only one sensible option); a dropdown to choose between all/selected once something is. */
   _openExportMenu() {
     if (this.selected.size === 0) {
@@ -1168,201 +1086,5 @@ export class ManageController {
     const csv = toCsv(headers, rows, { plainHeaders: ['Created', 'Last Updated'] });
     downloadCsv(csv, `stockroom-assets${selectedOnly ? '-selected' : ''}-${fmtLocalDateStamp()}.csv`);
     Toast.success(`Exported ${gadgets.length} ${selectedOnly ? 'selected ' : ''}asset${gadgets.length === 1 ? '' : 's'} to CSV.`);
-  }
-
-  // ---------- Import (opened from the "Add asset" options menu) ----------
-  /** Opens a modal that bundles both halves of the CSV import flow: the
-   * export-template download (so the user knows the expected columns) and
-   * the file picker that triggers the actual import. */
-  openImportModal() {
-    if (!can('manage.import')) return;
-    const progress = buildImportProgress();
-    const body = el(`
-      <div class="import-modal-body">
-        <p class="hint" style="margin-bottom:14px;">Import assets from a CSV file. Download the template to see the exact column format expected, fill it in, then choose your file below.</p>
-        <button tabindex="-1" type="button" class="btn btn-outline" id="mImportExportTemplateBtn" style="margin-bottom:14px;">Export template</button>
-        <div class="import-dropzone">
-          <button tabindex="-1" type="button" class="btn btn-accent btn-sm" id="mImportChooseFileBtn">Choose CSV file…</button>
-          <span class="import-file-name">CSV files exported by this app's template are matched by column name.</span>
-        </div>
-      </div>
-    `);
-    body.appendChild(progress.node);
-
-    const modal = new Modal({
-      title: 'Import assets',
-      body,
-      footer: [
-        { label: 'Close', variant: 'btn-outline', onClick: (m) => m.close() }
-      ]
-    });
-
-    body.querySelector('#mImportExportTemplateBtn').addEventListener('click', () => this.exportTemplate());
-    body.querySelector('#mImportChooseFileBtn').addEventListener('click', () => {
-      this._pendingImportModal = modal;
-      this._pendingImportProgress = progress;
-      this.refs.importFileInput.click();
-    });
-
-    modal.open();
-  }
-
-  /** Downloads a blank CSV with the exact headers the importer expects. */
-  exportTemplate() {
-    const exampleRow = ['Maria Santos', 'Warehouse Associate', 'Laptop', 'SN-EXAMPLE-0001', 'WH-EXAMPLE', 'DELL-EXAMPLE', 'AA:BB:CC:DD:EE:FF', 'Merchant', 'Sample Owner', '', ''];
-    const csv = toCsv(IMPORT_HEADERS, [exampleRow]);
-    downloadCsv(csv, 'stockroom-assets-template.csv');
-    Toast.show('Template downloaded. Replace the example row with your data, then use Import.');
-  }
-
-  _handleImportFile(event) {
-    if (!can('manage.import')) return;
-    const file = event.target.files?.[0];
-    // Clear the input immediately so choosing the same filename again
-    // still fires a change event next time.
-    event.target.value = '';
-    const modal = this._pendingImportModal;
-    const progress = this._pendingImportProgress;
-    this._pendingImportModal = null;
-    this._pendingImportProgress = null;
-    if (!file) return;
-
-    readCsvFile(file)
-      .then(async (text) => {
-        const chooseBtn = modal?.bodyEl?.querySelector('#mImportChooseFileBtn');
-        const templateBtn = modal?.bodyEl?.querySelector('#mImportExportTemplateBtn');
-        if (chooseBtn) chooseBtn.disabled = true;
-        if (templateBtn) templateBtn.disabled = true;
-        progress?.start();
-
-        await this._importCsvText(text, progress);
-
-        progress?.finish('Import complete.');
-        // Brief pause so "Import complete" is actually readable instead of
-        // flashing past on its way to the modal closing.
-        setTimeout(() => modal?.close(), 600);
-      })
-      .catch(() => Toast.error('Could not read that file.'));
-  }
-
-  /**
-   * Parses CSV text (matching IMPORT_HEADERS, matched by name so column
-   * order in the uploaded file doesn't have to match the template
-   * exactly) and creates one Gadget per row. Rows whose serial number
-   * collides with an existing record or an earlier row in the same file
-   * are skipped and counted rather than aborting the whole import.
-   *
-   * Runs in small chunks (see utils/asyncBatch.js) rather than one tight
-   * forEach — a large file would otherwise block the tab for however
-   * long the whole loop takes, and `progress` would only ever jump
-   * straight to 100% once the browser got a chance to repaint at all.
-   */
-  async _importCsvText(text, progress = null) {
-    const rows = parseCsv(text);
-    if (rows.length === 0) {
-      Toast.error('That file has no rows to import.');
-      return;
-    }
-
-    const header = rows.shift().map((h) => h.trim().toLowerCase());
-    const colIndex = {
-      user: header.indexOf('user'),
-      role: header.indexOf('role'),
-      category: header.indexOf('category'),
-      serialNumber: header.indexOf('serial number'),
-      warehouseAssetTag: header.indexOf('warehouse asset tag'),
-      assetTagDefault: header.indexOf('asset tag (default)'),
-      macAddress: header.indexOf('mac address'),
-      merchant: header.indexOf('merchant'),
-      owner: header.indexOf('owner'),
-      remarks: header.indexOf('remarks'),
-      description: header.indexOf('description')
-    };
-    if (colIndex.category === -1) {
-      Toast.error('Import file is missing a "Category" column — use Export Template to see the expected format.');
-      return;
-    }
-
-    const pick = (cells, key) => (colIndex[key] !== -1 ? (cells[colIndex[key]] || '').trim() : '');
-
-    const seenSerials = new Set(
-      this.store.list().map((g) => (g.serialNumber || '').trim().toLowerCase()).filter(Boolean)
-    );
-
-    let created = 0;
-    let skippedDuplicateSerial = 0;
-    let skippedInvalidCatalog = 0;
-
-    await processInChunks(rows, (cells) => {
-      if (cells.every((c) => c.trim() === '')) return; // blank line
-
-      const serialNumber = pick(cells, 'serialNumber');
-      const serialKey = serialNumber.toLowerCase();
-      if (serialKey && seenSerials.has(serialKey)) {
-        skippedDuplicateSerial++;
-        return;
-      }
-
-      const category = pick(cells, 'category') || 'Uncategorized';
-      const assetTagDefault = pick(cells, 'assetTagDefault');
-      const macAddress = pick(cells, 'macAddress');
-      if (this._hasCatalogIssue({ category, serialNumber, assetTagDefault, macAddress })) {
-        skippedInvalidCatalog++;
-        return;
-      }
-
-      if (serialKey) seenSerials.add(serialKey);
-
-      // Guaranteed to exist — _hasCatalogIssue above already confirmed
-      // this exact serial number matches a catalog row, so this is just
-      // grabbing that same row's id to persist as the real foreign key
-      // (see models/Gadget.js's inventoryAssetId), not a second lookup
-      // that could plausibly come back empty.
-      const matchedAsset = this.inventoryAssetStore?.list().find((a) => (a.serialNumber || '').trim() === serialNumber);
-
-      // Merchant is the key: if it matches a created warehouse location,
-      // Position Type / Warehouse / Owner are derived from that location
-      // rather than trusted from the file. An imported Owner column is
-      // kept only as a manual fallback when the merchant doesn't resolve
-      // to anything (e.g. the location hasn't been created yet).
-      const merchant = pick(cells, 'merchant');
-      const placement = this._resolvePlacement(merchant);
-
-      const gadget = new Gadget({
-        user: pick(cells, 'user'),
-        role: pick(cells, 'role'),
-        category,
-        serialNumber,
-        warehouseAssetTag: pick(cells, 'warehouseAssetTag'),
-        assetTagDefault,
-        macAddress: pick(cells, 'macAddress'),
-        merchant,
-        owner: placement.matched ? placement.owner : pick(cells, 'owner'),
-        positionType: placement.matched ? placement.positionType : '',
-        warehouse: placement.matched ? placement.warehouse : '',
-        remarks: pick(cells, 'remarks'),
-        description: pick(cells, 'description'),
-        inventoryAssetId: matchedAsset ? matchedAsset.id : null
-      });
-      gadget.addLogEntry('Asset added via CSV import.', 'create', null, getOperatorName());
-      this.store.create(gadget);
-      created++;
-    }, {
-      chunkSize: 25,
-      onProgress: (done, total) => progress?.update(done, total)
-    });
-
-    if (created > 0) {
-      Toast.success(`Imported ${created} ${created === 1 ? 'asset' : 'assets'}.`);
-    }
-    if (skippedDuplicateSerial > 0) {
-      Toast.error(`Skipped ${skippedDuplicateSerial} duplicate serial number${skippedDuplicateSerial === 1 ? '' : 's'}.`);
-    }
-    if (skippedInvalidCatalog > 0) {
-      Toast.error(`Skipped ${skippedInvalidCatalog} row${skippedInvalidCatalog === 1 ? '' : 's'} not matching Inventory Assets.`);
-    }
-    if (created === 0 && skippedDuplicateSerial === 0 && skippedInvalidCatalog === 0) {
-      Toast.show('Nothing to import — the file had no data rows.');
-    }
   }
 }

@@ -123,18 +123,11 @@
 
         <div class="actionbar">
           <div class="actionbar-left">
-            <button tabindex="-1" type="button" class="link-btn" id="addItemBtn">+ Add asset</button>
-            <span class="link-sep">|</span>
-            <button tabindex="-1" type="button" class="link-btn" id="pendingTransfersBtn" style="display:none;">Pending transfers</button>
+            <button tabindex="-1" type="button" class="link-btn" id="pendingTransfersBtn" style="display:none;">Pending Transfers</button>
             <span class="link-sep" id="pendingTransfersSep" style="display:none;">|</span>
             <button tabindex="-1" type="button" data-action="transfer" class="link-btn" id="transferItemBtn" style="display:none;">Adjust Position</button>
             <span class="link-sep" id="transferItemSep" style="display:none;">|</span>
             <button tabindex="-1" type="button" class="link-btn" id="manifestBtn" style="display:none;">Preview Manifest</button>
-            <span class="link-sep" id="manifestSep" style="display:none;">|</span>
-            <button tabindex="-1" type="button" class="link-btn" id="bulkDeleteBtn" style="display:none;">Delete selected</button>
-            <span class="link-sep" id="bulkDeleteSep" style="display:none;">|</span>
-            <button tabindex="-1" type="button" class="link-btn danger" id="clearAllBtn">Clear all data</button>
-            <input type="file" id="importFileInput" accept=".csv,text/csv" hidden>
           </div>
           <div class="actionbar-right">
             <button tabindex="-1" type="button" class="icon-btn" id="refreshBtn" title="Refresh">
@@ -187,8 +180,7 @@
             <div class="empty-state" id="emptyState" style="display:none;">
               <div class="glyph"></div>
               <h4>No assets match here</h4>
-              <p>Try a different search or filter, or add a new asset to the shelf.</p>
-              <button tabindex="-1" class="btn btn-outline" id="emptyAddBtn">Add an asset</button>
+              <p>Try a different search or filter.</p>
             </div>
 
             <div class="grid-footer">
@@ -330,24 +322,24 @@
                 <div tabindex="-1" class="report-bars" id="reportByCategory"></div>           
               </div>
               <div class="report-card">
-                <h3>Gadgets by Warehouse</h3>
-                <div tabindex="-1" class="report-bars" id="reportByWarehouse"></div>
-              </div>
-              <div class="report-card">
-                <h3>Gadgets by Position Type</h3>
-                <div tabindex="-1" class="report-bars" id="reportByPosition"></div>
-              </div>
-              <div class="report-card">
                 <h3>Inventory Assets by Category</h3>
                 <div tabindex="-1" class="report-bars" id="reportByAssetCategory"></div>
+              </div>
+              <div class="report-card">
+                <h3>Warehouse Locations</h3>
+                <div tabindex="-1" class="report-bars" id="reportByLocation"></div>
               </div>
               <div class="report-card">
                 <h3>Warehouse Locations by Type</h3>
                 <div tabindex="-1" class="report-bars" id="reportByLocationType"></div>
               </div>
               <div class="report-card">
-                <h3>Warehouse Locations</h3>
-                <div tabindex="-1" class="report-bars" id="reportByLocation"></div>
+                <h3>Gadgets by Warehouse</h3>
+                <div tabindex="-1" class="report-bars" id="reportByWarehouse"></div>
+              </div>
+              <div class="report-card">
+                <h3>Gadgets by Position Type</h3>
+                <div tabindex="-1" class="report-bars" id="reportByPosition"></div>
               </div>
             </div>
 

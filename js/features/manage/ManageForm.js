@@ -45,6 +45,34 @@ export function buildManageForm(gadget = null, { userOptions = [], roleOptions =
     <form class="gadget-form" novalidate>
       <div class="field-row">
         <div class="field">
+          <label for="gCategory">Category</label>
+          <input type="text" id="gCategory" name="category" list="gadgetCategoryOptions" placeholder="e.g. Laptop">
+          <datalist id="gadgetCategoryOptions"></datalist>
+          <div class="field-error" data-error-for="category"></div>
+        </div>
+        <div class="field">
+          <label for="gSerial">Serial number</label>
+          <input type="text" id="gSerial" name="serialNumber" list="gadgetSerialOptions" placeholder="e.g. SN-88213X">
+          <datalist id="gadgetSerialOptions"></datalist>
+          <div class="field-error" data-error-for="serialNumber"></div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="gMac">MAC address</label>
+          <input type="text" id="gMac" name="macAddress" list="gadgetMacOptions" placeholder="e.g. 3C:22:FB:AA:11:02">
+          <datalist id="gadgetMacOptions"></datalist>
+          <div class="field-error" data-error-for="macAddress"></div>
+        </div>
+        <div class="field">
+          <label for="gDefTag">Asset tag (default)</label>
+          <input type="text" id="gDefTag" name="assetTagDefault" list="gadgetAssetTagOptions" placeholder="Factory / vendor tag">
+          <datalist id="gadgetAssetTagOptions"></datalist>
+          <div class="field-error" data-error-for="assetTagDefault"></div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
           <label for="gUser">User</label>
           <input type="text" id="gUser" name="user" list="gadgetUserOptions" placeholder="e.g. Maria Santos">
           <datalist id="gadgetUserOptions"></datalist>
@@ -57,36 +85,8 @@ export function buildManageForm(gadget = null, { userOptions = [], roleOptions =
         </div>
       </div>
       <div class="field">
-        <label for="gCategory">Category</label>
-        <input type="text" id="gCategory" name="category" list="gadgetCategoryOptions" placeholder="e.g. Laptop">
-        <datalist id="gadgetCategoryOptions"></datalist>
-        <div class="field-error" data-error-for="category"></div>
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label for="gSerial">Serial number</label>
-          <input type="text" id="gSerial" name="serialNumber" list="gadgetSerialOptions" placeholder="e.g. SN-88213X">
-          <datalist id="gadgetSerialOptions"></datalist>
-          <div class="field-error" data-error-for="serialNumber"></div>
-        </div>
-        <div class="field">
-          <label for="gMac">MAC address</label>
-          <input type="text" id="gMac" name="macAddress" list="gadgetMacOptions" placeholder="e.g. 3C:22:FB:AA:11:02">
-          <datalist id="gadgetMacOptions"></datalist>
-          <div class="field-error" data-error-for="macAddress"></div>
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label for="gWhTag">Warehouse asset tag</label>
-          <input type="text" id="gWhTag" name="warehouseAssetTag" placeholder="e.g. WH-0091">
-        </div>
-        <div class="field">
-          <label for="gDefTag">Asset tag (default)</label>
-          <input type="text" id="gDefTag" name="assetTagDefault" list="gadgetAssetTagOptions" placeholder="Factory / vendor tag">
-          <datalist id="gadgetAssetTagOptions"></datalist>
-          <div class="field-error" data-error-for="assetTagDefault"></div>
-        </div>
+        <label for="gWhTag">Warehouse asset tag</label>
+        <input type="text" id="gWhTag" name="warehouseAssetTag" placeholder="e.g. WH-0091">
       </div>
       <div class="field">
         <label for="gPassword">Password</label>

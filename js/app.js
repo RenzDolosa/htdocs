@@ -52,21 +52,14 @@ function collectRefs() {
     resetBtn: document.getElementById('resetBtn'),
 
     // Action bar
-    addItemBtn: document.getElementById('addItemBtn'),
-    importFileInput: document.getElementById('importFileInput'),
     exportBtn: document.getElementById('exportBtn'),
     columnBtn: document.getElementById('manageColumnBtn'),
     manifestBtn: document.getElementById('manifestBtn'),
-    manifestSep: document.getElementById('manifestSep'),
     pendingTransfersBtn: document.getElementById('pendingTransfersBtn'),
     pendingTransfersSep: document.getElementById('pendingTransfersSep'),
     transferItemBtn: document.getElementById('transferItemBtn'),
     transferItemSep: document.getElementById('transferItemSep'),
-    bulkDeleteBtn: document.getElementById('bulkDeleteBtn'),
-    bulkDeleteSep: document.getElementById('bulkDeleteSep'),
-    clearAllBtn: document.getElementById('clearAllBtn'),
     refreshBtn: document.getElementById('refreshBtn'),
-    emptyAddBtn: document.getElementById('emptyAddBtn'),
 
     // Table
     tableHead: document.getElementById('tableHead'),
@@ -657,6 +650,7 @@ async function startApp(session) {
     inventoryAssetStore,
     warehouseStore,
     locationStore: warehouseLocationStore,
+    requisitionStore,
     view: reportsView,
     refs: reportsRefs
   });
