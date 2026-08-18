@@ -17,6 +17,7 @@ import { resolveMerchantPlacement } from '../../utils/merchantPlacement.js';
 import { ColumnConfig } from '../../core/ColumnConfig.js';
 import { openColumnConfigPanel } from '../../components/ColumnConfigPanel.js';
 import { applyColumnLayout } from '../../utils/columnLayout.js';
+import { syncInventoryAssetFromGadget } from '../../core/InventoryGadgetSync.js';
 
 /** Manage's configurable columns — everything in the grid except the
  * leading row-number/select columns and the trailing Actions column,
@@ -260,12 +261,94 @@ export class ManageController {
   _catalogIssuesById() {
     const map = new Map();
     this.store.list().forEach((g) => {
-      const issues = this._catalogIssues({ category: g.category, serialNumber: g.serialNumber, assetTagDefault: g.assetTagDefault, macAddress: g.macAddress });
+      const issues = this._catalogIssues({ category: g.category, serialNumber: g.serialNumber, assetTagDefault: g.assetTagDefault, macAddress: g.macAddress }, g);
       if (issues.category || issues.serialNumber || issues.assetTagDefault || issues.macAddress) {
         map.set(g.id, issues);
       }
     });
     return map;
+  }
+
+  /**
+   * Checks category / serialNumber / assetTagDefault / macAddress against
+   * the Inventory Assets catalog (source of truth). Returns { category,
+   * serialNumber, assetTagDefault, macAddress }, each either null (fine)
+   * or a message describing the mismatch.
+   *
+   * If a serial number is given, the other three must all agree with
+   * THAT SAME catalog record — a real serial can't be paired with a
+   * category, tag, or MAC lifted from a different device. With no serial
+   * given, each is checked independently against whatever values exist
+   * anywhere in the catalog.
+   *
+   * @param {object} fields
+   * @param {import('../../models/Gadget.js').Gadget|null} [gadget] - the
+   *   record being edited, if any. When it's already linked to a real
+   *   InventoryAsset row (gadget.inventoryAssetId), the whole
+   *   must-already-match-the-catalog check above is skipped: editing
+   *   these fields on a linked gadget doesn't need to agree with Inventory
+   *   Assets first, because saving pushes the correction straight onto
+   *   the linked row itself (see core/InventoryGadgetSync.js's
+   *   syncInventoryAssetFromGadget, called from _saveGadget) — the two
+   *   are kept in sync going forward rather than required to already
+   *   match going in. Only a same-serial collision against some *other*
+   *   InventoryAsset record is still checked, since that would be a real
+   *   duplicate the moment it synced over.
+   */
+  _catalogIssues({ category, serialNumber, assetTagDefault, macAddress }, gadget = null) {
+    const assets = this.inventoryAssetStore ? this.inventoryAssetStore.list() : [];
+    const issues = { category: null, serialNumber: null, assetTagDefault: null, macAddress: null };
+    const serial = (serialNumber || '').trim();
+
+    if (gadget?.inventoryAssetId) {
+      if (serial) {
+        const collision = assets.find((a) => a.id !== gadget.inventoryAssetId && (a.serialNumber || '').trim().toLowerCase() === serial.toLowerCase());
+        if (collision) issues.serialNumber = 'This serial number is already used by another Inventory Assets record.';
+      }
+      return issues;
+    }
+
+    if (serial) {
+      const match = assets.find((a) => (a.serialNumber || '').trim() === serial);
+      if (!match) {
+        issues.serialNumber = 'This serial number was not found in Inventory Assets.';
+        if (category) issues.category = 'Can\'t verify category — this serial number isn\'t in Inventory Assets.';
+        if (assetTagDefault) issues.assetTagDefault = 'Can\'t verify asset tag — this serial number isn\'t in Inventory Assets.';
+        if (macAddress) issues.macAddress = 'Can\'t verify MAC address — this serial number isn\'t in Inventory Assets.';
+      } else {
+        if (category && match.category !== category) {
+          issues.category = `Inventory Assets lists this serial under "${match.category}", not "${category}".`;
+        }
+        if (assetTagDefault && match.assetTag !== assetTagDefault) {
+          issues.assetTagDefault = match.assetTag
+            ? `Inventory Assets lists this serial's tag as "${match.assetTag}", not "${assetTagDefault}".`
+            : 'Inventory Assets has no asset tag on file for this serial number.';
+        }
+        if (macAddress && (match.macAddress || '').toLowerCase() !== macAddress.toLowerCase()) {
+          issues.macAddress = match.macAddress
+            ? `Inventory Assets lists this serial's MAC address as "${match.macAddress}", not "${macAddress}".`
+            : 'Inventory Assets has no MAC address on file for this serial number.';
+        }
+      }
+    } else {
+      if (category && !assets.some((a) => a.category === category)) {
+        issues.category = 'This category does not exist in Inventory Assets.';
+      }
+      if (assetTagDefault && !assets.some((a) => a.assetTag === assetTagDefault)) {
+        issues.assetTagDefault = 'This asset tag does not exist in Inventory Assets.';
+      }
+      if (macAddress && !assets.some((a) => (a.macAddress || '').toLowerCase() === macAddress.toLowerCase())) {
+        issues.macAddress = 'This MAC address does not exist in Inventory Assets.';
+      }
+    }
+
+    return issues;
+  }
+
+  /** True if any of category/serialNumber/assetTagDefault/macAddress fails catalog validation. */
+  _hasCatalogIssue(fields, gadget = null) {
+    const issues = this._catalogIssues(fields, gadget);
+    return Boolean(issues.category || issues.serialNumber || issues.assetTagDefault || issues.macAddress);
   }
 
   _filteredSortedGadgets() {
@@ -573,84 +656,12 @@ export class ManageController {
     return [...new Set(this.store.list().map((g) => g.role).filter(Boolean))].sort();
   }
 
-  /**
-   * Checks category / serialNumber / assetTagDefault against the
-   * Inventory Assets catalog (source of truth). Returns { category,
-   * serialNumber, assetTagDefault }, each either null (fine) or a
-   * message describing the mismatch.
-   *
-   * If a serial number is given, category and asset tag must both agree
-   * with THAT SAME catalog record — a real serial can't be paired with a
-   * category or tag lifted from a different device. With no serial
-   * given, category and asset tag are each checked independently against
-   * whatever values exist anywhere in the catalog.
-   */
-  /**
-   * Checks category / serialNumber / assetTagDefault / macAddress against
-   * the Inventory Assets catalog (source of truth). Returns { category,
-   * serialNumber, assetTagDefault, macAddress }, each either null (fine)
-   * or a message describing the mismatch.
-   *
-   * If a serial number is given, the other three must all agree with
-   * THAT SAME catalog record — a real serial can't be paired with a
-   * category, tag, or MAC lifted from a different device. With no serial
-   * given, each is checked independently against whatever values exist
-   * anywhere in the catalog.
-   */
-  _catalogIssues({ category, serialNumber, assetTagDefault, macAddress }) {
-    const assets = this.inventoryAssetStore ? this.inventoryAssetStore.list() : [];
-    const issues = { category: null, serialNumber: null, assetTagDefault: null, macAddress: null };
-    const serial = (serialNumber || '').trim();
-
-    if (serial) {
-      const match = assets.find((a) => (a.serialNumber || '').trim() === serial);
-      if (!match) {
-        issues.serialNumber = 'This serial number was not found in Inventory Assets.';
-        if (category) issues.category = 'Can\'t verify category — this serial number isn\'t in Inventory Assets.';
-        if (assetTagDefault) issues.assetTagDefault = 'Can\'t verify asset tag — this serial number isn\'t in Inventory Assets.';
-        if (macAddress) issues.macAddress = 'Can\'t verify MAC address — this serial number isn\'t in Inventory Assets.';
-      } else {
-        if (category && match.category !== category) {
-          issues.category = `Inventory Assets lists this serial under "${match.category}", not "${category}".`;
-        }
-        if (assetTagDefault && match.assetTag !== assetTagDefault) {
-          issues.assetTagDefault = match.assetTag
-            ? `Inventory Assets lists this serial's tag as "${match.assetTag}", not "${assetTagDefault}".`
-            : 'Inventory Assets has no asset tag on file for this serial number.';
-        }
-        if (macAddress && (match.macAddress || '').toLowerCase() !== macAddress.toLowerCase()) {
-          issues.macAddress = match.macAddress
-            ? `Inventory Assets lists this serial's MAC address as "${match.macAddress}", not "${macAddress}".`
-            : 'Inventory Assets has no MAC address on file for this serial number.';
-        }
-      }
-    } else {
-      if (category && !assets.some((a) => a.category === category)) {
-        issues.category = 'This category does not exist in Inventory Assets.';
-      }
-      if (assetTagDefault && !assets.some((a) => a.assetTag === assetTagDefault)) {
-        issues.assetTagDefault = 'This asset tag does not exist in Inventory Assets.';
-      }
-      if (macAddress && !assets.some((a) => (a.macAddress || '').toLowerCase() === macAddress.toLowerCase())) {
-        issues.macAddress = 'This MAC address does not exist in Inventory Assets.';
-      }
-    }
-
-    return issues;
-  }
-
-  /** True if any of category/serialNumber/assetTagDefault/macAddress fails catalog validation. */
-  _hasCatalogIssue(fields) {
-    const issues = this._catalogIssues(fields);
-    return Boolean(issues.category || issues.serialNumber || issues.assetTagDefault || issues.macAddress);
-  }
-
   _openGadgetModal(gadget) {
     const inventoryAssets = this.inventoryAssetStore ? this.inventoryAssetStore.list() : [];
     // Field-level permissions under Manage → Edit (see models/UserGroup.js's
-    // PERMISSION_TREE) — only apply to an *existing* asset; adding a
-    // brand-new one is unrestricted either way, since there's nothing yet
-    // for a wrong value to disagree with.
+    // PERMISSION_TREE) — this is always an existing asset now (Add no
+    // longer lives on this side — see this class's own header comment),
+    // so these always apply.
     const fieldPermKeys = {
       category: 'manage.edit.category',
       serialNumber: 'manage.edit.serial-number',
@@ -658,19 +669,17 @@ export class ManageController {
       assetTagDefault: 'manage.edit.asset-tag-default',
       remarks: 'manage.edit.remarks'
     };
-    const lockedFields = gadget
-      ? Object.entries(fieldPermKeys).filter(([, key]) => !can(key)).map(([field]) => field)
-      : [];
+    const lockedFields = Object.entries(fieldPermKeys).filter(([, key]) => !can(key)).map(([field]) => field);
     const form = buildManageForm(gadget, {
       userOptions: this._knownUsers(),
       roleOptions: this._knownRoles(),
       inventoryAssets,
-      usedSerials: this._usedSerialSet(gadget ? gadget.id : null),
+      usedSerials: this._usedSerialSet(gadget.id),
       lockedFields
     });
 
     const modal = new Modal({
-      title: gadget ? 'Edit asset' : 'Add asset',
+      title: 'Edit asset',
       body: form.node,
       footer: [
         { label: 'Cancel', variant: 'btn-outline', onClick: (m) => m.close() },
@@ -679,9 +688,9 @@ export class ManageController {
           variant: 'btn-accent',
           onClick: (m) => {
             const raw = form.getData();
-            const existingGadgets = this.store.list().filter((g) => !gadget || g.id !== gadget.id);
+            const existingGadgets = this.store.list().filter((g) => g.id !== gadget.id);
             const { valid, errors } = Gadget.validate(raw, { existingGadgets });
-            const catalogIssues = this._catalogIssues(raw);
+            const catalogIssues = this._catalogIssues(raw, gadget);
             const hasCatalogIssue = Boolean(catalogIssues.category || catalogIssues.serialNumber || catalogIssues.assetTagDefault || catalogIssues.macAddress);
             if (!valid || hasCatalogIssue) {
               form.showErrors({
@@ -703,17 +712,27 @@ export class ManageController {
     form.focusFirst();
   }
 
-  _saveGadget(existingGadget, raw) {
-    const inventoryAssets = this.inventoryAssetStore ? this.inventoryAssetStore.list() : [];
+  _saveGadget(gadget, raw) {
     const serial = (raw.serialNumber || '').trim();
-    // Same match _catalogIssues() already validates against — this just
-    // additionally *persists* it as a real foreign key (see
-    // models/Gadget.js's inventoryAssetId) instead of only ever
-    // re-deriving the relationship at validation/render time.
-    const matchedAsset = serial ? inventoryAssets.find((a) => (a.serialNumber || '').trim() === serial) : null;
+
+    // Once linked, stays linked — the whole point of the bidirectional
+    // sync (core/InventoryGadgetSync.js's syncInventoryAssetFromGadget,
+    // called below) is that editing the serial here *corrects* the
+    // linked InventoryAsset's serial to match, not that a changed serial
+    // goes looking for some other record to attach to instead. Only an
+    // unlinked gadget (inventoryAssetId null — legacy data, or its old
+    // link was cleared when that InventoryAsset was deleted; see
+    // schema.sql's `on delete set null`) re-derives it by serial match on
+    // save, same opportunistic linking _catalogIssues() already required
+    // an exact match for.
+    let inventoryAssetId = gadget.inventoryAssetId || null;
+    if (!inventoryAssetId && serial && this.inventoryAssetStore) {
+      const matchedAsset = this.inventoryAssetStore.list().find((a) => (a.serialNumber || '').trim() === serial);
+      inventoryAssetId = matchedAsset ? matchedAsset.id : null;
+    }
 
     // Merchant/positionType/warehouse/owner/pendingTransfer are deliberately
-    // absent from this payload: Add/Edit asset no longer touches them at
+    // absent from this payload: Edit asset no longer touches them at
     // all — Store.update() only patches the keys it's given (see
     // core/Store.js), so whatever the gadget's current placement is stays
     // exactly as-is. The only way any of those five fields ever change now
@@ -731,19 +750,27 @@ export class ManageController {
       password: raw.password,
       remarks: raw.remarks,
       description: raw.description,
-      inventoryAssetId: matchedAsset ? matchedAsset.id : null
+      inventoryAssetId
     };
 
-    if (existingGadget) {
-      this._logFieldChanges(existingGadget, payload);
-      this.store.update(existingGadget.id, payload);
-      Toast.success(`Saved changes for ${payload.user || 'this asset'}.`);
-    } else {
-      const gadget = new Gadget(payload);
-      gadget.addLogEntry('Asset added to inventory.', 'create', null, getOperatorName());
-      this.store.create(gadget);
-      Toast.success(`Added asset for ${payload.user || 'unassigned user'}.`);
+    this._logFieldChanges(gadget, payload);
+    this.store.update(gadget.id, payload);
+    // Pushes Category/Serial Number/Asset Tag/MAC Address onto the linked
+    // InventoryAsset row, if any — the other half of the bidirectional
+    // sync InventoryAssetController's own _saveAsset already does in
+    // reverse (syncGadgetsFromInventoryAsset). Built from `payload`
+    // rather than re-reading `gadget`, since `gadget` is the pre-save
+    // instance and would push stale values.
+    if (this.inventoryAssetStore) {
+      syncInventoryAssetFromGadget({
+        inventoryAssetId,
+        category: payload.category,
+        serialNumber: payload.serialNumber,
+        assetTagDefault: payload.assetTagDefault,
+        macAddress: payload.macAddress
+      }, this.inventoryAssetStore);
     }
+    Toast.success(`Saved changes for ${payload.user || 'this asset'}.`);
   }
 
   /**

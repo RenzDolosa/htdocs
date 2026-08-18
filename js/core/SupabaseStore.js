@@ -154,16 +154,15 @@ export class SupabaseStore extends EventBus {
     if (!record) return null;
     const previous = { ...record };
     Object.assign(record, patch);
-    // Not every table tracks updatedAt — WarehouseLocation and
-    // InventoryAsset don't (see their models: no `this.updatedAt` in
-    // either constructor, matching warehouse_locations/inventory_assets
-    // having no such column). Stamping it unconditionally here used to
-    // send `updatedAt` on every update regardless of the target table,
-    // which PostgREST rejects outright ("Could not find the 'updatedAt'
-    // column ... in the schema cache") — silently failing *every* update
-    // to either of those two tables. Only touch it when the record
-    // already carries the field, so this stays generic across all tables
-    // instead of hardcoding table names here.
+    // Not every table tracks updatedAt — WarehouseLocation doesn't (see
+    // its model: no `this.updatedAt` in the constructor, matching
+    // warehouse_locations having no such column). Stamping it
+    // unconditionally here used to send `updatedAt` on every update
+    // regardless of the target table, which PostgREST rejects outright
+    // ("Could not find the 'updatedAt' column ... in the schema cache")
+    // — silently failing *every* update to that table. Only touch it
+    // when the record already carries the field, so this stays generic
+    // across all tables instead of hardcoding table names here.
     if ('updatedAt' in record) record.updatedAt = Date.now();
     this.emit('change', { type: 'update', record });
 

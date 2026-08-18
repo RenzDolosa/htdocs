@@ -143,6 +143,19 @@ create table if not exists public.inventory_assets (
 
 create index if not exists inventory_assets_serial_idx on public.inventory_assets ("serialNumber");
 
+-- Added after inventory_assets already existed live — see gadgets'
+-- "createdAt"/"updatedAt"/history columns above for the pattern this
+-- mirrors: history is field-change-only (see js/models/InventoryAsset.js's
+-- addLogEntry), never logging plain creation the way Gadget's does, so
+-- "Added to inventory" isn't sitting in every asset's log as its first,
+-- redundant entry. Backfill sets updatedAt = createdAt for rows that
+-- predate this column, so it's never null going forward without needing
+-- a NOT NULL constraint that would reject an app write that somehow
+-- omitted it.
+alter table public.inventory_assets add column if not exists "updatedAt" bigint;
+alter table public.inventory_assets add column if not exists history jsonb default '[]'::jsonb;
+update public.inventory_assets set "updatedAt" = "createdAt" where "updatedAt" is null;
+
 -- A real foreign key from gadgets to its Inventory Assets catalog match,
 -- alongside (not instead of) ManageController's existing text-matching
 -- validation (_catalogIssues) — that logic still runs at save time and

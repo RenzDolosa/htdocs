@@ -2,16 +2,23 @@ import { Gadget } from '../models/Gadget.js';
 import { getOperatorName } from './Operator.js';
 
 /**
- * Keeps Manage's Gadget list in sync with Inventory Assets — every asset
- * added, imported, or later edited there is reflected onto its matching
- * Gadget automatically, so a freshly-catalogued item shows up ready to
- * assign, and a correction made afterward doesn't leave Manage quietly
- * showing stale values. Two entry points below: createGadgetFromInventoryAsset
- * (add/import — makes a brand-new Gadget) and syncGadgetsFromInventoryAsset
- * (edit — pushes changes onto whatever Gadget is already linked). Both are
- * also exactly what ManageController's own _catalogIssues() was built to
- * catch mismatches in after the fact (see its doc comment) — this closes
- * that same gap at the source instead of only ever flagging it later.
+ * Keeps Manage's Gadget list and Inventory Assets in sync with each
+ * other, bidirectionally — an asset added or imported in Inventory
+ * Assets automatically gets a linked Gadget here, and an edit to
+ * Category/Serial Number/Asset Tag/MAC Address on EITHER side pushes
+ * onto the other. Three entry points below: createGadgetFromInventoryAsset
+ * (Inventory Assets add/import — makes a brand-new Gadget),
+ * syncGadgetsFromInventoryAsset (Inventory Assets edit — pushes onto the
+ * linked Gadget), and syncInventoryAssetFromGadget (Manage edit — pushes
+ * onto the linked InventoryAsset, the reverse of the previous one). Add
+ * itself only exists on the Inventory Assets side — see
+ * ManageController's own header comment for why — so this module's other
+ * two functions are what keep the two lists from drifting apart
+ * afterward, in whichever direction someone actually edits from. Both
+ * are also exactly what ManageController's own _catalogIssues() was
+ * built to catch mismatches in after the fact (see its doc comment) —
+ * this closes that same gap at the source instead of only ever flagging
+ * it later.
  *
  * Field mapping is deliberately narrow — only what actually describes the
  * physical item, not assignment state:
@@ -130,6 +137,47 @@ export function syncGadgetsFromInventoryAsset(asset, gadgetStore) {
     gadget.addLogEntry('Synced from Inventory Assets after an edit.', 'update', { fields: changedFields }, getOperatorName());
     gadgetStore.update(gadget.id, { history: gadget.history });
   });
+}
+
+/**
+ * The reverse direction of syncGadgetsFromInventoryAsset above — called
+ * after an existing Gadget is edited in Manage, pushes the same four
+ * fields onto its linked InventoryAsset row (gadget.inventoryAssetId), so
+ * a correction made from *that* side doesn't leave Inventory Assets
+ * quietly showing stale values either — and, via
+ * InventoryAsset.logFieldChanges, shows up in that row's own history the
+ * same way a direct Inventory Assets edit would. Same field mapping as
+ * mapAssetToGadgetFields, just read in the other direction:
+ *   Gadget.category        -> InventoryAsset.category
+ *   Gadget.serialNumber    -> InventoryAsset.serialNumber
+ *   Gadget.assetTagDefault -> InventoryAsset.assetTag
+ *   Gadget.macAddress      -> InventoryAsset.macAddress
+ *
+ * No-ops quietly if this gadget isn't linked to any InventoryAsset
+ * (inventoryAssetId is null — either it predates this FK, or the asset it
+ * pointed to was since deleted, which sets it back to null per
+ * schema.sql's `on delete set null`) or if that id no longer resolves to
+ * a real row. ManageController is expected to have already ruled out a
+ * serial-number collision against some *other* InventoryAsset record
+ * before calling this (see its own _catalogIssues) — this only concerns
+ * itself with pushing the values, not re-validating them.
+ */
+export function syncInventoryAssetFromGadget(gadget, assetStore) {
+  if (!gadget.inventoryAssetId || !assetStore) return;
+  const asset = assetStore.get(gadget.inventoryAssetId);
+  if (!asset) return;
+
+  const mapped = {
+    category: gadget.category || 'Uncategorized',
+    serialNumber: gadget.serialNumber,
+    assetTag: gadget.assetTagDefault,
+    macAddress: gadget.macAddress
+  };
+  const changedFields = Object.keys(mapped).filter((key) => (asset[key] || '') !== (mapped[key] || ''));
+  if (changedFields.length === 0) return;
+
+  asset.logFieldChanges(mapped, getOperatorName());
+  assetStore.update(asset.id, mapped);
 }
 
 /**

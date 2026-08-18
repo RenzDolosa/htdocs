@@ -49,6 +49,7 @@ export const PERMISSION_TREE = [
           { key: 'inventory-assets.edit.imei2', label: 'IMEI 2' }
         ]
       },
+      { key: 'inventory-assets.view-log', label: 'View log' },
       { key: 'inventory-assets.delete', label: 'Delete' }
     ]
   },

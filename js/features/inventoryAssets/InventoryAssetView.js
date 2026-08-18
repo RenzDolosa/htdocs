@@ -23,7 +23,7 @@ export class InventoryAssetView {
   }
 
   renderTable(pageAssets, selectedIds, handlers, duplicateSerials = new Set(), perms = {}) {
-    const { canEdit = true, canDelete = true } = perms;
+    const { canEdit = true, canDelete = true, canViewLog = true } = perms;
     if (pageAssets.length === 0) {
       this.refs.tableBody.innerHTML = '';
       this.refs.emptyState.style.display = 'block';
@@ -32,7 +32,7 @@ export class InventoryAssetView {
     }
     this.refs.emptyState.style.display = 'none';
 
-    this.refs.tableBody.innerHTML = pageAssets.map((a, index) => this._rowHTML(a, index, selectedIds.has(a.id), duplicateSerials, { canEdit, canDelete })).join('');
+    this.refs.tableBody.innerHTML = pageAssets.map((a, index) => this._rowHTML(a, index, selectedIds.has(a.id), duplicateSerials, { canEdit, canDelete, canViewLog })).join('');
 
     qsa('tr[data-id]', this.refs.tableBody).forEach((row) => {
       const id = row.getAttribute('data-id');
@@ -40,6 +40,7 @@ export class InventoryAssetView {
       // (see _rowHTML) — skip wiring the handler too rather than rely
       // solely on that.
       if (canEdit) row.querySelector('[data-action="edit"]').addEventListener('click', () => handlers.onEdit(id));
+      if (canViewLog) row.querySelector('[data-action="log"]').addEventListener('click', () => handlers.onViewLog(id));
       if (canDelete) row.querySelector('[data-action="delete"]').addEventListener('click', () => handlers.onDelete(id));
       row.querySelector('[data-action="select-row"]').addEventListener('change', (e) => handlers.onToggleSelect(id, e.target.checked));
     });
@@ -80,7 +81,7 @@ export class InventoryAssetView {
   }
 
   _rowHTML(a, index, selected, duplicateSerials, perms = {}) {
-    const { canEdit = true, canDelete = true } = perms;
+    const { canEdit = true, canDelete = true, canViewLog = true } = perms;
     const isDuplicateSerial = Boolean(a.serialNumber) && duplicateSerials.has(a.serialNumber.trim().toLowerCase());
     const serialCellClass = isDuplicateSerial ? ' class="cell-duplicate-serial"' : '';
     const serialCellTitle = isDuplicateSerial ? ' title="Duplicate serial number — also used by another asset"' : '';
@@ -95,10 +96,14 @@ export class InventoryAssetView {
         <td data-label="Mac Address" data-col="macAddress" style="font-family:var(--font-mono); font-size:12px;"><div>${a.macAddress ? esc(a.macAddress) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
         <td data-label="IMEI" data-col="imei" style="font-family:var(--font-mono); font-size:12px;">${(a.imei1 || a.imei2) ? `<div>${esc(a.imei1) ? `<span style="color:var(--ink-faint);">IMEI1: </span>${esc(a.imei1)}` : ''}</div><div>${esc(a.imei2) ? `<span style="color:var(--ink-faint);">IMEI2: </span>${esc(a.imei2)}` : ''}</div>` : '<div><span style="color:var(--ink-faint);">—</span></div>'}</td>
         <td data-label="Created" data-col="createdAt" class="created-col"><div><small>${fmtDate(a.createdAt)}</small></div></td>
+        <td data-label="Updated" data-col="updatedAt" class="created-col"><div><small>${fmtDate(a.updatedAt)}</small></div></td>
         <td data-label="Actions" data-col="actions">
           <div class="row-actions">
             <button tabindex="-1" class="icon-btn" data-action="edit" aria-label="Edit asset" title="${canEdit ? 'Edit' : 'You do not have permission to edit inventory assets.'}" ${canEdit ? '' : 'disabled'}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+            </button>
+            <button tabindex="-1" class="icon-btn" data-action="log" aria-label="View history log" title="${canViewLog ? 'View log' : 'You do not have permission to view the log.'}" ${canViewLog ? '' : 'disabled'}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
             </button>
             <button tabindex="-1" class="icon-btn danger" data-action="delete" aria-label="Delete asset" title="${canDelete ? 'Delete' : 'You do not have permission to delete inventory assets.'}" ${canDelete ? '' : 'disabled'}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>

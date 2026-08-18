@@ -2,6 +2,7 @@ import { Modal } from '../../components/Modal.js';
 import { Toast } from '../../components/Toast.js';
 import { confirmDialog } from '../../components/ConfirmDialog.js';
 import { openDropdownMenu } from '../../components/DropdownMenu.js';
+import { openLogModal } from '../../components/LogModal.js';
 import { InventoryAsset } from '../../models/InventoryAsset.js';
 import { buildInventoryAssetForm } from './InventoryAssetForm.js';
 import { toCsv, parseCsv, downloadCsv, readCsvFile } from '../../utils/csv.js';
@@ -10,6 +11,7 @@ import { buildImportProgress } from '../../components/ImportProgress.js';
 import { el } from '../../utils/dom.js';
 import { fmtLocalDateTime, fmtLocalDateStamp } from '../../utils/format.js';
 import { can } from '../../core/Permissions.js';
+import { getOperatorName } from '../../core/Operator.js';
 import { ColumnConfig } from '../../core/ColumnConfig.js';
 import { openColumnConfigPanel } from '../../components/ColumnConfigPanel.js';
 import { applyColumnLayout } from '../../utils/columnLayout.js';
@@ -27,7 +29,8 @@ const INVENTORY_ASSET_DEFAULT_COLUMNS = [
   { key: 'assetTag', label: 'Asset Tag', width: 150 },
   { key: 'macAddress', label: 'Mac Address', width: 150 },
   { key: 'imei', label: 'IMEI', width: 180 },
-  { key: 'createdAt', label: 'Created', width: 150 }
+  { key: 'createdAt', label: 'Created', width: 150 },
+  { key: 'updatedAt', label: 'Updated', width: 150 }
 ];
 
 export class InventoryAssetController {
@@ -100,6 +103,7 @@ export class InventoryAssetController {
         case 'assetTag': va = (a.assetTag || '').toLowerCase(); vb = (b.assetTag || '').toLowerCase(); break;
         case 'macAddress': va = (a.macAddress || '').toLowerCase(); vb = (b.macAddress || '').toLowerCase(); break;
         case 'imei': va = (a.imei1 || a.imei2 || '').toLowerCase(); vb = (b.imei1 || b.imei2 || '').toLowerCase(); break;
+        case 'updatedAt': va = a.updatedAt; vb = b.updatedAt; break;
         default: va = a.createdAt; vb = b.createdAt;
       }
       if (va < vb) return -1 * dir;
@@ -127,11 +131,13 @@ export class InventoryAssetController {
     this.view.renderTable(pageAssets, this.selected, {
       onEdit: (id) => this.openEditModal(id),
       onDelete: (id) => this.deleteAsset(id),
+      onViewLog: (id) => this.viewLog(id),
       onToggleSelect: (id, checked) => this._toggleSelect(id, checked),
       onToggleSelectAll: (checked) => this._toggleSelectAll(pageAssets, checked)
     }, this._duplicateSerialSet(), {
       canEdit: can('inventory-assets.edit'),
-      canDelete: can('inventory-assets.delete')
+      canDelete: can('inventory-assets.delete'),
+      canViewLog: can('inventory-assets.view-log')
     });
     this.view.renderSortHeaders(this.state.sortBy, this.state.sortDir);
     this.view.renderFooter(
@@ -307,6 +313,16 @@ export class InventoryAssetController {
     if (asset) this._openAssetModal(asset);
   }
 
+  viewLog(id) {
+    if (!can('inventory-assets.view-log')) return;
+    const asset = this.store.get(id);
+    if (!asset) return;
+    openLogModal({
+      title: `History — ${asset.serialNumber || asset.assetTag || 'Unnamed asset'}`,
+      entries: asset.history
+    });
+  }
+
   _openAssetModal(asset) {
     // Field-level permissions under Inventory Assets → Edit (see
     // models/UserGroup.js's PERMISSION_TREE) — only apply to an
@@ -362,6 +378,7 @@ export class InventoryAssetController {
     };
 
     if (existingAsset) {
+      existingAsset.logFieldChanges(payload, getOperatorName());
       const updated = this.store.update(existingAsset.id, payload);
       if (this.gadgetStore && updated) syncGadgetsFromInventoryAsset(updated, this.gadgetStore);
       Toast.success(`Saved changes for ${payload.serialNumber || 'this asset'}.`);
