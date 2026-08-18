@@ -31,6 +31,12 @@
 }
 .report-card h3{ font-family: var(--font-display); font-size: 14px; margin: 0 0 12px; color: var(--ink); }
 
+/* Wraps h3 + a right-aligned action (e.g. Recent Requisitions' "Clear all
+   data") on one row — a plain h3 already has its own bottom margin, so
+   this just needs to not double it up. */
+.report-card-header{ display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.report-card-header h3{ margin-bottom: 0; }
+
 .report-bars{ display: flex; flex-direction: column; gap: 10px;
   max-height: 200px; padding: 0 5px 0;
   overflow-y: auto;

@@ -16,7 +16,8 @@ import { el } from '../utils/dom.js';
  *     anchor: someButtonEl,
  *     items: [
  *       { label: 'Add Manage', onClick: () => ... },
- *       { label: 'Import', onClick: () => ... }
+ *       { label: 'Import', onClick: () => ... },
+ *       { label: 'Delete', danger: true, onClick: () => ... }  // optional — red on hover/active, for a destructive item mixed into an otherwise plain menu
  *     ]
  *   });
  *
@@ -69,6 +70,7 @@ export class DropdownMenu {
       btn.textContent = item.label;
       const isSelected = item.value !== undefined && item.value === this.selectedValue;
       btn.classList.toggle('is-selected', isSelected);
+      btn.classList.toggle('is-danger', Boolean(item.danger));
       const entry = { item, btn, isSelected };
       btn.addEventListener('click', () => {
         this.close();

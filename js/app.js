@@ -218,7 +218,8 @@ function collectRequisitionRefs() {
     addRowBtn: document.getElementById('requisitionAddRowBtn'),
     clearBtn: document.getElementById('requisitionClearBtn'),
     approversEl: document.getElementById('requisitionApprovers'),
-    historyListEl: document.getElementById('requisitionHistoryList')
+    historyListEl: document.getElementById('requisitionHistoryList'),
+    clearAllBtn: document.getElementById('requisitionClearAllBtn')
   };
 }
 
@@ -706,6 +707,7 @@ async function startApp(session) {
     userGroupController.render();
     userAccountController.render();
     reportsController.render();
+    requisitionController.render();
   }
   userGroupStore.on('change', refreshLivePermissions);
   userAccountStore.on('change', refreshLivePermissions);

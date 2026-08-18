@@ -26,6 +26,11 @@ export class Requisition {
     // this out on their behalf.
     this.submittedBy = data.submittedBy || '';
     this.createdAt = data.createdAt || Date.now();
+    // 'pending' | 'finished' — set from Recent Requisitions' own Action
+    // menu (see RequisitionController._finishRequisition/_reopenRequisition),
+    // never from the form itself; nothing about filling out a request
+    // determines whether it's been fulfilled yet.
+    this.status = data.status === 'finished' ? 'finished' : 'pending';
   }
 
   /** Validates a raw form payload before it becomes a Requisition. */

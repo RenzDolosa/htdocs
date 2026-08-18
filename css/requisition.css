@@ -69,9 +69,11 @@
   padding: 12px 0; border-top: 1px solid var(--border);
 }
 .requisition-history-row:first-child{ border-top: none; padding-top: 0; }
-.requisition-history-title{ font-weight: 600; font-size: 13px; color: var(--ink); }
+.requisition-history-title{ font-weight: 600; font-size: 13px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
 .requisition-history-meta{ font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
 .requisition-history-sub{ font-size: 11px; color: var(--ink-faint); margin-top: 3px; }
+.requisition-history-actions{ display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.requisition-history-row.is-finished{ opacity: 0.7; }
 
 /* ---- Print-only summary — see RequisitionController._print() ----
    #requisitionPrintArea is a direct child of <body> (see index.html), so

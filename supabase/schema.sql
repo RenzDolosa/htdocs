@@ -195,7 +195,8 @@ create table if not exists public.requisitions (
   items            jsonb default '[]'::jsonb,
   purpose          text default '',
   "submittedBy"    text default '',
-  "createdAt"      bigint not null
+  "createdAt"      bigint not null,
+  status           text default 'pending'
 );
 
 -- ----------------------------------------------------------------------------
@@ -228,6 +229,10 @@ alter table public.warehouse_locations drop column if exists "assignedUsername";
 -- one location per warehouse (across all its zones) be flagged as the
 -- default; see models/WarehouseLocation.js's isDefaultStockRoom doc.
 alter table public.warehouse_locations add column if not exists "isDefaultStockRoom" boolean default false;
+
+-- Recent Requisitions' own Action menu (Finish/Reopen/Delete) — see
+-- models/Requisition.js's status doc.
+alter table public.requisitions add column if not exists status text default 'pending';
 
 -- ----------------------------------------------------------------------------
 -- user_accounts  (Settings → User management → User)

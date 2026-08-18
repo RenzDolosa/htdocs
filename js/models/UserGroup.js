@@ -54,7 +54,13 @@ export const PERMISSION_TREE = [
     ]
   },
   { key: 'reports', label: 'Reports' },
-  { key: 'requisition', label: 'Requisition' },
+  {
+    key: 'requisition', label: 'Requisition', children: [
+      { key: 'requisition.clear-all', label: 'Clear all data' },
+      { key: 'requisition.print', label: 'Print' },
+      { key: 'requisition.action', label: 'Action' }
+    ]
+  },
   {
     key: 'settings', label: 'Settings', children: [
       { key: 'settings.general', label: 'General' },

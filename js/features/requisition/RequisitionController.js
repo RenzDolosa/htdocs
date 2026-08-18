@@ -2,7 +2,9 @@ import { Requisition, REQUISITION_APPROVERS } from '../../models/Requisition.js'
 import { Toast } from '../../components/Toast.js';
 import { confirmDialog } from '../../components/ConfirmDialog.js';
 import { SuggestList } from '../../components/SuggestList.js';
+import { openDropdownMenu } from '../../components/DropdownMenu.js';
 import { getOperatorName } from '../../core/Operator.js';
+import { can } from '../../core/Permissions.js';
 import { esc } from '../../utils/dom.js';
 import { fmtLocalDateTime } from '../../utils/format.js';
 
@@ -65,11 +67,20 @@ export class RequisitionController {
     });
     this.refs.clearBtn?.addEventListener('click', () => this._resetForm());
     this.refs.historyListEl?.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-action="reprint"]');
-      if (!btn) return;
-      const requisition = this.store.get(btn.dataset.id);
-      if (requisition) this._reprint(requisition);
+      const printBtn = e.target.closest('[data-action="reprint"]');
+      if (printBtn) {
+        if (!can('requisition.print')) return;
+        const requisition = this.store.get(printBtn.dataset.id);
+        if (requisition) this._reprint(requisition);
+        return;
+      }
+      const menuBtn = e.target.closest('[data-action="row-menu"]');
+      if (menuBtn) {
+        if (!can('requisition.action')) return;
+        this._openRowMenu(menuBtn, menuBtn.dataset.id);
+      }
     });
+    this.refs.clearAllBtn?.addEventListener('click', () => this._clearAll());
 
     this.store.on('change', () => this._renderHistory());
     // Inventory Assets is the "suggest from Inventory" source for Gadget
@@ -84,7 +95,7 @@ export class RequisitionController {
     this.gadgetStore?.on('change', () => this._refreshSuggestions());
     this.locationStore?.on('change', () => this._refreshSuggestions());
 
-    this._renderHistory();
+    this.render();
   }
 
   /** Rebuilds the suggestion data (category list + available counts) and
@@ -134,9 +145,104 @@ export class RequisitionController {
   //   return `${defaults.length} default stock rooms`;
   // }
 
+  /** Public entry point for a re-render triggered from outside this
+   * controller — currently only app.js's refreshLivePermissions(), which
+   * calls this (alongside every other controller's own render()) so a
+   * UserGroup permission change takes effect immediately in whatever tab
+   * is already open, matching the rest of the app instead of needing a
+   * sign-out/sign-in to pick up a Requisition permission change. */
+  render() {
+    this._applyPermissions();
+    this._renderHistory();
+  }
+
+  /** Disables (with an explanatory tooltip, same pattern as
+   * ManageController's own action-bar gating) whichever of Clear all
+   * data / Print / Action this session's UserGroup denies — see
+   * PERMISSION_TREE's 'requisition' children in models/UserGroup.js.
+   * Clear all data is static, so this only needs to run once; Print and
+   * Action are per-row and rebuilt on every _renderHistory(), so those
+   * are baked in there instead (see RequisitionView.renderHistory). */
+  _applyPermissions() {
+    const canClearAll = can('requisition.clear-all');
+    if (this.refs.clearAllBtn) {
+      this.refs.clearAllBtn.disabled = !canClearAll;
+      this.refs.clearAllBtn.title = canClearAll ? '' : 'You do not have permission to clear all data.';
+    }
+  }
+
   _renderHistory() {
     const requisitions = [...this.store.list()].sort((a, b) => b.createdAt - a.createdAt);
-    this.view.renderHistory(requisitions);
+    this.view.renderHistory(requisitions, {
+      canPrint: can('requisition.print'),
+      canAction: can('requisition.action')
+    });
+  }
+
+  /** Opens the per-row Action menu (Print's neighbor in Recent
+   * Requisitions) — Finish (or Reopen, once already finished) plus
+   * Delete, via the shared DropdownMenu component rather than a
+   * bespoke popover. */
+  _openRowMenu(anchor, id) {
+    if (!can('requisition.action')) return;
+    const requisition = this.store.get(id);
+    if (!requisition) return;
+    const items = [
+      requisition.status === 'finished'
+        ? { label: 'Reopen', onClick: () => this._setStatus(id, 'pending') }
+        : { label: 'Finish', onClick: () => this._setStatus(id, 'finished') },
+      { label: 'Delete', danger: true, onClick: () => this._deleteRequisition(id) }
+    ];
+    openDropdownMenu({ anchor, items });
+  }
+
+  /** Finish marks a requisition fulfilled (shown with a "Finished" pill
+   * in Recent Requisitions); Reopen undoes that if it was set by
+   * mistake. Neither touches anything else about the record — the
+   * printed copy, items, purpose, etc. are exactly what was submitted
+   * either way. */
+  _setStatus(id, status) {
+    const requisition = this.store.get(id);
+    if (!requisition) return;
+    this.store.update(id, { status });
+    Toast.success(status === 'finished'
+      ? `Marked the requisition for ${requisition.requesterName || 'this request'} as finished.`
+      : `Reopened the requisition for ${requisition.requesterName || 'this request'}.`);
+  }
+
+  async _deleteRequisition(id) {
+    const requisition = this.store.get(id);
+    if (!requisition) return;
+    const ok = await confirmDialog({
+      title: 'Delete requisition',
+      message: `Delete the requisition for ${requisition.requesterName || 'this request'}? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      danger: true
+    });
+    if (!ok) return;
+    this.store.delete(id);
+    Toast.show('Requisition deleted.');
+  }
+
+  /** "Clear all data" for Recent Requisitions — same shape as Manage's
+   * and Inventory Assets' own Clear-all: a danger-styled confirm before
+   * wiping every submitted requisition from this browser. Doesn't touch
+   * the in-progress form itself, only the history list underneath it. */
+  async _clearAll() {
+    if (!can('requisition.clear-all')) return;
+    if (this.store.list().length === 0) {
+      Toast.show('There is nothing to clear.');
+      return;
+    }
+    const ok = await confirmDialog({
+      title: 'Clear all data',
+      message: 'Delete every submitted requisition from this browser? This cannot be undone.',
+      confirmLabel: 'Clear all',
+      danger: true
+    });
+    if (!ok) return;
+    this.store.clear();
+    Toast.show('All requisition data cleared.');
   }
 
   /**

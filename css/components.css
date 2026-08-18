@@ -238,6 +238,8 @@ td.cell-catalog-invalid{
 .dropdown-menu-item:hover{ background: var(--surface-sunk); }
 .dropdown-menu-item.is-active{ background: var(--surface-sunk); }
 .dropdown-menu-item.is-selected{ color: var(--accent); font-weight: 600; }
+.dropdown-menu-item.is-danger{ color: var(--bad); }
+.dropdown-menu-item.is-danger:hover, .dropdown-menu-item.is-danger.is-active{ background: var(--bad-soft); }
 
 /* Two-column suggestion popover (SuggestList.js) — fixed "Category /
    Available" header row over an independently scrolling body, unlike

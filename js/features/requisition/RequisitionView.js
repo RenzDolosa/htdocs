@@ -31,9 +31,17 @@ export class RequisitionView {
     `).join('');
   }
 
-  /** @param {import('../../models/Requisition.js').Requisition[]} requisitions - newest first. */
-  renderHistory(requisitions) {
+  /**
+   * @param {import('../../models/Requisition.js').Requisition[]} requisitions - newest first.
+   * @param {{canPrint: boolean, canAction: boolean}} [permissions] - defaults to both allowed,
+   *   so any caller that doesn't pass this (there shouldn't be one — see
+   *   RequisitionController._renderHistory) still gets working buttons
+   *   instead of everything silently disabled.
+   */
+  renderHistory(requisitions, permissions = {}) {
     if (!this.refs.historyListEl) return;
+    const canPrint = permissions.canPrint !== false;
+    const canAction = permissions.canAction !== false;
 
     if (requisitions.length === 0) {
       this.refs.historyListEl.innerHTML = '<p class="requisition-history-empty">No requisitions submitted yet.</p>';
@@ -42,14 +50,21 @@ export class RequisitionView {
 
     this.refs.historyListEl.innerHTML = requisitions.map((r) => {
       const itemsSummary = r.items.map((i) => `${esc(i.category)} × ${esc(String(i.qty))}`).join(', ') || 'No items';
+      const finished = r.status === 'finished';
       return `
-        <div class="requisition-history-row" data-id="${esc(r.id)}">
+        <div class="requisition-history-row${finished ? ' is-finished' : ''}" data-id="${esc(r.id)}">
           <div class="requisition-history-main">
-            <div class="requisition-history-title">${esc(r.requesterName || 'Unnamed requester')}</div>
+            <div class="requisition-history-title">
+              ${esc(r.requesterName || 'Unnamed requester')}
+              ${finished ? '<span class="pill pill-linked">Finished</span>' : ''}
+            </div>
             <div class="requisition-history-meta">${itemsSummary} — ${esc(r.purpose || 'No purpose given')}</div>
             <div class="requisition-history-sub">${esc(fmtLocalDateTime(r.createdAt))}${r.submittedBy ? ` · By ${esc(r.submittedBy)}` : ''}</div>
           </div>
-          <button tabindex="-1" type="button" class="link-btn" data-action="reprint" data-id="${esc(r.id)}">Print</button>
+          <div class="requisition-history-actions">
+            <button tabindex="-1" type="button" class="link-btn" data-action="reprint" data-id="${esc(r.id)}" ${canPrint ? '' : 'disabled title="You do not have permission to print."'}>Print</button>
+            <button tabindex="-1" type="button" class="link-btn" data-action="row-menu" data-id="${esc(r.id)}" ${canAction ? '' : 'disabled title="You do not have permission to use this action."'}>Action</button>
+          </div>
         </div>
       `;
     }).join('');

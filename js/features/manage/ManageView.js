@@ -155,6 +155,15 @@ export class ManageView {
     const pendingNote = p
       ? `<div class="pill pill-pending" title="Requested by ${esc(p.requestedBy || 'someone')} · awaiting confirmation from anyone with access to ${esc(p.toOwner || 'the destination warehouse')}">→ ${esc(p.toMerchant)}</div>`
       : '';
+    // The "—" placeholder means "no merchant set" — but with a pending
+    // transfer already spelling that out as "→ toMerchant" right after
+    // it, showing both together read as "— → INSPI group": a dash that
+    // implies nothing's there, immediately followed by proof something
+    // is (the transfer itself). Only show the placeholder when there's
+    // no pending transfer to make it redundant.
+    const merchantCurrent = g.merchant
+      ? esc(g.merchant)
+      : (p ? '' : '<span style="color:var(--ink-faint);">—</span>');
 
     return `
       <tr data-id="${g.id}" class="${selected ? 'row-selected' : ''}">
@@ -175,7 +184,7 @@ export class ManageView {
             </button>` : ''}
           </div>
         </td>
-        <td data-col="merchant" data-label="Merchant" style="font-family:var(--font-mono); font-size:12px;"><div>${g.merchant ? esc(g.merchant) : '<span style="color:var(--ink-faint);">—</span>'}${pendingNote}</div></td>
+        <td data-col="merchant" data-label="Merchant" style="font-family:var(--font-mono); font-size:12px;"><div>${merchantCurrent}${pendingNote}</div></td>
         <td data-col="remarks" data-label="Remarks"><div class="clamp-text" title="${esc(g.remarks)}">${g.remarks ? esc(g.remarks) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
         <td data-col="description" data-label="Description"><div class="clamp-text" title="${esc(g.description)}">${g.description ? esc(g.description) : '<span style="color:var(--ink-faint);">—</span>'}</div></td>
         <td data-col="positionType" data-label="PositionType"><div>${
