@@ -51,12 +51,14 @@ export class RequisitionView {
     this.refs.historyListEl.innerHTML = requisitions.map((r) => {
       const itemsSummary = r.items.map((i) => `${esc(i.category)} × ${esc(String(i.qty))}`).join(', ') || 'No items';
       const finished = r.status === 'finished';
+      const issuedCount = r.fulfilledGadgetIds?.length || 0;
+      const finishedLabel = issuedCount > 0 ? `Finished · ${issuedCount} issued` : 'Finished';
       return `
         <div class="requisition-history-row${finished ? ' is-finished' : ''}" data-id="${esc(r.id)}">
           <div class="requisition-history-main">
             <div class="requisition-history-title">
               ${esc(r.requesterName || 'Unnamed requester')}
-              ${finished ? '<span class="pill pill-linked">Finished</span>' : ''}
+              ${finished ? `<span class="pill pill-linked">${esc(finishedLabel)}</span>` : ''}
             </div>
             <div class="requisition-history-meta">${itemsSummary} — ${esc(r.purpose || 'No purpose given')}</div>
             <div class="requisition-history-sub">${esc(fmtLocalDateTime(r.createdAt))}${r.submittedBy ? ` · By ${esc(r.submittedBy)}` : ''}</div>

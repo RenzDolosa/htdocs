@@ -31,6 +31,13 @@ export class Requisition {
     // never from the form itself; nothing about filling out a request
     // determines whether it's been fulfilled yet.
     this.status = data.status === 'finished' ? 'finished' : 'pending';
+    // Gadget ids actually issued by "Process Request" (Manage's own
+    // action bar — see ManageController.openProcessRequestModal /
+    // ProcessRequestModal.js) — empty for a requisition marked finished
+    // by hand instead, since nothing was issued for those. Purely a
+    // record of what happened; Reopen does not undo this or hand the
+    // gadgets back.
+    this.fulfilledGadgetIds = Array.isArray(data.fulfilledGadgetIds) ? data.fulfilledGadgetIds : [];
   }
 
   /** Validates a raw form payload before it becomes a Requisition. */

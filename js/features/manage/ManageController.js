@@ -3,6 +3,7 @@ import { Toast } from '../../components/Toast.js';
 import { confirmDialog } from '../../components/ConfirmDialog.js';
 import { openLogModal } from '../../components/LogModal.js';
 import { openManifestModal as showManifestModal } from '../../components/ManifestModal.js';
+import { openProcessRequestModal as showProcessRequestModal } from '../../components/ProcessRequestModal.js';
 import { openDropdownMenu } from '../../components/DropdownMenu.js';
 import { enhanceSelect } from '../../components/SelectField.js';
 import { Gadget, TEMP_POSITION_TYPES, temporaryPositionLabel, effectivePositionLabel } from '../../models/Gadget.js';
@@ -54,10 +55,15 @@ const IMPORT_HEADERS = ['User', 'Role', 'Category', 'Serial Number', 'Warehouse 
  * LogModal/DropdownMenu are generic components reused as-is.
  */
 export class ManageController {
-  constructor({ store, view, refs, inventoryAssetStore, warehouseStore, locationStore }) {
+  constructor({ store, view, refs, inventoryAssetStore, warehouseStore, locationStore, requisitionStore }) {
     this.store = store;
     this.view = view;
     this.refs = refs;
+    // Read-only reference to Requisition Form submissions — feeds the
+    // "Requisition" picker in Process Request (see openProcessRequestModal)
+    // and lets it mark the chosen one finished once assets are issued.
+    // Manage never writes anything else to it.
+    this.requisitionStore = requisitionStore;
     // Read-only reference to the Inventory Assets module, which is the
     // source of truth for category/serial/MAC/asset-tag suggestions in
     // the add/edit form (see _openGadgetModal). Manage never writes to it.
@@ -93,6 +99,10 @@ export class ManageController {
     this.store.on('change', () => this.render());
     this.warehouseStore?.on('change', () => this.render());
     this.locationStore?.on('change', () => this.render());
+    // A Requisition submitted/finished/deleted elsewhere (Requisition tab)
+    // should update Process Request's picker immediately, same as every
+    // other cross-feature store this controller already listens to.
+    this.requisitionStore?.on('change', () => this.render());
     this._bindFilterBar();
     this._bindActionBar();
     this._bindTableHead();
@@ -481,7 +491,7 @@ export class ManageController {
         onGotoPage: (page) => this._goToPage(page)
       }
     );
-    this._updateBulkDeleteVisibility();
+    this._updateSelectionActions();
     this._applyColumnLayout();
   }
 
@@ -560,13 +570,31 @@ export class ManageController {
     this.render();
   }
 
-  _updateBulkDeleteVisibility() {
-    const show = this.selected.size > 0;
-    const showManifest = show && can('manage.preview-manifest');
-    const showAdjust = show && can('manage.adjust-position');
-    this.refs.manifestBtn.style.display = showManifest ? '' : 'none';
-    this.refs.transferItemBtn.style.display = showAdjust ? '' : 'none';
-    this.refs.transferItemSep.style.display = showAdjust ? '' : 'none';
+  _updateSelectionActions() {
+    const hasSelection = this.selected.size > 0;
+    const canManifest = can('manage.preview-manifest');
+    const canAdjust = can('manage.adjust-position');
+
+    // Permission still controls visibility (no permission ⇒ not even
+    // shown, same as every other permission-gated control in this app);
+    // selection now only controls the enabled/disabled state, not
+    // visibility — see css/layout.css's .selection-gated:disabled.
+    this.refs.manifestBtn.style.display = canManifest ? '' : 'none';
+    this.refs.manifestBtn.disabled = !hasSelection;
+    this.refs.manifestBtn.title = hasSelection ? '' : 'Select one or more assets first.';
+    this.refs.manifestSep.style.display = canManifest ? '' : 'none';
+
+    this.refs.transferItemBtn.style.display = canAdjust ? '' : 'none';
+    this.refs.transferItemBtn.disabled = !hasSelection;
+    this.refs.transferItemBtn.title = hasSelection ? '' : 'Select one or more assets first.';
+    this.refs.transferItemSep.style.display = canAdjust ? '' : 'none';
+
+    if (this.refs.requestItemBtn) {
+      const canRequest = can('manage.process-request');
+      this.refs.requestItemBtn.style.display = canRequest ? '' : 'none';
+      this.refs.requestItemBtn.disabled = !hasSelection;
+      this.refs.requestItemBtn.title = hasSelection ? '' : 'Select one or more assets first.';
+    }
   }
 
   // ---------- Filter bar bindings ----------
@@ -617,6 +645,7 @@ export class ManageController {
     this.refs.columnBtn?.addEventListener('click', () => this._openColumnConfig());
     this.refs.manifestBtn.addEventListener('click', () => this.openManifestModal());
     this.refs.transferItemBtn.addEventListener('click', () => this._openAdjustPositionMenu());
+    this.refs.requestItemBtn?.addEventListener('click', () => this.openProcessRequestModal());
     this.refs.refreshBtn.addEventListener('click', () => this.render());
   }
 
@@ -902,6 +931,26 @@ export class ManageController {
     if (this.selected.size === 0) return;
     const gadgets = this._filteredSortedGadgets().filter((g) => this.selected.has(g.id));
     showManifestModal({ gadgets, store: this.store, locationStore: this.locationStore, warehouseStore: this.warehouseStore });
+  }
+
+  /**
+   * Opens the Process Request document for the currently checked rows —
+   * same selection-first, print-then-confirm shape as openManifestModal()
+   * above, just pairing the chosen assets with a pending Requisition and
+   * issuing them to that requester instead of transferring them to a
+   * warehouse location. Replaces the old "Process request" action that
+   * used to live on each row of Recent Requisitions (Requisition tab),
+   * which auto-picked matching stock with no preview step; this is the
+   * same underlying issuance, now driven from Manage's own asset
+   * selection so exactly the physical units chosen here are the ones
+   * issued and recorded.
+   */
+  openProcessRequestModal() {
+    if (!can('manage.process-request')) return;
+    if (this.selected.size === 0) return;
+    const gadgets = this._filteredSortedGadgets().filter((g) => this.selected.has(g.id));
+    const requisitions = this.requisitionStore ? this.requisitionStore.list() : [];
+    showProcessRequestModal({ gadgets, requisitions, gadgetStore: this.store, requisitionStore: this.requisitionStore });
   }
 
   /**

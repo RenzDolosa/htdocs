@@ -18,6 +18,7 @@ export const PERMISSION_TREE = [
     key: 'manage', label: 'Manage', children: [
       { key: 'manage.adjust-position', label: 'Adjust Position' },
       { key: 'manage.preview-manifest', label: 'Preview Manifest' },
+      { key: 'manage.process-request', label: 'Process Request' },
       { key: 'manage.confirm-transfers', label: 'Confirm transfers' },
       {
         key: 'manage.edit', label: 'Edit', children: [

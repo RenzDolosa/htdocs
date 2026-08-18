@@ -125,9 +125,11 @@
           <div class="actionbar-left">
             <button tabindex="-1" type="button" class="link-btn" id="pendingTransfersBtn" style="display:none;">Pending Transfers</button>
             <span class="link-sep" id="pendingTransfersSep" style="display:none;">|</span>
-            <button tabindex="-1" type="button" data-action="transfer" class="link-btn" id="transferItemBtn" style="display:none;">Adjust Position</button>
+            <button tabindex="-1" type="button" data-action="transfer" class="link-btn selection-gated" id="transferItemBtn" style="display:none;">Adjust Position</button>
             <span class="link-sep" id="transferItemSep" style="display:none;">|</span>
-            <button tabindex="-1" type="button" class="link-btn" id="manifestBtn" style="display:none;">Preview Manifest</button>
+            <button tabindex="-1" type="button" class="link-btn selection-gated" id="manifestBtn" style="display:none;">Preview Manifest</button>
+            <span class="link-sep" id="manifestSep" style="display:none;">|</span>
+            <button tabindex="-1" type="button" class="link-btn selection-gated" id="requestItemBtn" style="display:none;">Process Request</button>
           </div>
           <div class="actionbar-right">
             <button tabindex="-1" type="button" class="icon-btn" id="refreshBtn" title="Refresh">

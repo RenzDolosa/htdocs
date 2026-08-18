@@ -181,16 +181,20 @@ export class RequisitionController {
 
   /** Opens the per-row Action menu (Print's neighbor in Recent
    * Requisitions) — Finish (or Reopen, once already finished) plus
-   * Delete, via the shared DropdownMenu component rather than a
-   * bespoke popover. */
+   * Delete, via the shared DropdownMenu component rather than a bespoke
+   * popover. "Process request" used to live here too; it now lives in
+   * Manage's own action bar (see ManageController.openProcessRequestModal)
+   * so the assets issued are exactly the ones selected in that grid,
+   * previewed and printed the same way a Manifest transfer is. */
   _openRowMenu(anchor, id) {
     if (!can('requisition.action')) return;
     const requisition = this.store.get(id);
     if (!requisition) return;
+    const pending = requisition.status !== 'finished';
     const items = [
-      requisition.status === 'finished'
-        ? { label: 'Reopen', onClick: () => this._setStatus(id, 'pending') }
-        : { label: 'Finish', onClick: () => this._setStatus(id, 'finished') },
+      pending
+        ? { label: 'Finish', onClick: () => this._setStatus(id, 'finished') }
+        : { label: 'Reopen', onClick: () => this._setStatus(id, 'pending') },
       { label: 'Delete', danger: true, onClick: () => this._deleteRequisition(id) }
     ];
     openDropdownMenu({ anchor, items });

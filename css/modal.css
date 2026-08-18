@@ -227,6 +227,10 @@ textarea.invalid:focus{ box-shadow: 0 0 0 3px var(--bad-soft); }
 }
 .manifest-meta-row label .required-mark{ color: var(--bad); margin-right: 2px; }
 .manifest-meta-row input{ flex: 1; background: var(--surface); }
+/* The "Requisition" picker (Process Request only) is a <select> wrapped
+   by enhanceSelect — give its trigger button the same flex-1/footprint
+   as the plain text inputs beside it in the meta grid. */
+.manifest-meta-row .filter-dropdown-trigger{ flex: 1; width: 100%; padding: 9px 11px; font-size: 13.5px; }
 .manifest-signature-line{ flex: 1; border-bottom: 1px solid var(--ink-faint); height: 22px; }
 
 .manifest-table-wrap{ overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }

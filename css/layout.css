@@ -166,6 +166,11 @@ html, body{ height: 100%; }
 .link-btn:hover{ text-decoration: underline; }
 .link-btn.danger{ color: var(--bad); }
 .link-btn:disabled{ opacity: 0.45; cursor: not-allowed; pointer-events: none; text-decoration: none; }
+/* Adjust Position / Preview Manifest (Manage): stay visible and clickable-looking
+   at all times, just dimmed less than the generic disabled state while nothing's
+   selected — see ManageController._updateSelectionActions. */
+.link-btn.selection-gated:disabled{ opacity: 0.8; cursor: not-allowed; pointer-events: auto;
+  color: var(--ink-faint); }
 /* Persistent toggle buttons (Pending transfers) rather than one-shot
    actions — underline stays on while the filter is active, same visual
    language as :hover so "pressed" reads as a natural extension of it. */

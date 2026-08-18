@@ -196,7 +196,11 @@ create table if not exists public.requisitions (
   purpose          text default '',
   "submittedBy"    text default '',
   "createdAt"      bigint not null,
-  status           text default 'pending'
+  status           text default 'pending',
+  -- Gadget ids actually issued by "Process request" (see
+  -- RequisitionController._processRequest) — see
+  -- models/Requisition.js's own fulfilledGadgetIds doc.
+  "fulfilledGadgetIds" jsonb default '[]'::jsonb
 );
 
 -- ----------------------------------------------------------------------------
@@ -233,6 +237,16 @@ alter table public.warehouse_locations add column if not exists "isDefaultStockR
 -- Recent Requisitions' own Action menu (Finish/Reopen/Delete) — see
 -- models/Requisition.js's status doc.
 alter table public.requisitions add column if not exists status text default 'pending';
+
+-- "Process request" (see RequisitionController._processRequest) records
+-- which gadgets it actually issued here — this column was missing from
+-- every already-created requisitions table, which broke not just
+-- "Process request" but *every* new requisition Submit: the Requisition
+-- model has always included fulfilledGadgetIds (defaulting to []) on
+-- every instance, so every insert sent a column Postgres didn't
+-- recognize and rejected the whole row — see
+-- models/Requisition.js's own fulfilledGadgetIds doc.
+alter table public.requisitions add column if not exists "fulfilledGadgetIds" jsonb default '[]'::jsonb;
 
 -- ----------------------------------------------------------------------------
 -- user_accounts  (Settings → User management → User)

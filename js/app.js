@@ -55,10 +55,12 @@ function collectRefs() {
     exportBtn: document.getElementById('exportBtn'),
     columnBtn: document.getElementById('manageColumnBtn'),
     manifestBtn: document.getElementById('manifestBtn'),
+    manifestSep: document.getElementById('manifestSep'),
     pendingTransfersBtn: document.getElementById('pendingTransfersBtn'),
     pendingTransfersSep: document.getElementById('pendingTransfersSep'),
     transferItemBtn: document.getElementById('transferItemBtn'),
     transferItemSep: document.getElementById('transferItemSep'),
+    requestItemBtn: document.getElementById('requestItemBtn'),
     refreshBtn: document.getElementById('refreshBtn'),
 
     // Table
@@ -602,7 +604,7 @@ async function startApp(session) {
 
   const refs = collectRefs();
   const view = new ManageView(refs);
-  const controller = new ManageController({ store, view, refs, inventoryAssetStore, warehouseStore, locationStore: warehouseLocationStore });
+  const controller = new ManageController({ store, view, refs, inventoryAssetStore, warehouseStore, locationStore: warehouseLocationStore, requisitionStore });
   controller.init();
 
   const inventoryAssetRefs = collectInventoryAssetRefs();

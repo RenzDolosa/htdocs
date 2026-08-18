@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '../../public/vendor/supabase-js.esm.js';
 import { supabase } from './supabaseClient.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, EMPLOYEE_PORTAL_EMAIL, EMPLOYEE_PORTAL_PASSWORD } from './supabaseConfig.js';
 import { getEmployeeProfile, setEmployeeProfile } from './EmployeeSession.js';
