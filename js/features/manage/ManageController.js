@@ -591,9 +591,10 @@ export class ManageController {
 
     if (this.refs.requestItemBtn) {
       const canRequest = can('manage.process-request');
+      const hasPendingRequisitions = Boolean(this.requisitionStore?.list().some((r) => r.status !== 'finished'));
       this.refs.requestItemBtn.style.display = canRequest ? '' : 'none';
-      this.refs.requestItemBtn.disabled = !hasSelection;
-      this.refs.requestItemBtn.title = hasSelection ? '' : 'Select one or more assets first.';
+      this.refs.requestItemBtn.disabled = !hasPendingRequisitions;
+      this.refs.requestItemBtn.title = hasPendingRequisitions ? '' : 'No pending requisitions to process.';
     }
   }
 
@@ -934,23 +935,41 @@ export class ManageController {
   }
 
   /**
-   * Opens the Process Request document for the currently checked rows —
-   * same selection-first, print-then-confirm shape as openManifestModal()
-   * above, just pairing the chosen assets with a pending Requisition and
-   * issuing them to that requester instead of transferring them to a
-   * warehouse location. Replaces the old "Process request" action that
-   * used to live on each row of Recent Requisitions (Requisition tab),
-   * which auto-picked matching stock with no preview step; this is the
-   * same underlying issuance, now driven from Manage's own asset
-   * selection so exactly the physical units chosen here are the ones
-   * issued and recorded.
+   * Opens the Process Request document — same print-then-confirm shape
+   * as openManifestModal() above, and the same "Transfer to" location-
+   * resolution/pending-transfer handling too: it pairs whatever's
+   * checked in the grid with a pending Requisition, issues those assets
+   * to that requester (applied immediately — nothing to confirm about a
+   * person having their own unit in hand), and requests their transfer
+   * to wherever "Transfer to" resolves to (queued as a pendingTransfer
+   * for that destination warehouse to confirm, exactly like a Manifest
+   * transfer). Unlike Manifest, no asset selection is required to open
+   * it — gated only on there being a pending Requisition to work from
+   * (see _updateSelectionActions); the document opens with a blank row
+   * ready to fill in by hand if nothing's checked. Replaces the old
+   * "Process request" action that used to live on each row of Recent
+   * Requisitions (Requisition tab), which auto-picked matching stock
+   * with no preview step; this is the same underlying issuance, now
+   * driven from Manage so exactly the physical units chosen here — if
+   * any — are the ones issued and recorded.
    */
   openProcessRequestModal() {
     if (!can('manage.process-request')) return;
-    if (this.selected.size === 0) return;
-    const gadgets = this._filteredSortedGadgets().filter((g) => this.selected.has(g.id));
     const requisitions = this.requisitionStore ? this.requisitionStore.list() : [];
-    showProcessRequestModal({ gadgets, requisitions, gadgetStore: this.store, requisitionStore: this.requisitionStore });
+    if (!requisitions.some((r) => r.status !== 'finished')) return; // button is disabled for this case too — belt-and-suspenders
+    // Unlike Manifest, an asset selection isn't required to open this —
+    // ProcessRequestModal falls back to a single blank row when nothing's
+    // checked, same as it already does for any hand-added row beyond the
+    // selection. Whatever *is* checked still pre-fills, same as before.
+    const gadgets = this._filteredSortedGadgets().filter((g) => this.selected.has(g.id));
+    showProcessRequestModal({
+      gadgets,
+      requisitions,
+      gadgetStore: this.store,
+      requisitionStore: this.requisitionStore,
+      locationStore: this.locationStore,
+      warehouseStore: this.warehouseStore
+    });
   }
 
   /**

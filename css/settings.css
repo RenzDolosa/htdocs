@@ -112,11 +112,17 @@
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   width: 100%; padding: 9px 11px; border-radius: 5px; border: 1px solid var(--border);
   font-size: 13.5px; background: var(--surface); color: var(--ink); cursor: pointer; text-align: left;
+  /* Flex items default to min-width: auto, which lets a long label push
+     this button (and its .flex-1 ancestor, e.g. .manifest-meta-row) wider
+     than the space actually available instead of ever shrinking down to
+     it — min-width: 0 is what lets .filter-dropdown-label's own
+     overflow/ellipsis rule below actually take effect. */
+  min-width: 0;
 }
 .filter-dropdown-trigger:focus{ outline: none; border-color: var(--steel); box-shadow: 0 0 0 3px var(--steel-soft); }
 .filter-dropdown-trigger.is-placeholder .filter-dropdown-label{ color: var(--ink-faint); }
 .filter-dropdown-trigger.is-disabled{ background: var(--surface-sunk); color: var(--ink-faint); cursor: not-allowed; }
-.filter-dropdown-label{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filter-dropdown-label{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .filter-dropdown-caret{ font-size: 11px; color: var(--ink-faint); flex-shrink: 0; }
 .loc-modal-actions{ display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
 .loc-table-wrap{ max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); }
