@@ -466,7 +466,7 @@ export function openManifestModal({ gadgets = [], store = null, locationStore = 
       const gadget = store.get(rowId);
       if (!gadget) return;
 
-      const previousMerchant = gadget.merchant || '';
+      const previousMerchant = gadget.merchant || 'None';
       if (previousMerchant === transferTo) return;
 
       if (placement.matched) {

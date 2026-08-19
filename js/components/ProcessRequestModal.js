@@ -586,7 +586,13 @@ export function openProcessRequestModal({ gadgets = [], requisitions = [], gadge
       const gadget = gadgetStore.get(rowId);
       if (!gadget) return;
 
-      const previousMerchant = gadget.merchant || '';
+      // 'None' rather than '' so the log message this feeds into (below)
+      // reads as "merchant 'None' → 'X'" instead of "merchant '' → 'X'"
+      // — same fallback ManifestModal.js's own applyMerchantTransfer
+      // already uses, for the same reason: an empty pair of quotes in a
+      // permanent history entry reads as a rendering glitch, not "this
+      // gadget didn't have a merchant yet."
+      const previousMerchant = gadget.merchant || 'None';
 
       if (placement.matched) {
         gadget.addLogEntry(

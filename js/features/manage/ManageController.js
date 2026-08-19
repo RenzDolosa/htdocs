@@ -95,8 +95,12 @@ export class ManageController {
       pageSize: 50
     };
     this.selected = new Set();
+    // Guards the store 'change' subscription below during
+    // _confirmSelectedTransfers/_cancelSelectedTransfers — see their own
+    // doc comments for why a bulk operation needs this.
+    this._bulkTransferInProgress = false;
 
-    this.store.on('change', () => this.render());
+    this.store.on('change', () => { if (!this._bulkTransferInProgress) this.render(); });
     this.warehouseStore?.on('change', () => this.render());
     this.locationStore?.on('change', () => this.render());
     // A Requisition submitted/finished/deleted elsewhere (Requisition tab)
@@ -595,7 +599,81 @@ export class ManageController {
       this.refs.requestItemBtn.style.display = canRequest ? '' : 'none';
       this.refs.requestItemBtn.disabled = !hasPendingRequisitions;
       this.refs.requestItemBtn.title = hasPendingRequisitions ? '' : 'No pending requisitions to process.';
+      if (this.refs.requestItemSep) this.refs.requestItemSep.style.display = canRequest ? '' : 'none';
     }
+
+    this._updatePendingTransferBulkButtons(hasSelection);
+  }
+
+  /**
+   * "Transfers" — a dropdown (same shape as "Adjust Position", see
+   * _openAdjustPositionMenu) bundling the bulk siblings of the per-row
+   * ✓/✕ actions in the Actions column (confirmTransfer/
+   * cancelPendingTransfer), for exactly the scenario the Pending
+   * Transfers filter itself is meant for: dozens or hundreds of rows
+   * waiting on the same warehouse, clicked through one at a time
+   * otherwise. Used to be two separate always-visible buttons
+   * ("Confirm Transfers (N)" / "Cancel Transfers (N)") sitting side by
+   * side in the toolbar — collapsed into one trigger + menu so the
+   * action bar doesn't grow a new pair of buttons for every bulk
+   * capability it gains. Each item is still gated the same way its old
+   * standalone button was — manage.confirm-transfers, plus (Cancel only)
+   * manage.edit.merchant — and only counts checked rows that are
+   * actually actionable right now (has a pendingTransfer this session is
+   * allowed to touch), so an item's own count never promises more than
+   * _confirmSelectedTransfers/_cancelSelectedTransfers below will
+   * actually do.
+   */
+  _updatePendingTransferBulkButtons(hasSelection) {
+    if (!this.refs.transfersMenuBtn) return;
+    const canConfirm = can('manage.confirm-transfers');
+    const canCancel = can('manage.confirm-transfers') || can('manage.edit.merchant');
+    const confirmable = canConfirm ? this._selectedPendingTransferGadgets() : [];
+    const cancellable = canCancel ? this._selectedCancellableTransferGadgets() : [];
+
+    this.refs.transfersMenuBtn.style.display = (canConfirm || canCancel) ? '' : 'none';
+    this.refs.transfersMenuBtn.disabled = confirmable.length === 0 && cancellable.length === 0;
+    this.refs.transfersMenuBtn.title = this.refs.transfersMenuBtn.disabled
+      ? (hasSelection ? 'None of the selected assets have a pending transfer you can confirm or cancel.' : 'Select one or more assets with a pending transfer first.')
+      : '';
+  }
+
+  /** Opens the "Transfers" dropdown — see _updatePendingTransferBulkButtons
+   * for why this replaced two standalone buttons. Each item carries its
+   * own live count and is only included when that action actually has
+   * something to act on, same as the old buttons hiding/disabling
+   * themselves individually. */
+  _openTransfersMenu() {
+    if (this.refs.transfersMenuBtn.disabled) return;
+    const canConfirm = can('manage.confirm-transfers');
+    const canCancel = can('manage.confirm-transfers') || can('manage.edit.merchant');
+    const confirmable = canConfirm ? this._selectedPendingTransferGadgets() : [];
+    const cancellable = canCancel ? this._selectedCancellableTransferGadgets() : [];
+
+    const items = [];
+    if (confirmable.length > 0) {
+      items.push({ label: `Confirm Transfers (${confirmable.length})`, onClick: () => this._confirmSelectedTransfers() });
+    }
+    if (cancellable.length > 0) {
+      items.push({ label: `Cancel Transfers (${cancellable.length})`, danger: true, onClick: () => this._cancelSelectedTransfers() });
+    }
+    if (items.length === 0) return;
+    openDropdownMenu({ anchor: this.refs.transfersMenuBtn, items });
+  }
+
+  /** Checked rows with a pending transfer this session can confirm — see _canActOnPendingTransfer. */
+  _selectedPendingTransferGadgets() {
+    return [...this.selected]
+      .map((id) => this.store.get(id))
+      .filter((g) => g && g.pendingTransfer && this._canActOnPendingTransfer(g));
+  }
+
+  /** Checked rows with a pending transfer this session can cancel — same "confirm-transfers
+   * OR edit.merchant" rule as the single-row cancelPendingTransfer itself. */
+  _selectedCancellableTransferGadgets() {
+    return [...this.selected]
+      .map((id) => this.store.get(id))
+      .filter((g) => g && g.pendingTransfer && (this._canActOnPendingTransfer(g) || can('manage.edit.merchant')));
   }
 
   // ---------- Filter bar bindings ----------
@@ -647,6 +725,7 @@ export class ManageController {
     this.refs.manifestBtn.addEventListener('click', () => this.openManifestModal());
     this.refs.transferItemBtn.addEventListener('click', () => this._openAdjustPositionMenu());
     this.refs.requestItemBtn?.addEventListener('click', () => this.openProcessRequestModal());
+    this.refs.transfersMenuBtn?.addEventListener('click', () => this._openTransfersMenu());
     this.refs.refreshBtn.addEventListener('click', () => this.render());
   }
 
@@ -851,12 +930,15 @@ export class ManageController {
   }
 
   /** Applies a pending transfer: writes merchant/positionType/warehouse/owner from the
-   * stashed request and clears it. See models/Gadget.js's pendingTransfer for the shape. */
-  confirmTransfer(id) {
+   * stashed request and clears it. See models/Gadget.js's pendingTransfer for the shape.
+   * `silent` skips the per-item Toast — used by _confirmSelectedTransfers so confirming
+   * a few hundred rows doesn't also queue a few hundred toasts; the bulk caller shows one
+   * combined message instead. */
+  confirmTransfer(id, { silent = false } = {}) {
     const gadget = this.store.get(id);
     if (!gadget || !gadget.pendingTransfer) return;
     if (!this._canActOnPendingTransfer(gadget)) {
-      Toast.error('You do not have Confirm transfers access.');
+      if (!silent) Toast.error('You do not have Confirm transfers access.');
       return;
     }
     const p = gadget.pendingTransfer;
@@ -873,24 +955,25 @@ export class ManageController {
       owner: p.toOwner,
       pendingTransfer: null
     });
-    Toast.success(`Transfer to '${p.toMerchant}' confirmed.`);
+    if (!silent) Toast.success(`Transfer to '${p.toMerchant}' confirmed.`);
   }
 
   /** Withdraws a pending transfer without applying it — merchant/positionType/warehouse/
    * owner are untouched, exactly as if the request had never been made. Open to the same
    * people who can confirm, plus manage.edit.merchant holders (the same permission that
-   * could have requested it in the first place, so they can also take it back). */
-  cancelPendingTransfer(id) {
+   * could have requested it in the first place, so they can also take it back). `silent`
+   * — see confirmTransfer's own doc comment just above. */
+  cancelPendingTransfer(id, { silent = false } = {}) {
     const gadget = this.store.get(id);
     if (!gadget || !gadget.pendingTransfer) return;
     if (!this._canActOnPendingTransfer(gadget) && !can('manage.edit.merchant')) {
-      Toast.error('You do not have permission to cancel this transfer.');
+      if (!silent) Toast.error('You do not have permission to cancel this transfer.');
       return;
     }
     const p = gadget.pendingTransfer;
     gadget.addLogEntry(`Transfer to '${p.toMerchant}' cancelled before confirmation.`, 'transfer', { from: p.toMerchant, to: gadget.merchant || '' }, getOperatorName());
     this.store.update(gadget.id, { pendingTransfer: null });
-    Toast.show(`Pending transfer to '${p.toMerchant}' cancelled.`);
+    if (!silent) Toast.show(`Pending transfer to '${p.toMerchant}' cancelled.`);
   }
 
   /** Row-action entry point for Confirm: asks first, since this is the one click that
@@ -920,6 +1003,73 @@ export class ManageController {
       danger: true
     });
     if (ok) this.cancelPendingTransfer(id);
+  }
+
+  /**
+   * Bulk sibling of _confirmTransferWithPrompt — one confirm dialog, then
+   * confirmTransfer() run silently across every checked, actionable row
+   * (see _selectedPendingTransferGadgets), with a single summary Toast at
+   * the end instead of one per row. Each call still re-checks
+   * _canActOnPendingTransfer/pendingTransfer for itself, so a row that
+   * changed out from under the selection between opening the dialog and
+   * confirming (someone else confirms/cancels it first, a live update
+   * from another tab, etc.) is simply skipped rather than mis-applied —
+   * the summary count reflects what actually happened, not what was
+   * requested.
+   *
+   * this._bulkTransferInProgress mutes the store's own change → render
+   * loop for the duration (see the this.store.on('change', ...)
+   * subscription up in the constructor) so a few hundred sequential
+   * store.update() calls don't also trigger a few hundred full grid
+   * re-renders; render() is invoked once, manually, right after.
+   */
+  async _confirmSelectedTransfers() {
+    const gadgets = this._selectedPendingTransferGadgets();
+    if (gadgets.length === 0) return;
+    const ok = await confirmDialog({
+      title: 'Confirm receipt',
+      message: `Confirm ${gadgets.length} asset${gadgets.length === 1 ? '' : 's'} arrived at ${gadgets.length === 1 ? 'its requested transfer destination' : 'their requested transfer destinations'}? This will finalize ${gadgets.length === 1 ? 'that transfer' : 'these transfers'}.`,
+      confirmLabel: `Confirm ${gadgets.length} transfer${gadgets.length === 1 ? '' : 's'}`
+    });
+    if (!ok) return;
+
+    this._bulkTransferInProgress = true;
+    let confirmed = 0;
+    gadgets.forEach((g) => {
+      const before = this.store.get(g.id)?.pendingTransfer;
+      this.confirmTransfer(g.id, { silent: true });
+      if (before) confirmed++;
+    });
+    this._bulkTransferInProgress = false;
+    this.render();
+
+    Toast.success(`${confirmed} transfer${confirmed === 1 ? '' : 's'} confirmed.`);
+  }
+
+  /** Bulk sibling of _cancelTransferWithPrompt — see _confirmSelectedTransfers's own doc
+   * comment just above for the shape (single dialog, silent per-row calls, one render). */
+  async _cancelSelectedTransfers() {
+    const gadgets = this._selectedCancellableTransferGadgets();
+    if (gadgets.length === 0) return;
+    const ok = await confirmDialog({
+      title: 'Cancel pending transfers',
+      message: `Cancel the pending transfer on ${gadgets.length} asset${gadgets.length === 1 ? '' : 's'}? ${gadgets.length === 1 ? 'It' : 'They'} will stay at ${gadgets.length === 1 ? 'its' : 'their'} current merchant.`,
+      confirmLabel: `Cancel ${gadgets.length} transfer${gadgets.length === 1 ? '' : 's'}`,
+      danger: true
+    });
+    if (!ok) return;
+
+    this._bulkTransferInProgress = true;
+    let cancelled = 0;
+    gadgets.forEach((g) => {
+      const before = this.store.get(g.id)?.pendingTransfer;
+      this.cancelPendingTransfer(g.id, { silent: true });
+      if (before) cancelled++;
+    });
+    this._bulkTransferInProgress = false;
+    this.render();
+
+    Toast.show(`${cancelled} pending transfer${cancelled === 1 ? '' : 's'} cancelled.`);
   }
 
   /**

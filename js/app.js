@@ -61,6 +61,8 @@ function collectRefs() {
     transferItemBtn: document.getElementById('transferItemBtn'),
     transferItemSep: document.getElementById('transferItemSep'),
     requestItemBtn: document.getElementById('requestItemBtn'),
+    requestItemSep: document.getElementById('requestItemSep'),
+    transfersMenuBtn: document.getElementById('transfersMenuBtn'),
     refreshBtn: document.getElementById('refreshBtn'),
 
     // Table
