@@ -9,10 +9,19 @@
  * Never put the service_role key here, or anywhere client-side — that key
  * bypasses RLS entirely and belongs only on a trusted server.
  *
- * Fill these in from: Supabase dashboard → your project → Settings → API.
+ * Read from window.__ENV__ (see env.js at the project root) rather than
+ * hardcoded here directly — env.js is this project's ".env" equivalent:
+ * a plain script, loaded by index.html before app.js's module script,
+ * holding the real values for this deployment; it's gitignored, so
+ * credentials never end up in a tracked file. The fallback strings below
+ * (still shaped like real values, just obviously placeholder ones) exist
+ * purely so a fresh checkout without env.js set up yet fails through
+ * supabaseClient.js's own isConfigured check with a clear console
+ * warning, instead of `undefined.startsWith is not a function` or
+ * similar the moment this loads.
  */
-export const SUPABASE_URL = 'https://ttoaqikahjckvukiohle.supabase.co';
-export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0b2FxaWthaGpja3Z1a2lvaGxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5MDE5NTUsImV4cCI6MjA5OTQ3Nzk1NX0.UdmKjc2ctsOoICn7w7uUatkXUuza3aQTP-GHHXBm0_I';
+export const SUPABASE_URL = window.__ENV__?.SUPABASE_URL || 'https://YOUR-PROJECT-REF.supabase.co';
+export const SUPABASE_ANON_KEY = window.__ENV__?.SUPABASE_ANON_KEY || 'YOUR-ANON-KEY';
 
 /**
  * "Login as Employee" (see js/core/EmployeeSession.js) verifies an

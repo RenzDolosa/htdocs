@@ -1,3 +1,9 @@
 gadget.zip
 gadget1.zip
 gadget2.zip
+
+# Runtime config — this project's ".env" equivalent (see env.js/
+# env.example.js's own doc comments). Holds real Supabase credentials for
+# this deployment; never commit it.
+env.js
+.env

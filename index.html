@@ -683,6 +683,12 @@
 
 <!-- Modal and toast containers are created dynamically by js/components/Modal.js and Toast.js -->
 
+<!-- Plain (non-module) script, loaded before app.js's module graph so
+     js/core/supabaseConfig.js can read window.__ENV__ at import time —
+     see env.js's own doc comment for why this is the ".env" equivalent
+     for a bundler-free static app. Gitignored; copy env.example.js to
+     env.js and fill in your own project's values if this 404s. -->
+<script src="env.js"></script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

@@ -116,12 +116,15 @@ plain Postgres SQL, and this is plain Postgres.
 
 ## 6. Point the app at your self-hosted instance
 
-In `js/core/supabaseConfig.js`, this is the only real code change in
-this whole migration:
+In `env.js` (project root — see that file's own doc comment; it's this
+project's ".env" equivalent since there's no bundler to read a real one),
+this is the only real config change in this whole migration:
 
 ```js
-export const SUPABASE_URL = 'http://localhost:8000';   // → your Kong gateway
-export const SUPABASE_ANON_KEY = '<the ANON_KEY from your .env>';
+window.__ENV__ = {
+  SUPABASE_URL: 'http://localhost:8000',   // → your Kong gateway
+  SUPABASE_ANON_KEY: '<the ANON_KEY from your self-hosted .env>'
+};
 ```
 
 (Port `8000` is Kong, the API gateway that routes to Postgres/Auth/

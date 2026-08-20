@@ -39,10 +39,11 @@ Nothing in `ManageController.js`, `InventoryAssetController.js`,
    and adds the tables to the realtime publication.
 3. **(Optional) Seed demo data**: same SQL Editor → paste
    `supabase/seed.sql` → Run. Skip this if you want the app to start empty.
-4. **Fill in credentials**: `js/core/supabaseConfig.js` →
-   `SUPABASE_URL` and `SUPABASE_ANON_KEY`, from Supabase dashboard → Settings
-   → API. The anon key is safe to ship client-side — RLS is what actually
-   gates access (see below).
+4. **Fill in credentials**: copy `env.example.js` → `env.js` (project
+   root), then fill in `SUPABASE_URL` and `SUPABASE_ANON_KEY` there, from
+   Supabase dashboard → Settings → API. The anon key is safe to ship
+   client-side — RLS is what actually gates access (see below). `env.js`
+   is gitignored, so this never ends up in a tracked file.
 5. **Serve the app** the same way you already do (it's still a plain
    `<script type="module">` app, no bundler) and open it. Check the browser
    console: `SupabaseStore` logs an error there if the client isn't
